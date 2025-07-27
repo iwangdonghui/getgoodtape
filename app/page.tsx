@@ -14,12 +14,30 @@ export default function HomePage() {
     
     setIsLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubscribed(true);
+    try {
+      const response = await fetch('/api/subscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setIsSubscribed(true);
+        setEmail('');
+      } else {
+        console.error('Subscription failed:', data.error);
+        alert('订阅失败，请稍后重试。');
+      }
+    } catch (error) {
+      console.error('Network error:', error);
+      alert('网络错误，请检查连接后重试。');
+    } finally {
       setIsLoading(false);
-      setEmail('');
-    }, 1000);
+    }
   };
 
   return (

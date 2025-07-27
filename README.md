@@ -43,6 +43,19 @@ The GetGoodTape logo combines:
 - Quality-focused
 - User-friendly
 
+## Features
+
+### Email Subscription System
+- Real email collection with validation
+- Subscriber data stored in JSON format
+- Admin dashboard to view and export subscribers
+- CSV export functionality for email marketing
+
+### Admin Access
+- Visit `/admin/subscribers` to view subscriber list
+- Default password: `getgoodtape2024` (change in production)
+- Export subscriber data as CSV
+
 ## Development
 
 ```bash
@@ -55,6 +68,12 @@ npm run dev
 # Build for production
 npm run build
 ```
+
+## API Endpoints
+
+- `POST /api/subscribe` - Subscribe to email list
+- `GET /api/subscribers` - Get all subscribers (admin)
+- `GET /api/health` - Health check
 
 ## File Structure
 
