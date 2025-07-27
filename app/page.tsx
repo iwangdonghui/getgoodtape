@@ -180,7 +180,7 @@ export default function HomePage() {
             <span className="text-deep-brown font-medium">GetGoodTape</span>
           </div>
           <p className="text-deep-brown/60 text-sm">
-            © 2024 GetGoodTape. Coming soon to transform your video experience.
+            © 2025 GetGoodTape. Coming soon to transform your video experience.
           </p>
         </div>
       </footer>
