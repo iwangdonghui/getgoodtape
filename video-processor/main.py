@@ -45,7 +45,7 @@ class VideoMetadataRequest(BaseModel):
 
 class VideoMetadata(BaseModel):
     title: str
-    duration: int  # in seconds
+    duration: float  # in seconds (allow float for precise duration)
     thumbnail: str
     uploader: str
     upload_date: str
