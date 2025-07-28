@@ -14,6 +14,17 @@ export class DatabaseManager {
     const now = Math.floor(Date.now() / 1000);
     const expiresAt = now + 24 * 60 * 60; // 24 hours from now
 
+    // Graceful degradation for development environment
+    if (!this.env.DB) {
+      console.warn('Database not available in development environment');
+      return {
+        ...job,
+        created_at: now,
+        updated_at: now,
+        expires_at: expiresAt,
+      };
+    }
+
     const stmt = this.env.DB.prepare(`
       INSERT INTO conversion_jobs (
         id, url, platform, format, quality, status, progress,
@@ -50,6 +61,11 @@ export class DatabaseManager {
   }
 
   async getConversionJob(id: string): Promise<ConversionJob | null> {
+    if (!this.env.DB) {
+      console.warn('Database not available in development environment');
+      return null;
+    }
+
     const stmt = this.env.DB.prepare(
       'SELECT * FROM conversion_jobs WHERE id = ?'
     );
@@ -61,6 +77,11 @@ export class DatabaseManager {
     id: string,
     updates: Partial<ConversionJob>
   ): Promise<void> {
+    if (!this.env.DB) {
+      console.warn('Database not available in development environment');
+      return;
+    }
+
     const now = Math.floor(Date.now() / 1000);
 
     const fields = Object.keys(updates).filter(
@@ -72,21 +93,39 @@ export class DatabaseManager {
 
     const setClause = fields.map(field => `${field} = ?`).join(', ');
     const stmt = this.env.DB.prepare(`
-      UPDATE conversion_jobs 
-      SET ${setClause}, updated_at = ? 
+      UPDATE conversion_jobs
+      SET ${setClause}, updated_at = ?
       WHERE id = ?
     `);
 
     await stmt.bind(...values, now, id).run();
   }
 
-  async deleteExpiredJobs(): Promise<number> {
-    const now = Math.floor(Date.now() / 1000);
+  async deleteExpiredJobs(timestamp?: number): Promise<number> {
+    const now = timestamp ? Math.floor(timestamp / 1000) : Math.floor(Date.now() / 1000);
     const stmt = this.env.DB.prepare(
       'DELETE FROM conversion_jobs WHERE expires_at < ?'
     );
     const result = await stmt.bind(now).run();
     return result.meta.changes || 0;
+  }
+
+  async getActiveConversionJobs(): Promise<ConversionJob[]> {
+    const stmt = this.env.DB.prepare(`
+      SELECT * FROM conversion_jobs
+      WHERE status IN ('queued', 'processing')
+      ORDER BY created_at ASC
+    `);
+    const result = await stmt.all<ConversionJob>();
+    return result.results || [];
+  }
+
+  async getJobsByStatus(status: string): Promise<ConversionJob[]> {
+    const stmt = this.env.DB.prepare(
+      'SELECT * FROM conversion_jobs WHERE status = ? ORDER BY created_at DESC'
+    );
+    const result = await stmt.bind(status).all<ConversionJob>();
+    return result.results || [];
   }
 
   // Platforms

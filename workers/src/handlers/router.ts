@@ -2,6 +2,8 @@ import { Hono } from 'hono';
 import { DatabaseManager } from '../utils/database';
 import { CacheManager } from '../utils/cache';
 import { UrlValidator } from '../utils/url-validator';
+import { ConversionService } from '../utils/conversion-service';
+import { StorageManager } from '../utils/storage';
 import { ErrorType, ConvertRequest, PlatformsResponse, Env } from '../types';
 
 export const router = new Hono<{ Bindings: Env }>();
@@ -262,17 +264,24 @@ router.post('/convert', async c => {
       );
     }
 
-    // TODO: Implement actual conversion logic
+    // Add platform to request
+    const conversionRequest: ConvertRequest = {
+      ...body,
+      platform: validation.platform?.name,
+    };
+
+    // Start conversion
+    const conversionService = new ConversionService(c.env);
+    const jobId = await conversionService.startConversion(conversionRequest);
+
     return c.json({
-      message:
-        'Conversion endpoint - validation passed, conversion logic to be implemented',
-      validation: {
-        platform: validation.platform?.name,
-        videoId: validation.videoId,
-        format: body.format,
-        quality: body.quality,
-      },
+      success: true,
+      jobId,
+      status: 'queued',
+      message: 'Conversion job started successfully',
+      estimatedTime: '30-120 seconds',
     });
+
   } catch (error) {
     console.error('Conversion endpoint error:', error);
     return c.json(
@@ -289,14 +298,140 @@ router.post('/convert', async c => {
 });
 
 router.get('/status/:jobId', async c => {
-  const jobId = c.req.param('jobId');
-  // TODO: Implement status check logic
-  return c.json({ jobId, message: 'Status endpoint - to be implemented' });
+  try {
+    const jobId = c.req.param('jobId');
+
+    if (!jobId) {
+      return c.json(
+        {
+          error: {
+            type: ErrorType.INVALID_URL,
+            message: 'Job ID is required',
+            retryable: false,
+          },
+        },
+        400
+      );
+    }
+
+    const conversionService = new ConversionService(c.env);
+    const status = await conversionService.getConversionStatus(jobId);
+
+    if (!status) {
+      return c.json(
+        {
+          error: {
+            type: ErrorType.VIDEO_NOT_FOUND,
+            message: 'Job not found',
+            retryable: false,
+          },
+        },
+        404
+      );
+    }
+
+    return c.json({
+      success: true,
+      ...status,
+    });
+
+  } catch (error) {
+    console.error('Status endpoint error:', error);
+    return c.json(
+      {
+        error: {
+          type: ErrorType.SERVER_ERROR,
+          message: 'Internal server error during status check',
+          retryable: true,
+        },
+      },
+      500
+    );
+  }
 });
 
 // Download proxy endpoint
-router.get('/download/:fileId', async c => {
-  const fileId = c.req.param('fileId');
-  // TODO: Implement download logic
-  return c.json({ fileId, message: 'Download endpoint - to be implemented' });
+router.get('/download/:fileName', async c => {
+  try {
+    const fileName = c.req.param('fileName');
+
+    if (!fileName) {
+      return c.json(
+        {
+          error: {
+            type: ErrorType.INVALID_URL,
+            message: 'File name is required',
+            retryable: false,
+          },
+        },
+        400
+      );
+    }
+
+    const storage = new StorageManager(c.env);
+    const file = await storage.getFile(fileName);
+
+    if (!file) {
+      return c.json(
+        {
+          error: {
+            type: ErrorType.VIDEO_NOT_FOUND,
+            message: 'File not found',
+            retryable: false,
+          },
+        },
+        404
+      );
+    }
+
+    return file;
+
+  } catch (error) {
+    console.error('Download endpoint error:', error);
+    return c.json(
+      {
+        error: {
+          type: ErrorType.SERVER_ERROR,
+          message: 'Internal server error during file download',
+          retryable: true,
+        },
+      },
+      500
+    );
+  }
 });
+
+// Admin/monitoring endpoints
+router.get('/admin/jobs', async c => {
+  try {
+    // Simple authentication check (in production, use proper auth)
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const db = new DatabaseManager(c.env);
+    const activeJobs = await db.getActiveConversionJobs();
+
+    return c.json({
+      success: true,
+      jobs: activeJobs,
+      count: activeJobs.length,
+    });
+
+  } catch (error) {
+    console.error('Admin jobs endpoint error:', error);
+    return c.json(
+      {
+        error: {
+          type: ErrorType.SERVER_ERROR,
+          message: 'Internal server error',
+          retryable: true,
+        },
+      },
+      500
+    );
+  }
+});
+
+export default router;

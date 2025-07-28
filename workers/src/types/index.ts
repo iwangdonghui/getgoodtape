@@ -3,6 +3,7 @@
  */
 
 // Database Models
+export type ConversionStatus = 'queued' | 'processing' | 'completed' | 'failed';
 export interface ConversionJob {
   id: string;
   url: string;
@@ -53,6 +54,17 @@ export interface ConvertRequest {
   platform?: string;
 }
 
+export interface VideoMetadata {
+  title: string;
+  duration: number;
+  thumbnail?: string;
+  uploader?: string;
+  uploadDate?: string;
+  viewCount?: number;
+  description?: string;
+  tags?: string[];
+}
+
 export interface ConvertResponse {
   jobId: string;
   status: ConversionStatus;
@@ -87,17 +99,6 @@ export interface Platform {
   };
 }
 
-export interface VideoMetadata {
-  title: string;
-  duration: number;
-  thumbnail: string;
-  uploader: string;
-  uploadDate: string;
-  viewCount?: number;
-  description?: string;
-  tags?: string[];
-}
-
 export interface ConversionResult {
   downloadUrl: string;
   filename: string;
@@ -107,8 +108,6 @@ export interface ConversionResult {
   duration: number;
   expiresAt: string;
 }
-
-export type ConversionStatus = 'queued' | 'processing' | 'completed' | 'failed';
 
 export enum ErrorType {
   INVALID_URL = 'INVALID_URL',
