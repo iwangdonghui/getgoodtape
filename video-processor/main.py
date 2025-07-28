@@ -1016,41 +1016,72 @@ async def youtube_bypass_endpoint(request: dict):
             'Mozilla/5.0 (Android 11; Mobile; rv:68.0) Gecko/68.0 Firefox/88.0',
         ]
 
-        # Advanced bypass strategies
+        # Advanced bypass strategies with more aggressive techniques
         strategies = [
             {
-                'name': 'Android TV',
+                'name': 'iOS Music',
                 'opts': {
                     'quiet': True,
-                    'extractor_args': {'youtube': {'player_client': ['android_tv']}},
+                    'extractor_args': {'youtube': {'player_client': ['ios_music']}},
+                    'http_headers': {'User-Agent': 'com.google.ios.youtubemusic/4.32.1 (iPhone14,3; U; CPU iOS 15_6 like Mac OS X)'},
+                }
+            },
+            {
+                'name': 'Android TV Embedded',
+                'opts': {
+                    'quiet': True,
+                    'extractor_args': {'youtube': {'player_client': ['android_tv_embedded']}},
+                    'http_headers': {'User-Agent': 'Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleWebKit/537.36 (KHTML, like Gecko) 85.0.4183.93/6.0 TV Safari/537.36'},
+                }
+            },
+            {
+                'name': 'Media Connect',
+                'opts': {
+                    'quiet': True,
+                    'extractor_args': {'youtube': {'player_client': ['mediaconnect']}},
                     'http_headers': {'User-Agent': random.choice(user_agents)},
                 }
             },
             {
-                'name': 'Android Music',
+                'name': 'Android Creator',
                 'opts': {
                     'quiet': True,
-                    'extractor_args': {'youtube': {'player_client': ['android_music']}},
-                    'http_headers': {'User-Agent': random.choice(user_agents)},
+                    'extractor_args': {'youtube': {'player_client': ['android_creator']}},
+                    'http_headers': {'User-Agent': 'com.google.android.apps.youtube.creator/22.30.100 (Linux; U; Android 11) gzip'},
                 }
             },
             {
-                'name': 'Web Embedded',
+                'name': 'Web Safari',
                 'opts': {
                     'quiet': True,
-                    'extractor_args': {'youtube': {'player_client': ['web_embedded']}},
-                    'http_headers': {'User-Agent': random.choice(user_agents)},
+                    'extractor_args': {'youtube': {'player_client': ['web_safari']}},
+                    'http_headers': {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.1 Safari/605.1.15'},
                 }
             },
             {
-                'name': 'Android with Proxy Headers',
+                'name': 'Android VR',
                 'opts': {
                     'quiet': True,
-                    'extractor_args': {'youtube': {'player_client': ['android']}},
+                    'extractor_args': {'youtube': {'player_client': ['android_vr']}},
+                    'http_headers': {'User-Agent': 'com.google.android.apps.youtube.vr.oculus/1.37.0 (Linux; U; Android 10; eureka-user Build/QTT1.200129.002) gzip'},
+                }
+            },
+            {
+                'name': 'TV HTML5 Embedded',
+                'opts': {
+                    'quiet': True,
+                    'extractor_args': {'youtube': {'player_client': ['tv_embedded']}},
+                    'http_headers': {'User-Agent': 'Mozilla/5.0 (SMART-TV; LINUX; Tizen 2.4.0) AppleWebKit/538.1+ (KHTML, like Gecko) Version/1.0 TV Safari/538.1'},
+                }
+            },
+            {
+                'name': 'Web with Cookies',
+                'opts': {
+                    'quiet': True,
+                    'extractor_args': {'youtube': {'player_client': ['web']}},
                     'http_headers': {
-                        'User-Agent': 'com.google.android.youtube/17.36.4 (Linux; U; Android 11) gzip',
-                        'X-YouTube-Client-Name': '3',
-                        'X-YouTube-Client-Version': '17.36.4',
+                        'User-Agent': random.choice(user_agents),
+                        'Cookie': 'CONSENT=YES+cb.20210328-17-p0.en+FX+{}'.format(random.randint(100, 999)),
                     },
                 }
             }
