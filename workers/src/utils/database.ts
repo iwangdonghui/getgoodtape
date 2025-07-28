@@ -86,7 +86,7 @@ export class DatabaseManager {
       'DELETE FROM conversion_jobs WHERE expires_at < ?'
     );
     const result = await stmt.bind(now).run();
-    return result.changes || 0;
+    return result.meta.changes || 0;
   }
 
   // Platforms
