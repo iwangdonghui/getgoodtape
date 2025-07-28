@@ -7,7 +7,7 @@
     "dev:all": "./scripts/dev.sh",
     "build": "npm run build:frontend && npm run build:workers",
     "build:frontend": "next build",
-    "build:workers": "cd workers && npm run build",
+    "build:workers": "cd workers && npm install && npm run build",
     "start": "next start",
     "lint": "npm run lint:frontend && npm run lint:workers",
     "lint:frontend": "next lint",
@@ -19,7 +19,8 @@
     "format:check": "prettier --check . && cd workers && npm run format:check",
     "type-check": "tsc --noEmit && cd workers && npm run type-check",
     "prepare": "husky install",
-    "install:all": "npm install && cd workers && npm install"
+    "install:all": "npm install && cd workers && npm install",
+    "postinstall": "cd workers && npm install"
   },
   "dependencies": {
     "next": "^14.2.30",
