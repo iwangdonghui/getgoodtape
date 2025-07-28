@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "dev:all": "./scripts/dev.sh",
-    "build": "npm run build:frontend && npm run build:workers",
+    "build": "next build",
+    "build:full": "npm run build:frontend && npm run build:workers",
     "build:frontend": "next build",
     "build:workers": "cd workers && npm install && npm run build",
     "start": "next start",
@@ -20,7 +21,7 @@
     "type-check": "tsc --noEmit && cd workers && npm run type-check",
     "prepare": "husky install",
     "install:all": "npm install && cd workers && npm install",
-    "postinstall": "cd workers && npm install"
+    "postinstall": "if [ \"$VERCEL\" != \"1\" ] && [ -d workers ]; then cd workers && npm install; fi"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.83.0",

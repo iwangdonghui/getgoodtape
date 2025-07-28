@@ -1,0 +1,21 @@
+# Exclude workers directory from Vercel deployment
+workers/
+
+# Exclude video processor
+video-processor/
+
+# Exclude deployment files
+deploy.sh
+DEPLOYMENT_GUIDE.md
+
+# Exclude development files
+.dev.vars
+.prod.vars
+
+# Exclude logs
+*.log
+logs/
+
+# Exclude temporary files
+tmp/
+temp/

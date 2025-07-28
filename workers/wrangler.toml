@@ -12,13 +12,13 @@ local_protocol = "http"
 vars = { ENVIRONMENT = "development" }
 
 [env.production]
-vars = { ENVIRONMENT = "production", PROCESSING_SERVICE_URL = "https://getgoodtape-video-processor.onrender.com" }
+vars = { ENVIRONMENT = "production" }
 
 # D1 Database bindings
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "getgoodtape-prod"
-database_id = "0e89da43-8723-4bf3-bc4c-3bd484cc148e"
+database_id = "YOUR_PRODUCTION_DATABASE_ID"
 
 [[env.development.d1_databases]]
 binding = "DB"
@@ -37,7 +37,7 @@ bucket_name = "getgoodtape-files-dev"
 # KV namespace bindings
 [[env.production.kv_namespaces]]
 binding = "CACHE"
-id = "cabbed24ed1f42df994bb05b4cdc543a"
+id = "YOUR_PRODUCTION_KV_NAMESPACE_ID"
 
 [[env.development.kv_namespaces]]
 binding = "CACHE"

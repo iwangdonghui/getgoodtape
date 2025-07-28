@@ -29,6 +29,11 @@ yarn-error.log*
 .env*.local
 .env
 
+# Cloudflare Workers environment files
+workers/.dev.vars
+workers/.prod.vars
+workers/.wrangler/
+
 # vercel
 .vercel
 

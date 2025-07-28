@@ -17,7 +17,7 @@ This guide walks you through deploying GetGoodTape to production with:
 
 ## 🚀 Step 1: Deploy Video Processor
 
-### Option A: Railway (Recommended)
+### Option A: Railway (Recommended - Easy Setup)
 
 1. **Push to GitHub** (if not already done)
 
@@ -45,7 +45,7 @@ This guide walks you through deploying GetGoodTape to production with:
    - Copy the Railway-provided URL (e.g., `https://your-app.railway.app`)
    - Test health: `curl https://your-app.railway.app/health`
 
-### Option B: Render
+### Option B: Render (Good Alternative)
 
 1. **Create Web Service**
    - Go to [render.com](https://render.com)
@@ -56,14 +56,106 @@ This guide walks you through deploying GetGoodTape to production with:
 
    ```
    Name: getgoodtape-video-processor
-   Environment: Docker
+   Language: Docker
    Root Directory: video-processor
+   Branch: main
+   Build Command: (leave empty - Docker will handle)
+   Start Command: (leave empty - Docker will handle)
    ```
 
 3. **Environment Variables**
    ```
    PORT=8000
    PYTHONUNBUFFERED=1
+   ```
+
+### Option C: Fly.io (Developer Friendly)
+
+1. **Install Fly CLI**
+
+   ```bash
+   # macOS
+   brew install flyctl
+
+   # Or download from https://fly.io/docs/getting-started/installing-flyctl/
+   ```
+
+2. **Deploy**
+
+   ```bash
+   cd video-processor
+   fly launch --no-deploy
+   # Follow prompts to configure app
+   fly deploy
+   ```
+
+3. **Configuration**
+   - Fly will auto-detect the Dockerfile
+   - Set environment variables in fly.toml or via CLI
+   - Get URL: `https://your-app.fly.dev`
+
+### Option D: Google Cloud Run (Scalable)
+
+1. **Setup**
+
+   ```bash
+   # Install gcloud CLI
+   gcloud auth login
+   gcloud config set project YOUR_PROJECT_ID
+   ```
+
+2. **Deploy**
+   ```bash
+   cd video-processor
+   gcloud run deploy getgoodtape-processor \
+     --source . \
+     --platform managed \
+     --region us-central1 \
+     --allow-unauthenticated
+   ```
+
+### Option E: AWS App Runner (AWS Ecosystem)
+
+1. **Push to GitHub** (if not already done)
+2. **Create App Runner Service**
+   - Go to AWS Console → App Runner
+   - Create service from source code
+   - Connect GitHub repository
+   - Choose `video-processor` directory
+   - Configure auto-scaling and environment variables
+
+### Option F: DigitalOcean App Platform
+
+1. **Create App**
+   - Go to DigitalOcean → Apps
+   - Create app from GitHub
+   - Select repository and `video-processor` directory
+
+2. **Configuration**
+   ```
+   Name: getgoodtape-processor
+   Type: Web Service
+   Environment Variables:
+     PORT=8000
+     PYTHONUNBUFFERED=1
+   ```
+
+### Option G: Heroku (Classic Choice)
+
+1. **Setup**
+
+   ```bash
+   # Install Heroku CLI
+   heroku login
+   cd video-processor
+   heroku create getgoodtape-processor
+   ```
+
+2. **Deploy**
+   ```bash
+   # Heroku will auto-detect Dockerfile
+   git push heroku main
+   heroku config:set PORT=8000
    ```
 
 ## 🔧 Step 2: Setup Cloudflare Resources
