@@ -45,9 +45,7 @@ export class CacheManager {
     await this.env.CACHE.put(key, JSON.stringify(data), { expirationTtl: ttl });
   }
 
-  async getConversionStatus(
-    jobId: string
-  ): Promise<{
+  async getConversionStatus(jobId: string): Promise<{
     status: ConversionJob['status'];
     progress: number;
     timestamp: number;
@@ -138,19 +136,17 @@ export class CacheManager {
     platform?: string,
     ttl: number = 1800
   ): Promise<void> {
-    const key = `url:${Buffer.from(url).toString('base64')}`;
+    const key = `url:${btoa(url)}`;
     const data = { isValid, platform, timestamp: Date.now() };
     await this.env.CACHE.put(key, JSON.stringify(data), { expirationTtl: ttl });
   }
 
-  async getUrlValidation(
-    url: string
-  ): Promise<{
+  async getUrlValidation(url: string): Promise<{
     isValid: boolean;
     platform?: string;
     timestamp: number;
   } | null> {
-    const key = `url:${Buffer.from(url).toString('base64')}`;
+    const key = `url:${btoa(url)}`;
     const cached = await this.env.CACHE.get(key);
 
     if (!cached) return null;
