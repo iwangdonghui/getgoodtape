@@ -150,7 +150,7 @@ async def extract_video_metadata(url: str) -> Dict[str, Any]:
         # Import yt-dlp
         import yt_dlp
 
-        # Configure yt-dlp options with enhanced anti-detection measures
+        # Configure yt-dlp options with 2025 best practices
         ydl_opts = {
             'quiet': True,
             'no_warnings': True,
@@ -159,12 +159,12 @@ async def extract_video_metadata(url: str) -> Dict[str, Any]:
             'writethumbnail': False,
             'writesubtitles': False,
             'writeautomaticsub': False,
-            # Enhanced anti-detection measures
+            # 2025 anti-detection measures
             'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
                 'Accept-Language': 'en-US,en;q=0.9',
-                'Accept-Encoding': 'gzip, deflate, br',
+                'Accept-Encoding': 'gzip, deflate, br, zstd',
                 'DNT': '1',
                 'Connection': 'keep-alive',
                 'Upgrade-Insecure-Requests': '1',
@@ -172,24 +172,29 @@ async def extract_video_metadata(url: str) -> Dict[str, Any]:
                 'Sec-Fetch-Mode': 'navigate',
                 'Sec-Fetch-Site': 'none',
                 'Sec-Fetch-User': '?1',
+                'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+                'Sec-Ch-Ua-Mobile': '?0',
+                'Sec-Ch-Ua-Platform': '"Windows"',
                 'Cache-Control': 'max-age=0',
             },
             'extractor_args': {
                 'youtube': {
-                    'skip': ['dash', 'hls'],
-                    'player_client': ['android', 'web', 'ios'],
+                    # Use latest 2025 bypass techniques
+                    'player_client': ['ios', 'android', 'web'],
                     'player_skip': ['configs'],
-                    'comment_sort': ['top'],
-                    'max_comments': [0],
+                    'skip': ['dash'],  # Only skip dash, allow hls
+                    'innertube_host': ['youtubei.googleapis.com'],
+                    'innertube_key': ['AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8'],
                 }
             },
-            # Additional options to bypass restrictions
+            # Additional bypass options
             'geo_bypass': True,
             'age_limit': 99,
-            'sleep_interval': 1,
-            'max_sleep_interval': 5,
+            'sleep_interval': 0,
+            'max_sleep_interval': 0,
             'ignoreerrors': False,
             'no_color': True,
+            'prefer_insecure': False,
         }
 
         # Extract metadata with fallback methods
@@ -1016,72 +1021,90 @@ async def youtube_bypass_endpoint(request: dict):
             'Mozilla/5.0 (Android 11; Mobile; rv:68.0) Gecko/68.0 Firefox/88.0',
         ]
 
-        # Advanced bypass strategies with more aggressive techniques
+        # 2025 YouTube bypass strategies using latest yt-dlp techniques
         strategies = [
             {
-                'name': 'iOS Music',
+                'name': 'iOS 17 (2025)',
                 'opts': {
                     'quiet': True,
-                    'extractor_args': {'youtube': {'player_client': ['ios_music']}},
-                    'http_headers': {'User-Agent': 'com.google.ios.youtubemusic/4.32.1 (iPhone14,3; U; CPU iOS 15_6 like Mac OS X)'},
-                }
-            },
-            {
-                'name': 'Android TV Embedded',
-                'opts': {
-                    'quiet': True,
-                    'extractor_args': {'youtube': {'player_client': ['android_tv_embedded']}},
-                    'http_headers': {'User-Agent': 'Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleWebKit/537.36 (KHTML, like Gecko) 85.0.4183.93/6.0 TV Safari/537.36'},
-                }
-            },
-            {
-                'name': 'Media Connect',
-                'opts': {
-                    'quiet': True,
-                    'extractor_args': {'youtube': {'player_client': ['mediaconnect']}},
-                    'http_headers': {'User-Agent': random.choice(user_agents)},
-                }
-            },
-            {
-                'name': 'Android Creator',
-                'opts': {
-                    'quiet': True,
-                    'extractor_args': {'youtube': {'player_client': ['android_creator']}},
-                    'http_headers': {'User-Agent': 'com.google.android.apps.youtube.creator/22.30.100 (Linux; U; Android 11) gzip'},
-                }
-            },
-            {
-                'name': 'Web Safari',
-                'opts': {
-                    'quiet': True,
-                    'extractor_args': {'youtube': {'player_client': ['web_safari']}},
-                    'http_headers': {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.1 Safari/605.1.15'},
-                }
-            },
-            {
-                'name': 'Android VR',
-                'opts': {
-                    'quiet': True,
-                    'extractor_args': {'youtube': {'player_client': ['android_vr']}},
-                    'http_headers': {'User-Agent': 'com.google.android.apps.youtube.vr.oculus/1.37.0 (Linux; U; Android 10; eureka-user Build/QTT1.200129.002) gzip'},
-                }
-            },
-            {
-                'name': 'TV HTML5 Embedded',
-                'opts': {
-                    'quiet': True,
-                    'extractor_args': {'youtube': {'player_client': ['tv_embedded']}},
-                    'http_headers': {'User-Agent': 'Mozilla/5.0 (SMART-TV; LINUX; Tizen 2.4.0) AppleWebKit/538.1+ (KHTML, like Gecko) Version/1.0 TV Safari/538.1'},
-                }
-            },
-            {
-                'name': 'Web with Cookies',
-                'opts': {
-                    'quiet': True,
-                    'extractor_args': {'youtube': {'player_client': ['web']}},
+                    'extractor_args': {
+                        'youtube': {
+                            'player_client': ['ios'],
+                            'innertube_host': ['youtubei.googleapis.com'],
+                            'innertube_key': ['AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8'],
+                        }
+                    },
                     'http_headers': {
-                        'User-Agent': random.choice(user_agents),
-                        'Cookie': 'CONSENT=YES+cb.20210328-17-p0.en+FX+{}'.format(random.randint(100, 999)),
+                        'User-Agent': 'com.google.ios.youtube/19.29.1 (iPhone16,2; U; CPU iOS 17_5 like Mac OS X)',
+                        'X-YouTube-Client-Name': '5',
+                        'X-YouTube-Client-Version': '19.29.1',
+                    },
+                }
+            },
+            {
+                'name': 'Android 14 (2025)',
+                'opts': {
+                    'quiet': True,
+                    'extractor_args': {
+                        'youtube': {
+                            'player_client': ['android'],
+                            'innertube_host': ['youtubei.googleapis.com'],
+                            'innertube_key': ['AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8'],
+                        }
+                    },
+                    'http_headers': {
+                        'User-Agent': 'com.google.android.youtube/19.29.37 (Linux; U; Android 14; SM-S918B Build/UP1A.231005.007) gzip',
+                        'X-YouTube-Client-Name': '3',
+                        'X-YouTube-Client-Version': '19.29.37',
+                    },
+                }
+            },
+            {
+                'name': 'Web Chrome 131 (2025)',
+                'opts': {
+                    'quiet': True,
+                    'extractor_args': {
+                        'youtube': {
+                            'player_client': ['web'],
+                            'innertube_host': ['youtubei.googleapis.com'],
+                            'innertube_key': ['AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8'],
+                        }
+                    },
+                    'http_headers': {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                        'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+                        'Sec-Ch-Ua-Mobile': '?0',
+                        'Sec-Ch-Ua-Platform': '"Windows"',
+                    },
+                }
+            },
+            {
+                'name': 'TV Embedded (2025)',
+                'opts': {
+                    'quiet': True,
+                    'extractor_args': {
+                        'youtube': {
+                            'player_client': ['tv_embedded'],
+                            'innertube_host': ['youtubei.googleapis.com'],
+                        }
+                    },
+                    'http_headers': {
+                        'User-Agent': 'Mozilla/5.0 (SMART-TV; LINUX; Tizen 7.0) AppleWebKit/537.36 (KHTML, like Gecko) Version/7.0 TV Safari/537.36',
+                    },
+                }
+            },
+            {
+                'name': 'Android Music (2025)',
+                'opts': {
+                    'quiet': True,
+                    'extractor_args': {
+                        'youtube': {
+                            'player_client': ['android_music'],
+                            'innertube_host': ['music.youtube.com'],
+                        }
+                    },
+                    'http_headers': {
+                        'User-Agent': 'com.google.android.apps.youtube.music/6.42.52 (Linux; U; Android 14) gzip',
                     },
                 }
             }
