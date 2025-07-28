@@ -12,8 +12,8 @@ export class StorageManager {
    */
   async uploadFile(
     fileName: string,
-    _filePath: string,
-    _contentType: string
+    filePath: string,
+    contentType: string
   ): Promise<string> {
     try {
       // For now, we'll simulate file upload since we can't directly access
@@ -22,7 +22,7 @@ export class StorageManager {
       // or return the file content for us to upload
 
       const key = `conversions/${fileName}`;
-      
+
       // Generate a signed URL for download
       // Note: This is a simplified implementation
       // In production, you'd want to implement proper signed URLs with expiration
@@ -35,10 +35,14 @@ export class StorageManager {
       //   },
       // });
 
+      console.log(
+        `Simulated upload: ${fileName} from ${filePath} (${contentType})`
+      );
       return downloadUrl;
     } catch (error) {
       console.error('Storage upload error:', error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to upload file: ${errorMessage}`);
     }
   }
@@ -48,6 +52,11 @@ export class StorageManager {
    */
   async getFile(fileName: string): Promise<Response | null> {
     try {
+      if (!this.env.STORAGE) {
+        console.warn('R2 storage not available in development environment');
+        return null;
+      }
+
       const key = `conversions/${fileName}`;
       const object = await this.env.STORAGE.get(key);
 
@@ -57,7 +66,8 @@ export class StorageManager {
 
       return new Response(object.body, {
         headers: {
-          'Content-Type': object.httpMetadata?.contentType || 'application/octet-stream',
+          'Content-Type':
+            object.httpMetadata?.contentType || 'application/octet-stream',
           'Content-Length': object.size.toString(),
           'Cache-Control': 'public, max-age=3600',
         },
@@ -73,6 +83,11 @@ export class StorageManager {
    */
   async deleteFile(fileName: string): Promise<boolean> {
     try {
+      if (!this.env.STORAGE) {
+        console.warn('R2 storage not available in development environment');
+        return false;
+      }
+
       const key = `conversions/${fileName}`;
       await this.env.STORAGE.delete(key);
       return true;
@@ -85,10 +100,16 @@ export class StorageManager {
   /**
    * Generate a signed download URL
    */
-  async generateDownloadUrl(fileName: string, _expiresIn: number = 3600): Promise<string> {
+  async generateDownloadUrl(
+    fileName: string,
+    expiresIn: number = 3600
+  ): Promise<string> {
     // For now, return a simple URL
     // In production, implement proper signed URLs with expiration
     const key = `conversions/${fileName}`;
+    console.log(
+      `Generated download URL for ${fileName}, expires in ${expiresIn}s`
+    );
     return `https://storage.getgoodtape.com/${key}`;
   }
 
@@ -111,6 +132,11 @@ export class StorageManager {
    */
   async listFiles(prefix: string = 'conversions/'): Promise<string[]> {
     try {
+      if (!this.env.STORAGE) {
+        console.warn('R2 storage not available in development environment');
+        return [];
+      }
+
       const objects = await this.env.STORAGE.list({ prefix });
       return objects.objects.map(obj => obj.key);
     } catch (error) {
@@ -122,11 +148,18 @@ export class StorageManager {
   /**
    * Get file metadata
    */
-  async getFileMetadata(fileName: string): Promise<Record<string, unknown> | null> {
+  async getFileMetadata(
+    fileName: string
+  ): Promise<Record<string, unknown> | null> {
     try {
+      if (!this.env.STORAGE) {
+        console.warn('R2 storage not available in development environment');
+        return null;
+      }
+
       const key = `conversions/${fileName}`;
       const object = await this.env.STORAGE.head(key);
-      
+
       if (!object) {
         return null;
       }
@@ -148,6 +181,11 @@ export class StorageManager {
    */
   async cleanupOldFiles(maxAge: number = 24 * 60 * 60 * 1000): Promise<number> {
     try {
+      if (!this.env.STORAGE) {
+        console.warn('R2 storage not available in development environment');
+        return 0;
+      }
+
       const objects = await this.env.STORAGE.list({ prefix: 'conversions/' });
       const now = Date.now();
       let deletedCount = 0;

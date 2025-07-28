@@ -28,7 +28,8 @@ export class ConversionService {
     // Start processing asynchronously
     this.processConversion(jobId, request).catch(error => {
       console.error(`Conversion failed for job ${jobId}:`, error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.jobManager.failJob(jobId, errorMessage);
     });
 
@@ -40,7 +41,7 @@ export class ConversionService {
    */
   async getConversionStatus(jobId: string) {
     const job = await this.jobManager.getJob(jobId);
-    
+
     if (!job) {
       return null;
     }
@@ -61,14 +62,18 @@ export class ConversionService {
   /**
    * Process conversion (called asynchronously)
    */
-  private async processConversion(jobId: string, request: ConvertRequest): Promise<void> {
+  async processConversion(
+    jobId: string,
+    request: ConvertRequest
+  ): Promise<void> {
     try {
       // Mark job as processing
       await this.jobManager.startProcessing(jobId);
 
       // Call video processing service
-      const processingServiceUrl = this.env.PROCESSING_SERVICE_URL || 'http://localhost:8000';
-      
+      const processingServiceUrl =
+        this.env.PROCESSING_SERVICE_URL || 'http://localhost:8000';
+
       // Step 1: Extract metadata
       await this.jobManager.updateProgress(jobId, 20);
       const metadataResponse = await this.callProcessingService(
@@ -77,7 +82,9 @@ export class ConversionService {
       );
 
       if (!metadataResponse.success) {
-        throw new Error(`Metadata extraction failed: ${metadataResponse.error}`);
+        throw new Error(
+          `Metadata extraction failed: ${metadataResponse.error}`
+        );
       }
 
       const metadataObj = metadataResponse.metadata as Record<string, unknown>;
@@ -125,10 +132,10 @@ export class ConversionService {
         resultObj.file_path as string,
         metadata
       );
-
     } catch (error) {
       console.error(`Processing failed for job ${jobId}:`, error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       await this.jobManager.failJob(jobId, errorMessage);
     }
   }
@@ -136,7 +143,10 @@ export class ConversionService {
   /**
    * Call the video processing service
    */
-  private async callProcessingService(url: string, data: Record<string, unknown>): Promise<Record<string, unknown>> {
+  private async callProcessingService(
+    url: string,
+    data: Record<string, unknown>
+  ): Promise<Record<string, unknown>> {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -146,10 +156,12 @@ export class ConversionService {
     });
 
     if (!response.ok) {
-      throw new Error(`Processing service error: ${response.status} ${response.statusText}`);
+      throw new Error(
+        `Processing service error: ${response.status} ${response.statusText}`
+      );
     }
 
-    return await response.json() as Record<string, unknown>;
+    return (await response.json()) as Record<string, unknown>;
   }
 
   /**
@@ -161,7 +173,7 @@ export class ConversionService {
       .replace(/[^a-zA-Z0-9\s\-_]/g, '')
       .replace(/\s+/g, '_')
       .substring(0, 50);
-    
+
     const timestamp = Date.now();
     return `${cleanTitle}_${timestamp}.${format}`;
   }

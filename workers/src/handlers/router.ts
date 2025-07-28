@@ -4,6 +4,7 @@ import { CacheManager } from '../utils/cache';
 import { UrlValidator } from '../utils/url-validator';
 import { ConversionService } from '../utils/conversion-service';
 import { StorageManager } from '../utils/storage';
+import { QueueManager } from '../utils/queue-manager';
 import { ErrorType, ConvertRequest, PlatformsResponse, Env } from '../types';
 
 export const router = new Hono<{ Bindings: Env }>();
@@ -281,7 +282,6 @@ router.post('/convert', async c => {
       message: 'Conversion job started successfully',
       estimatedTime: '30-120 seconds',
     });
-
   } catch (error) {
     console.error('Conversion endpoint error:', error);
     return c.json(
@@ -334,7 +334,6 @@ router.get('/status/:jobId', async c => {
       success: true,
       ...status,
     });
-
   } catch (error) {
     console.error('Status endpoint error:', error);
     return c.json(
@@ -385,7 +384,6 @@ router.get('/download/:fileName', async c => {
     }
 
     return file;
-
   } catch (error) {
     console.error('Download endpoint error:', error);
     return c.json(
@@ -418,9 +416,157 @@ router.get('/admin/jobs', async c => {
       jobs: activeJobs,
       count: activeJobs.length,
     });
-
   } catch (error) {
     console.error('Admin jobs endpoint error:', error);
+    return c.json(
+      {
+        error: {
+          type: ErrorType.SERVER_ERROR,
+          message: 'Internal server error',
+          retryable: true,
+        },
+      },
+      500
+    );
+  }
+});
+
+// Queue management endpoints
+router.get('/admin/queue/stats', async c => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const queueManager = new QueueManager(c.env);
+    const stats = await queueManager.getQueueStats();
+    const capacity = await queueManager.getCapacityInfo();
+
+    return c.json({
+      success: true,
+      stats,
+      capacity,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Queue stats endpoint error:', error);
+    return c.json(
+      {
+        error: {
+          type: ErrorType.SERVER_ERROR,
+          message: 'Internal server error',
+          retryable: true,
+        },
+      },
+      500
+    );
+  }
+});
+
+router.get('/admin/queue/jobs/:status', async c => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const status = c.req.param('status');
+    const limit = parseInt(c.req.query('limit') || '50', 10);
+    const offset = parseInt(c.req.query('offset') || '0', 10);
+
+    const queueManager = new QueueManager(c.env);
+    const jobs = await queueManager.getJobsByStatus(status, limit, offset);
+
+    return c.json({
+      success: true,
+      jobs,
+      count: jobs.length,
+      pagination: {
+        limit,
+        offset,
+        hasMore: jobs.length === limit,
+      },
+    });
+  } catch (error) {
+    console.error('Queue jobs endpoint error:', error);
+    return c.json(
+      {
+        error: {
+          type: ErrorType.SERVER_ERROR,
+          message: 'Internal server error',
+          retryable: true,
+        },
+      },
+      500
+    );
+  }
+});
+
+router.post('/admin/queue/cleanup', async c => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const body = await c.req.json().catch(() => ({}));
+    const olderThanHours = body.olderThanHours || 168; // Default: 7 days
+
+    const queueManager = new QueueManager(c.env);
+    const deletedCount = await queueManager.cleanupOldJobs(olderThanHours);
+    const timeoutCount = await queueManager.handleTimeoutJobs();
+
+    return c.json({
+      success: true,
+      deletedJobs: deletedCount,
+      timeoutJobs: timeoutCount,
+      message: `Cleaned up ${deletedCount} old jobs and reset ${timeoutCount} timeout jobs`,
+    });
+  } catch (error) {
+    console.error('Queue cleanup endpoint error:', error);
+    return c.json(
+      {
+        error: {
+          type: ErrorType.SERVER_ERROR,
+          message: 'Internal server error',
+          retryable: true,
+        },
+      },
+      500
+    );
+  }
+});
+
+router.get('/admin/queue/position/:jobId', async c => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const jobId = c.req.param('jobId');
+    const queueManager = new QueueManager(c.env);
+    const position = await queueManager.getJobQueuePosition(jobId);
+
+    if (position === -1) {
+      return c.json(
+        {
+          success: false,
+          error: 'Job not found or not in queue',
+        },
+        404
+      );
+    }
+
+    return c.json({
+      success: true,
+      jobId,
+      position,
+      message: `Job is at position ${position} in the queue`,
+    });
+  } catch (error) {
+    console.error('Queue position endpoint error:', error);
     return c.json(
       {
         error: {
