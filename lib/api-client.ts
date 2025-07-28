@@ -82,7 +82,7 @@ class ApiClient {
   constructor() {
     // Use Workers API endpoint
     this.baseUrl =
-      process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8787/api';
+      process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8788/api';
   }
 
   private async request<T>(

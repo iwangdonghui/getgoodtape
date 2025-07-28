@@ -11,7 +11,18 @@ app.use('*', logger());
 app.use(
   '*',
   cors({
-    origin: ['https://getgoodtape.com', 'https://www.getgoodtape.com'],
+    origin: origin => {
+      // Allow all localhost origins in development
+      if (origin?.includes('localhost') || origin?.includes('127.0.0.1')) {
+        return origin;
+      }
+      // Allow production domains
+      const allowedOrigins = [
+        'https://getgoodtape.com',
+        'https://www.getgoodtape.com',
+      ];
+      return allowedOrigins.includes(origin || '') ? origin : false;
+    },
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization'],
     maxAge: 86400,
