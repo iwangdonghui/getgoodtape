@@ -295,16 +295,13 @@ async def convert_to_mp3(url: str, quality: str, output_path: str) -> Conversion
             ydl_opts = {
                 'format': 'bestaudio/best',
                 'outtmpl': os.path.join(temp_dir, '%(title)s.%(ext)s'),
-                'extractaudio': True,
-                'audioformat': 'mp3',
-                'audioquality': bitrate,
                 'postprocessors': [{
                     'key': 'FFmpegExtractAudio',
                     'preferredcodec': 'mp3',
                     'preferredquality': quality,
                 }],
-                'quiet': True,
-                'no_warnings': True,
+                'quiet': False,  # Enable output for debugging
+                'no_warnings': False,
                 # Add user agent to avoid some blocking
                 'http_headers': {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -322,11 +319,37 @@ async def convert_to_mp3(url: str, quality: str, output_path: str) -> Conversion
                 ydl.download([url])
 
                 # Find the converted file
-                converted_files = [f for f in os.listdir(temp_dir) if f.endswith('.mp3')]
-                if not converted_files:
-                    raise ValueError("No MP3 file was created")
+                all_files = os.listdir(temp_dir)
+                logger.info(f"Files in temp directory: {all_files}")
 
-                temp_file = os.path.join(temp_dir, converted_files[0])
+                converted_files = [f for f in all_files if f.endswith('.mp3')]
+                if not converted_files:
+                    # Try to find any audio file that might have been created
+                    audio_files = [f for f in all_files if any(f.endswith(ext) for ext in ['.m4a', '.webm', '.ogg', '.wav'])]
+                    if audio_files:
+                        logger.info(f"Found audio file to convert: {audio_files[0]}")
+                        # Use FFmpeg to convert to MP3
+                        input_file = os.path.join(temp_dir, audio_files[0])
+                        output_file = os.path.join(temp_dir, 'converted.mp3')
+
+                        ffmpeg_cmd = [
+                            'ffmpeg', '-i', input_file,
+                            '-codec:a', 'libmp3lame',
+                            '-b:a', bitrate,
+                            '-y',  # Overwrite output file
+                            output_file
+                        ]
+
+                        result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+                        if result.returncode == 0:
+                            temp_file = output_file
+                        else:
+                            logger.error(f"FFmpeg conversion failed: {result.stderr}")
+                            raise ValueError(f"Failed to convert audio to MP3: {result.stderr}")
+                    else:
+                        raise ValueError("No audio file was created")
+                else:
+                    temp_file = os.path.join(temp_dir, converted_files[0])
 
                 # Move to final output path
                 os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -639,6 +662,158 @@ async def test_convert_endpoint(request: ConvertRequest):
         logger.error(f"Test conversion error: {str(e)}")
         return {"error": str(e)}
 
+@app.post("/demo-convert")
+async def demo_convert_endpoint():
+    """
+    Demo conversion using a simple test audio file
+    """
+    try:
+        import tempfile
+        import os
+
+        # Create a simple test audio file using FFmpeg
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Generate a 5-second test tone
+            test_audio = os.path.join(temp_dir, 'test_input.wav')
+            output_mp3 = os.path.join(temp_dir, 'test_output.mp3')
+
+            # Generate test audio (5 second sine wave at 440Hz)
+            generate_cmd = [
+                'ffmpeg', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=5',
+                '-y', test_audio
+            ]
+
+            result = subprocess.run(generate_cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                return {
+                    "success": False,
+                    "error": f"Failed to generate test audio: {result.stderr}"
+                }
+
+            # Convert to MP3
+            convert_cmd = [
+                'ffmpeg', '-i', test_audio,
+                '-codec:a', 'libmp3lame',
+                '-b:a', '192k',
+                '-y', output_mp3
+            ]
+
+            result = subprocess.run(convert_cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                return {
+                    "success": False,
+                    "error": f"Failed to convert to MP3: {result.stderr}"
+                }
+
+            # Check if file was created
+            if os.path.exists(output_mp3):
+                file_size = os.path.getsize(output_mp3)
+                return {
+                    "success": True,
+                    "message": "Demo conversion successful!",
+                    "details": {
+                        "input_format": "WAV (generated test tone)",
+                        "output_format": "MP3",
+                        "duration": "5 seconds",
+                        "bitrate": "192k",
+                        "file_size": format_file_size(file_size),
+                        "file_size_bytes": file_size
+                    }
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": "Output file was not created"
+                }
+
+    except Exception as e:
+        logger.error(f"Demo conversion error: {str(e)}")
+        return {
+            "success": False,
+            "error": f"Demo conversion failed: {str(e)}"
+        }
+
+@app.post("/demo-video-convert")
+async def demo_video_convert_endpoint():
+    """
+    Demo video conversion using a simple test video file
+    """
+    try:
+        import tempfile
+        import os
+
+        # Create a simple test video file using FFmpeg
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Generate a 3-second test video (color bars with audio)
+            test_video = os.path.join(temp_dir, 'test_input.mp4')
+            output_mp4 = os.path.join(temp_dir, 'test_output.mp4')
+
+            # Generate test video (3 second color pattern with sine wave audio)
+            generate_cmd = [
+                'ffmpeg',
+                '-f', 'lavfi', '-i', 'testsrc=duration=3:size=640x480:rate=30',
+                '-f', 'lavfi', '-i', 'sine=frequency=440:duration=3',
+                '-c:v', 'libx264', '-c:a', 'aac',
+                '-y', test_video
+            ]
+
+            result = subprocess.run(generate_cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                return {
+                    "success": False,
+                    "error": f"Failed to generate test video: {result.stderr}"
+                }
+
+            # Convert/optimize the video
+            convert_cmd = [
+                'ffmpeg', '-i', test_video,
+                '-c:v', 'libx264',
+                '-preset', 'fast',
+                '-crf', '23',
+                '-vf', 'scale=480:360',  # Scale to 360p
+                '-c:a', 'aac',
+                '-b:a', '128k',
+                '-movflags', '+faststart',
+                '-y', output_mp4
+            ]
+
+            result = subprocess.run(convert_cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                return {
+                    "success": False,
+                    "error": f"Failed to convert video: {result.stderr}"
+                }
+
+            # Check if file was created
+            if os.path.exists(output_mp4):
+                file_size = os.path.getsize(output_mp4)
+                return {
+                    "success": True,
+                    "message": "Demo video conversion successful!",
+                    "details": {
+                        "input_format": "MP4 (generated test pattern)",
+                        "output_format": "MP4",
+                        "duration": "3 seconds",
+                        "resolution": "480x360",
+                        "video_codec": "H.264",
+                        "audio_codec": "AAC",
+                        "file_size": format_file_size(file_size),
+                        "file_size_bytes": file_size
+                    }
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": "Output video file was not created"
+                }
+
+    except Exception as e:
+        logger.error(f"Demo video conversion error: {str(e)}")
+        return {
+            "success": False,
+            "error": f"Demo video conversion failed: {str(e)}"
+        }
+
 @app.post("/validate-conversion")
 async def validate_conversion_endpoint(request: ConvertRequest):
     """
@@ -722,6 +897,8 @@ async def root():
             "convert": "/convert",
             "validate_conversion": "/validate-conversion",
             "test_convert": "/test-convert",
+            "demo_convert": "/demo-convert",
+            "demo_video_convert": "/demo-video-convert",
             "docs": "/docs"
         },
         "supported_formats": {
