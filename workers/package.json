@@ -1,0 +1,50 @@
+{
+  "name": "getgoodtape-api",
+  "version": "1.0.0",
+  "description": "Cloudflare Workers API for GetGoodTape video conversion service",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "format": "prettier --write src",
+    "format:check": "prettier --check src",
+    "setup:db": "node scripts/setup-database.js",
+    "setup:db:dev": "node scripts/setup-database.js dev",
+    "setup:db:prod": "node scripts/setup-database.js prod",
+    "setup:r2": "node scripts/setup-r2.js",
+    "setup:r2:dev": "node scripts/setup-r2.js dev",
+    "setup:r2:prod": "node scripts/setup-r2.js prod",
+    "setup:kv": "node scripts/setup-kv.js",
+    "setup:kv:dev": "node scripts/setup-kv.js dev",
+    "setup:kv:prod": "node scripts/setup-kv.js prod",
+    "setup:all": "npm run setup:db:dev && npm run setup:r2:dev && npm run setup:kv:dev",
+    "setup:all:prod": "npm run setup:db:prod && npm run setup:r2:prod && npm run setup:kv:prod"
+  },
+  "dependencies": {
+    "@cloudflare/workers-types": "^4.20240925.0",
+    "hono": "^4.6.3",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.2",
+    "wrangler": "^3.78.12"
+  },
+  "keywords": [
+    "cloudflare",
+    "workers",
+    "video-conversion",
+    "api"
+  ],
+  "author": "GetGoodTape",
+  "license": "MIT"
+}

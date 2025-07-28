@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+/workers/node_modules
 /.pnp
 .pnp.js
 
@@ -44,4 +45,6 @@ Thumbs.db
 
 # Data files
 /data/
-*.json
+# Ignore data JSON files but not config files
+/data/*.json
+*.data.json
