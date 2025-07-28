@@ -355,6 +355,128 @@ async def convert_to_mp3(url: str, quality: str, output_path: str) -> Conversion
             error=f"MP3 conversion failed: {error_msg}"
         )
 
+async def convert_to_mp4(url: str, quality: str, output_path: str) -> ConversionResult:
+    """
+    Convert video to MP4 using yt-dlp and FFmpeg
+    """
+    try:
+        import yt_dlp
+        import tempfile
+        import os
+
+        # Get quality settings
+        quality_settings = get_quality_settings('mp4', quality)
+        height = quality_settings.get('height', 720)
+        codec = quality_settings.get('codec', 'libx264')
+        preset = quality_settings.get('preset', 'fast')
+
+        # Create temporary directory for processing
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Configure yt-dlp options for video download
+            ydl_opts = {
+                'format': f'best[height<={height}]/best',
+                'outtmpl': os.path.join(temp_dir, '%(title)s.%(ext)s'),
+                'postprocessors': [{
+                    'key': 'FFmpegVideoConvertor',
+                    'preferedformat': 'mp4',
+                }],
+                'quiet': True,
+                'no_warnings': True,
+                # Add user agent to avoid some blocking
+                'http_headers': {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                },
+            }
+
+            # Download and convert
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                # Extract info first
+                info = ydl.extract_info(url, download=False)
+                title = info.get('title', 'video')
+                duration = info.get('duration', 0)
+
+                # Download and convert
+                ydl.download([url])
+
+                # Find the converted file
+                converted_files = [f for f in os.listdir(temp_dir) if f.endswith('.mp4')]
+                if not converted_files:
+                    raise ValueError("No MP4 file was created")
+
+                temp_file = os.path.join(temp_dir, converted_files[0])
+
+                # Additional FFmpeg processing for quality optimization
+                final_output = os.path.join(temp_dir, 'final_output.mp4')
+
+                # Build FFmpeg command for quality optimization
+                ffmpeg_cmd = [
+                    'ffmpeg', '-i', temp_file,
+                    '-c:v', codec,
+                    '-preset', preset,
+                    '-crf', '23',  # Constant Rate Factor for good quality
+                    '-maxrate', f'{get_bitrate_for_resolution(height)}',
+                    '-bufsize', f'{get_bitrate_for_resolution(height, buffer=True)}',
+                    '-vf', f'scale=-2:{height}',  # Scale to target height, maintain aspect ratio
+                    '-c:a', 'aac',
+                    '-b:a', '128k',
+                    '-movflags', '+faststart',  # Optimize for web streaming
+                    '-y',  # Overwrite output file
+                    final_output
+                ]
+
+                # Run FFmpeg
+                result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    logger.error(f"FFmpeg error: {result.stderr}")
+                    # Fallback to original file if FFmpeg fails
+                    final_output = temp_file
+
+                # Move to final output path
+                os.makedirs(os.path.dirname(output_path), exist_ok=True)
+                os.rename(final_output, output_path)
+
+                # Get file size
+                file_size = os.path.getsize(output_path)
+
+                logger.info(f"Successfully converted to MP4: {title} ({format_duration(duration)}) - {format_file_size(file_size)}")
+
+                return ConversionResult(
+                    success=True,
+                    file_path=output_path,
+                    file_size=file_size,
+                    duration=duration,
+                    format='mp4',
+                    quality=quality
+                )
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Failed to convert to MP4: {error_msg}")
+
+        return ConversionResult(
+            success=False,
+            error=f"MP4 conversion failed: {error_msg}"
+        )
+
+def get_bitrate_for_resolution(height: int, buffer: bool = False) -> str:
+    """
+    Get appropriate bitrate for video resolution
+    """
+    bitrate_map = {
+        360: '1000k',
+        720: '2500k',
+        1080: '5000k',
+    }
+
+    base_bitrate = bitrate_map.get(height, '2500k')
+
+    if buffer:
+        # Buffer size should be 2x the bitrate
+        bitrate_value = int(base_bitrate.replace('k', '')) * 2
+        return f'{bitrate_value}k'
+
+    return base_bitrate
+
 def estimate_file_size(duration: int, format_type: str, quality: str) -> int:
     """
     Estimate output file size based on duration, format, and quality
@@ -459,11 +581,12 @@ async def convert_video_endpoint(request: ConvertRequest):
         # Perform conversion based on format
         if request.format.lower() == 'mp3':
             result = await convert_to_mp3(request.url, request.quality, output_path)
+        elif request.format.lower() == 'mp4':
+            result = await convert_to_mp4(request.url, request.quality, output_path)
         else:
-            # MP4 conversion will be implemented in next task
             return ConvertResponse(
                 success=False,
-                error="MP4 conversion not yet implemented"
+                error=f"Unsupported format: {request.format}"
             )
 
         if result.success:
@@ -532,13 +655,20 @@ async def validate_conversion_endpoint(request: ConvertRequest):
                 "error": f"Unsupported format: {request.format}. Supported: {', '.join(supported_formats)}"
             }
 
-        # Validate quality for MP3
+        # Validate quality based on format
         if request.format.lower() == 'mp3':
             supported_qualities = ['128', '192', '320']
             if request.quality not in supported_qualities:
                 return {
                     "valid": False,
                     "error": f"Unsupported MP3 quality: {request.quality}. Supported: {', '.join(supported_qualities)}"
+                }
+        elif request.format.lower() == 'mp4':
+            supported_qualities = ['360', '720', '1080']
+            if request.quality not in supported_qualities:
+                return {
+                    "valid": False,
+                    "error": f"Unsupported MP4 quality: {request.quality}. Supported: {', '.join(supported_qualities)}"
                 }
 
         # Try to extract metadata to validate URL
@@ -597,11 +727,11 @@ async def root():
         "supported_formats": {
             "mp3": {
                 "qualities": ["128", "192", "320"],
-                "description": "Audio-only MP3 format"
+                "description": "Audio-only MP3 format with bitrate in kbps"
             },
             "mp4": {
                 "qualities": ["360", "720", "1080"],
-                "description": "Video MP4 format (coming soon)"
+                "description": "Video MP4 format with resolution in pixels"
             }
         }
     }
