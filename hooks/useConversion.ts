@@ -121,11 +121,17 @@ export function useConversion(): ConversionState & ConversionActions {
     try {
       const response = await apiClient.validateUrl(url);
 
-      if (response.success && response.platform) {
+      // Handle the actual API response format
+      if (response.isValid && response.platform) {
+        const platformName =
+          typeof response.platform === 'string'
+            ? response.platform
+            : response.platform.name;
+
         setState(prev => ({
           ...prev,
           isValidating: false,
-          detectedPlatform: response.platform!,
+          detectedPlatform: platformName,
           urlMetadata: response.metadata || null,
           urlError: null,
         }));

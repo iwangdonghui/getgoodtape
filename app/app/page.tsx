@@ -6,7 +6,7 @@ import Logo from '../../components/Logo';
 import ConversionProgress from '../../components/ConversionProgress';
 import ConversionResult from '../../components/ConversionResult';
 import ConversionError from '../../components/ConversionError';
-import QueryDemo from '../../components/QueryDemo';
+
 import { useConversion } from '../../hooks/useConversion';
 import { apiClient, formatDuration } from '../../lib/api-client';
 
@@ -325,36 +325,6 @@ export default function AppPage() {
                 </div>
               ))}
             </div>
-          </div>
-
-          {/* React Query Demo */}
-          <QueryDemo />
-
-          {/* Development Info */}
-          <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="text-sm font-semibold text-blue-800 mb-2">
-              🚀 API集成状态
-            </h3>
-            <ul className="text-sm text-blue-700 space-y-1">
-              <li>• 前端界面 ✅ 完成</li>
-              <li>• React Query状态管理 ✅ 已集成</li>
-              <li>• 后端API ✅ 已集成</li>
-              <li>• 视频处理服务 ⏳ 待配置</li>
-              <li>• 文件存储系统 ✅ 已配置</li>
-              <li>• 任务队列管理 ✅ 已实现</li>
-              <li>
-                • API端点:{' '}
-                <code className="bg-blue-100 px-1 rounded">
-                  {process.env.NEXT_PUBLIC_API_URL ||
-                    'http://localhost:8787/api'}
-                </code>
-              </li>
-              <li>
-                • 访问{' '}
-                <code className="bg-blue-100 px-1 rounded">localhost:3000</code>{' '}
-                查看landing page
-              </li>
-            </ul>
           </div>
         </div>
       </main>

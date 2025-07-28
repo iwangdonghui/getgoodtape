@@ -79,8 +79,11 @@ export function useConversionQuery() {
     setState(prev => ({
       ...prev,
       isValidating: urlValidating,
-      isValidUrl: !!urlValidation?.success,
-      detectedPlatform: urlValidation?.platform,
+      isValidUrl: !!urlValidation?.isValid,
+      detectedPlatform:
+        typeof urlValidation?.platform === 'string'
+          ? urlValidation.platform
+          : urlValidation?.platform?.name,
       validationError: urlValidationError
         ? handleError(urlValidationError, 'URL validation')
         : null,

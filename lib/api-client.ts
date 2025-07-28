@@ -62,8 +62,19 @@ export interface PlatformsResponse {
 }
 
 export interface ValidationResponse {
-  success: boolean;
-  platform?: string;
+  isValid: boolean;
+  platform?:
+    | string
+    | {
+        name: string;
+        domain: string;
+        supportedFormats: string[];
+        maxDuration: number;
+        icon: string;
+        qualityOptions: Record<string, string[]>;
+      };
+  videoId?: string;
+  normalizedUrl?: string;
   metadata?: {
     title?: string;
     duration?: number;
@@ -161,7 +172,7 @@ class ApiClient {
     } catch (error) {
       console.error('Validation API error:', error);
       return {
-        success: false,
+        isValid: false,
         error: {
           type: 'NETWORK_ERROR',
           message:
