@@ -3,6 +3,7 @@
  */
 
 import { ConversionJob, PlatformConfig, UsageStats, Env } from '../types';
+import { getGlobalMockDatabase } from './mock-database';
 
 export class DatabaseManager {
   constructor(private env: Env) {}
@@ -14,11 +15,19 @@ export class DatabaseManager {
     const now = Math.floor(Date.now() / 1000);
     const expiresAt = now + 24 * 60 * 60; // 24 hours from now
 
-    // Graceful degradation for development environment
+    // Use mock database for development environment
     if (!this.env.DB) {
-      console.warn('Database not available in development environment');
+      console.warn('Using mock database for development environment');
+      const mockDb = getGlobalMockDatabase();
+      const mockJob = await mockDb.createJob(
+        job.id,
+        job.url,
+        job.platform,
+        job.format,
+        job.quality
+      );
       return {
-        ...job,
+        ...mockJob,
         created_at: now,
         updated_at: now,
         expires_at: expiresAt,
@@ -62,8 +71,9 @@ export class DatabaseManager {
 
   async getConversionJob(id: string): Promise<ConversionJob | null> {
     if (!this.env.DB) {
-      console.warn('Database not available in development environment');
-      return null;
+      console.warn('Using mock database for development environment');
+      const mockDb = getGlobalMockDatabase();
+      return await mockDb.getJob(id);
     }
 
     const stmt = this.env.DB.prepare(
@@ -78,7 +88,9 @@ export class DatabaseManager {
     updates: Partial<ConversionJob>
   ): Promise<void> {
     if (!this.env.DB) {
-      console.warn('Database not available in development environment');
+      console.warn('Using mock database for development environment');
+      const mockDb = getGlobalMockDatabase();
+      await mockDb.updateJob(id, updates);
       return;
     }
 
@@ -102,7 +114,9 @@ export class DatabaseManager {
   }
 
   async deleteExpiredJobs(timestamp?: number): Promise<number> {
-    const now = timestamp ? Math.floor(timestamp / 1000) : Math.floor(Date.now() / 1000);
+    const now = timestamp
+      ? Math.floor(timestamp / 1000)
+      : Math.floor(Date.now() / 1000);
     const stmt = this.env.DB.prepare(
       'DELETE FROM conversion_jobs WHERE expires_at < ?'
     );
@@ -130,6 +144,12 @@ export class DatabaseManager {
 
   // Platforms
   async getAllPlatforms(): Promise<PlatformConfig[]> {
+    if (!this.env.DB) {
+      console.warn('Using mock database for development environment');
+      const mockDb = getGlobalMockDatabase();
+      return await mockDb.getPlatforms();
+    }
+
     const stmt = this.env.DB.prepare(
       'SELECT * FROM platforms WHERE is_active = 1 ORDER BY name'
     );
