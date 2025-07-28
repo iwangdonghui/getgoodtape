@@ -1,7 +1,7 @@
 name = "getgoodtape-api"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
-node_compat = true
+compatibility_flags = ["nodejs_compat"]
 
 # Development server configuration
 [dev]
@@ -12,13 +12,13 @@ local_protocol = "http"
 vars = { ENVIRONMENT = "development" }
 
 [env.production]
-vars = { ENVIRONMENT = "production" }
+vars = { ENVIRONMENT = "production", PROCESSING_SERVICE_URL = "https://getgoodtape-video-processor.onrender.com" }
 
 # D1 Database bindings
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "getgoodtape-prod"
-database_id = "your-database-id"
+database_id = "0e89da43-8723-4bf3-bc4c-3bd484cc148e"
 
 [[env.development.d1_databases]]
 binding = "DB"
@@ -37,7 +37,7 @@ bucket_name = "getgoodtape-files-dev"
 # KV namespace bindings
 [[env.production.kv_namespaces]]
 binding = "CACHE"
-id = "your-kv-namespace-id"
+id = "cabbed24ed1f42df994bb05b4cdc543a"
 
 [[env.development.kv_namespaces]]
 binding = "CACHE"

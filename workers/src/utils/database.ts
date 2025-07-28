@@ -23,15 +23,16 @@ export class DatabaseManager {
         job.id,
         job.url,
         job.platform,
-        job.format,
+        job.format as 'mp3' | 'mp4',
         job.quality
       );
       return {
         ...mockJob,
+        format: job.format as 'mp3' | 'mp4',
         created_at: now,
         updated_at: now,
         expires_at: expiresAt,
-      };
+      } as ConversionJob;
     }
 
     const stmt = this.env.DB.prepare(`

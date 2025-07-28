@@ -108,7 +108,7 @@ export class MockDatabase {
     jobId: string,
     url: string,
     platform: string,
-    format: string,
+    format: 'mp3' | 'mp4',
     quality: string
   ) {
     const job = {
