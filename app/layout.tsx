@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import QueryProvider from '../components/QueryProvider';
 
 export const metadata: Metadata = {
   title: 'GetGoodTape - From noisy video to pristine tape',
@@ -16,7 +17,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="font-brand antialiased">{children}</body>
+      <body className="font-brand antialiased">
+        <QueryProvider>{children}</QueryProvider>
+      </body>
     </html>
   );
 }

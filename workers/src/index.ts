@@ -21,7 +21,7 @@ app.use(
         'https://getgoodtape.com',
         'https://www.getgoodtape.com',
       ];
-      return allowedOrigins.includes(origin || '') ? origin : false;
+      return allowedOrigins.includes(origin || '') ? origin : null;
     },
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization'],
