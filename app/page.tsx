@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import Logo from '../components/Logo';
 
 export default function HomePage() {
@@ -49,7 +50,15 @@ export default function HomePage() {
             <Logo size="lg" />
             <h1 className="text-2xl font-bold text-deep-brown">GetGoodTape</h1>
           </div>
-          <div className="text-sm text-deep-brown/70">Coming Soon</div>
+          <div className="flex items-center space-x-4">
+            <Link
+              href="/app"
+              className="bg-warm-orange text-white px-4 py-2 rounded-lg hover:bg-warm-orange/90 transition-colors font-medium"
+            >
+              Try Beta
+            </Link>
+            <div className="text-sm text-deep-brown/70">Coming Soon</div>
+          </div>
         </div>
       </header>
 
@@ -66,6 +75,19 @@ export default function HomePage() {
               <p className="text-xl md:text-2xl text-warm-orange font-medium mb-8">
                 From noisy video to pristine tape
               </p>
+
+              {/* Main CTA Button */}
+              <div className="mb-8">
+                <Link
+                  href="/app"
+                  className="inline-block bg-gradient-to-r from-warm-orange to-tape-gold text-white px-8 py-4 rounded-xl text-lg font-semibold hover:shadow-lg hover:scale-105 transition-all duration-200"
+                >
+                  🚀 Start Converting Now (Beta)
+                </Link>
+                <p className="text-sm text-deep-brown/60 mt-3">
+                  No signup required • Free to use • Instant results
+                </p>
+              </div>
             </div>
 
             <div className="bg-white/50 backdrop-blur-sm rounded-2xl p-8 mb-12 border border-warm-orange/20">
@@ -94,14 +116,30 @@ export default function HomePage() {
             </div>
           </div>
 
+          {/* Try Now Section */}
+          <div className="bg-mint-green/20 border border-mint-green/30 rounded-2xl p-8 mb-8">
+            <h3 className="text-2xl font-bold text-deep-brown mb-4">
+              🎉 Beta is Live!
+            </h3>
+            <p className="text-lg text-deep-brown/80 mb-6">
+              Our beta version is ready! Start converting your videos right now.
+            </p>
+            <Link
+              href="/app"
+              className="inline-block bg-mint-green text-white px-6 py-3 rounded-lg text-lg font-semibold hover:bg-mint-green/90 transition-colors"
+            >
+              Try GetGoodTape Beta →
+            </Link>
+          </div>
+
           {/* Email Subscription */}
           <div className="bg-gradient-to-r from-warm-orange to-tape-gold rounded-2xl p-8 text-white mb-16">
             <h3 className="text-2xl font-bold mb-4">
-              Be the first to know when we launch!
+              Want updates on new features?
             </h3>
             <p className="text-lg mb-6 opacity-90">
-              Get early access and exclusive features when GetGoodTape goes
-              live.
+              Subscribe to get notified about new features, improvements, and
+              the official launch.
             </p>
 
             {!isSubscribed ? (
@@ -197,6 +235,21 @@ export default function HomePage() {
               </p>
             </div>
           </div>
+        </div>
+
+        {/* Final CTA */}
+        <div className="bg-deep-brown text-white rounded-2xl p-8 text-center">
+          <h3 className="text-2xl font-bold mb-4">Ready to Get Good Tape?</h3>
+          <p className="text-lg mb-6 opacity-90">
+            Join thousands of creators who are already using GetGoodTape to
+            convert their favorite videos.
+          </p>
+          <Link
+            href="/app"
+            className="inline-block bg-warm-orange text-white px-8 py-4 rounded-xl text-lg font-semibold hover:bg-warm-orange/90 transition-colors"
+          >
+            Start Converting Free →
+          </Link>
         </div>
       </main>
 

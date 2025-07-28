@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import Logo from '../../components/Logo';
 import { useConversion } from '../../hooks/useConversion';
 import { apiClient, formatDuration } from '../../lib/api-client';
@@ -49,19 +50,28 @@ export default function AppPage() {
       <header className="bg-white/50 backdrop-blur-sm border-b border-warm-orange/20">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+            <Link
+              href="/"
+              className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
+            >
               <Logo size="md" />
               <div>
                 <h1 className="text-xl font-bold text-deep-brown">
                   GetGoodTape
                 </h1>
-                <p className="text-xs text-deep-brown/60">
-                  Development Version
-                </p>
+                <p className="text-xs text-deep-brown/60">Beta Version</p>
               </div>
-            </div>
-            <div className="text-sm text-deep-brown/70 bg-mint-green/20 px-3 py-1 rounded-full">
-              Dev Mode
+            </Link>
+            <div className="flex items-center space-x-4">
+              <Link
+                href="/"
+                className="text-sm text-deep-brown/70 hover:text-deep-brown transition-colors"
+              >
+                ← Back to Home
+              </Link>
+              <div className="text-sm text-deep-brown/70 bg-mint-green/20 px-3 py-1 rounded-full">
+                Beta
+              </div>
             </div>
           </div>
         </div>
