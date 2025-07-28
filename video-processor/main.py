@@ -101,14 +101,18 @@ async def health_check():
     """
     try:
         # Check if required dependencies are available
+        ytdlp_info = check_ytdlp()
+        ffmpeg_info = check_ffmpeg()
         dependencies = {
-            "yt-dlp": check_ytdlp(),
-            "ffmpeg": check_ffmpeg(),
+            "yt-dlp": ytdlp_info["available"],
+            "yt-dlp-version": ytdlp_info["version"],
+            "ffmpeg": ffmpeg_info["available"],
+            "ffmpeg-version": ffmpeg_info["version"],
             "python": True
         }
         
         # Determine overall status
-        all_healthy = all(dependencies.values())
+        all_healthy = dependencies["yt-dlp"] and dependencies["ffmpeg"] and dependencies["python"]
         status = "healthy" if all_healthy else "degraded"
         
         return HealthResponse(
@@ -121,16 +125,17 @@ async def health_check():
         logger.error(f"Health check failed: {str(e)}")
         raise HTTPException(status_code=500, detail="Health check failed")
 
-def check_ytdlp() -> bool:
-    """Check if yt-dlp is available"""
+def check_ytdlp() -> dict:
+    """Check if yt-dlp is available and get version"""
     try:
         import yt_dlp
-        return True
+        version = yt_dlp.version.__version__
+        return {"available": True, "version": version}
     except ImportError:
-        return False
+        return {"available": False, "version": "Not installed"}
 
-def check_ffmpeg() -> bool:
-    """Check if FFmpeg is available"""
+def check_ffmpeg() -> dict:
+    """Check if FFmpeg is available and get version"""
     try:
         result = subprocess.run(
             ["ffmpeg", "-version"],
@@ -138,9 +143,15 @@ def check_ffmpeg() -> bool:
             text=True,
             timeout=5
         )
-        return result.returncode == 0
+        if result.returncode == 0:
+            # Extract version from first line
+            version_line = result.stdout.split('\n')[0] if result.stdout else "Unknown"
+            version = version_line.split(' ')[2] if len(version_line.split(' ')) > 2 else "Unknown"
+            return {"available": True, "version": version}
+        else:
+            return {"available": False, "version": "Not available"}
     except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.SubprocessError):
-        return False
+        return {"available": False, "version": "Not available"}
 
 async def extract_video_metadata(url: str) -> Dict[str, Any]:
     """
@@ -150,16 +161,16 @@ async def extract_video_metadata(url: str) -> Dict[str, Any]:
         # Import yt-dlp
         import yt_dlp
 
-        # Configure yt-dlp options with 2025 best practices
+        # Configure yt-dlp options with latest 2025 best practices
         ydl_opts = {
-            'quiet': True,
-            'no_warnings': True,
+            'quiet': False,  # Enable output for debugging
+            'no_warnings': False,
             'extract_flat': False,
             'writeinfojson': False,
             'writethumbnail': False,
             'writesubtitles': False,
             'writeautomaticsub': False,
-            # 2025 anti-detection measures
+            # Latest 2025 anti-detection measures
             'http_headers': {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
@@ -179,12 +190,16 @@ async def extract_video_metadata(url: str) -> Dict[str, Any]:
             },
             'extractor_args': {
                 'youtube': {
-                    # Use latest 2025 bypass techniques
-                    'player_client': ['ios', 'android', 'web'],
+                    # Latest 2025 YouTube bypass techniques
+                    'player_client': ['ios', 'android', 'web', 'tv_embedded'],
                     'player_skip': ['configs'],
-                    'skip': ['dash'],  # Only skip dash, allow hls
+                    'skip': [],  # Don't skip anything, let yt-dlp decide
                     'innertube_host': ['youtubei.googleapis.com'],
                     'innertube_key': ['AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8'],
+                },
+                'twitter': {
+                    # Twitter/X specific settings
+                    'api': ['syndication', 'legacy'],
                 }
             },
             # Additional bypass options
@@ -1223,6 +1238,66 @@ async def fallback_extract_endpoint(request: dict):
 
     except Exception as e:
         return {"success": False, "error": f"Fallback extraction failed: {str(e)}"}
+
+@app.post("/test-ytdlp")
+async def test_ytdlp_endpoint(request: dict):
+    """
+    Test yt-dlp configuration and version
+    """
+    try:
+        url = request.get('url', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+
+        import yt_dlp
+        import subprocess
+
+        # Get yt-dlp version
+        version = yt_dlp.version.__version__
+
+        # Test basic extraction with verbose output
+        ydl_opts = {
+            'quiet': False,
+            'verbose': True,
+            'extract_flat': False,
+            'no_warnings': False,
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['ios'],
+                }
+            },
+        }
+
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+                if info:
+                    return {
+                        "success": True,
+                        "yt_dlp_version": version,
+                        "extraction_successful": True,
+                        "title": info.get('title', 'Unknown'),
+                        "duration": info.get('duration', 0),
+                        "formats_count": len(info.get('formats', [])),
+                        "extractor": info.get('extractor', 'Unknown'),
+                        "extractor_key": info.get('extractor_key', 'Unknown'),
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "yt_dlp_version": version,
+                        "extraction_successful": False,
+                        "error": "No info extracted"
+                    }
+        except Exception as extract_error:
+            return {
+                "success": False,
+                "yt_dlp_version": version,
+                "extraction_successful": False,
+                "error": str(extract_error),
+                "error_type": type(extract_error).__name__
+            }
+
+    except Exception as e:
+        return {"success": False, "error": f"Test failed: {str(e)}"}
 
 if __name__ == "__main__":
     import uvicorn
