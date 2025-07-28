@@ -12,9 +12,9 @@ interface SubscriptionData {
 export async function GET() {
   try {
     const filePath = path.join(process.cwd(), 'data', 'subscriptions.json');
-    
+
     let subscribers: SubscriptionData[] = [];
-    
+
     try {
       const fileContent = await fs.readFile(filePath, 'utf-8');
       subscribers = JSON.parse(fileContent);
@@ -24,14 +24,16 @@ export async function GET() {
     }
 
     // Sort by timestamp (newest first)
-    subscribers.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    subscribers.sort(
+      (a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
 
     return NextResponse.json({
       success: true,
       count: subscribers.length,
-      subscribers
+      subscribers,
     });
-
   } catch (error) {
     console.error('Error fetching subscribers:', error);
     return NextResponse.json(

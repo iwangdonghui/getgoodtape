@@ -1,0 +1,34 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "functions": {
+    "app/api/health/route.ts": {
+      "maxDuration": 5
+    },
+    "app/api/sitemap/route.ts": {
+      "maxDuration": 10
+    }
+  },
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://api.getgoodtape.com"
+  },
+  "rewrites": [
+    {
+      "source": "/api/convert/:path*",
+      "destination": "https://api.getgoodtape.com/api/convert/:path*"
+    },
+    {
+      "source": "/api/status/:path*",
+      "destination": "https://api.getgoodtape.com/api/status/:path*"
+    },
+    {
+      "source": "/api/platforms/:path*",
+      "destination": "https://api.getgoodtape.com/api/platforms/:path*"
+    },
+    {
+      "source": "/api/download/:path*",
+      "destination": "https://api.getgoodtape.com/api/download/:path*"
+    }
+  ]
+}

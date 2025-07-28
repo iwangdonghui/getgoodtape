@@ -1,7 +1,7 @@
 export async function GET() {
-  return Response.json({ 
-    status: 'ok', 
+  return Response.json({
+    status: 'ok',
     timestamp: Date.now(),
-    service: 'GetGoodTape Landing Page'
+    service: 'GetGoodTape Landing Page',
   });
 }

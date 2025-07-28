@@ -9,16 +9,16 @@ module.exports = {
     extend: {
       colors: {
         // Brand color scheme
-        'cream': '#FDF6E3',
+        cream: '#FDF6E3',
         'warm-orange': '#FF8C42',
         'deep-brown': '#8B4513',
         'mint-green': '#98FB98',
         'tape-gold': '#DAA520',
       },
       fontFamily: {
-        'brand': ['Inter', 'system-ui', 'sans-serif'],
+        brand: ['Inter', 'system-ui', 'sans-serif'],
       },
     },
   },
   plugins: [],
-}
+};

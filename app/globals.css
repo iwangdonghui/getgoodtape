@@ -8,10 +8,10 @@
   html {
     font-family: 'Inter', system-ui, sans-serif;
   }
-  
+
   body {
-    background-color: #FDF6E3;
-    color: #8B4513;
+    background-color: #fdf6e3;
+    color: #8b4513;
   }
 }
 
@@ -19,12 +19,12 @@
   .btn-primary {
     @apply bg-mint-green hover:bg-green-400 text-deep-brown font-medium px-6 py-3 rounded-lg transition-colors duration-200;
   }
-  
+
   .btn-secondary {
     @apply bg-warm-orange hover:bg-orange-500 text-white font-medium px-6 py-3 rounded-lg transition-colors duration-200;
   }
-  
+
   .brand-gradient {
-    background: linear-gradient(135deg, #FF8C42 0%, #DAA520 100%);
+    background: linear-gradient(135deg, #ff8c42 0%, #daa520 100%);
   }
 }

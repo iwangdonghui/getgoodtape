@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 interface Subscriber {
   email: string;
@@ -30,7 +30,7 @@ export default function SubscribersPage() {
     try {
       const response = await fetch('/api/subscribers');
       if (response.ok) {
-        const data = await response.json();
+        const data = (await response.json()) as { subscribers: Subscriber[] };
         setSubscribers(data.subscribers || []);
       }
     } catch (error) {
@@ -43,9 +43,10 @@ export default function SubscribersPage() {
   const exportCSV = () => {
     const csvContent = [
       'Email,Subscription Date,IP Address,User Agent',
-      ...subscribers.map(sub => 
-        `"${sub.email}","${new Date(sub.timestamp).toLocaleString()}","${sub.ip || ''}","${sub.userAgent || ''}"`
-      )
+      ...subscribers.map(
+        sub =>
+          `"${sub.email}","${new Date(sub.timestamp).toLocaleString()}","${sub.ip || ''}","${sub.userAgent || ''}"`
+      ),
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -68,7 +69,7 @@ export default function SubscribersPage() {
             <input
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={e => setPassword(e.target.value)}
               placeholder="请输入管理员密码"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-mint-green"
               required
@@ -109,7 +110,7 @@ export default function SubscribersPage() {
                 导出 CSV
               </button>
               <button
-                onClick={() => window.location.href = '/'}
+                onClick={() => (window.location.href = '/')}
                 className="bg-deep-brown text-white px-6 py-2 rounded-lg hover:bg-amber-800 transition-colors"
               >
                 返回首页
@@ -154,7 +155,9 @@ export default function SubscribersPage() {
                           {subscriber.email}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(subscriber.timestamp).toLocaleString('zh-CN')}
+                          {new Date(subscriber.timestamp).toLocaleString(
+                            'zh-CN'
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {subscriber.ip || 'N/A'}

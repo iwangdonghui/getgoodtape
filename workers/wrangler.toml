@@ -1,0 +1,39 @@
+name = "getgoodtape-api"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+node_compat = true
+
+[env.development]
+vars = { ENVIRONMENT = "development" }
+
+[env.production]
+vars = { ENVIRONMENT = "production" }
+
+# D1 Database bindings
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "getgoodtape-prod"
+database_id = "your-database-id"
+
+[[env.development.d1_databases]]
+binding = "DB"
+database_name = "getgoodtape-dev"
+database_id = "your-dev-database-id"
+
+# R2 Storage bindings
+[[env.production.r2_buckets]]
+binding = "STORAGE"
+bucket_name = "getgoodtape-files"
+
+[[env.development.r2_buckets]]
+binding = "STORAGE"
+bucket_name = "getgoodtape-files-dev"
+
+# KV namespace bindings
+[[env.production.kv_namespaces]]
+binding = "CACHE"
+id = "your-kv-namespace-id"
+
+[[env.development.kv_namespaces]]
+binding = "CACHE"
+id = "your-dev-kv-namespace-id"

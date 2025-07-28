@@ -1,90 +1,164 @@
-# GetGoodTape - Brand Visual System
+# GetGoodTape
+
+A modern video conversion platform that transforms social media videos into high-quality MP3 and MP4 files.
+
+## Features
+
+- Convert videos from YouTube, TikTok, X (Twitter), Facebook, and Instagram
+- High-quality MP3 and MP4 output formats
+- Fast, reliable conversion powered by professional tools
+- Clean, user-friendly interface
+- Mobile-responsive design
+
+## Tech Stack
+
+- **Frontend**: Next.js 14, React 18, TypeScript, Tailwind CSS
+- **Backend**: Cloudflare Workers, Python FastAPI
+- **Database**: Cloudflare D1 (SQLite)
+- **Storage**: Cloudflare R2
+- **Processing**: yt-dlp, FFmpeg
+- **Deployment**: Vercel (frontend), Cloudflare Workers (API), Railway (processing)
+
+## Project Structure
+
+```
+├── app/                    # Next.js App Router pages and API routes
+├── components/             # Reusable React components
+├── workers/               # Cloudflare Workers API
+│   ├── src/
+│   │   ├── handlers/      # API route handlers
+│   │   ├── utils/         # Utility functions
+│   │   └── index.ts       # Worker entry point
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── wrangler.toml      # Cloudflare Workers configuration
+├── .kiro/specs/           # Feature specifications and design docs
+├── docs/                  # Documentation
+└── package.json           # Main project dependencies
+```
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- npm or yarn
+- Python 3.11+ (for processing service)
+
+### Installation
+
+1. Clone the repository:
+
+```bash
+git clone <repository-url>
+cd getgoodtape
+```
+
+2. Install dependencies:
+
+```bash
+npm install
+```
+
+3. Install workers dependencies:
+
+```bash
+cd workers
+npm install
+cd ..
+```
+
+4. Start the development server:
+
+```bash
+npm run dev
+```
+
+5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### Workers Development
+
+To develop the Cloudflare Workers API:
+
+```bash
+cd workers
+npm run dev
+```
+
+This will start the workers development server on port 8787.
+
+### Full Development Environment
+
+To start both frontend and workers simultaneously:
+
+```bash
+npm run dev:all
+```
+
+This runs the development script that starts:
+
+- Next.js frontend at http://localhost:3000
+- Cloudflare Workers at http://localhost:8787
+
+## Development Scripts
+
+### Main Project
+
+- `npm run dev` - Start Next.js development server
+- `npm run dev:all` - Start both frontend and workers
+- `npm run build` - Build both projects for production
+- `npm run build:frontend` - Build Next.js only
+- `npm run build:workers` - Build workers only
+- `npm run start` - Start production server
+- `npm run lint` - Run ESLint on both projects
+- `npm run lint:frontend` - Run ESLint on frontend only
+- `npm run lint:workers` - Run ESLint on workers only
+- `npm run lint:fix` - Run ESLint with auto-fix on both projects
+- `npm run format` - Format code with Prettier on both projects
+- `npm run format:check` - Check code formatting on both projects
+- `npm run type-check` - Run TypeScript type checking on both projects
+- `npm run install:all` - Install dependencies for both projects
+
+### Workers
+
+- `npm run dev` - Start workers development server
+- `npm run deploy` - Deploy workers to Cloudflare
+- `npm run build` - Build workers for production
+- `npm run lint` - Run ESLint on workers
+- `npm run lint:fix` - Run ESLint with auto-fix on workers
+- `npm run format` - Format workers code with Prettier
+- `npm run type-check` - Run TypeScript type checking on workers
+
+## Code Quality
+
+This project uses:
+
+- **ESLint** for code linting
+- **Prettier** for code formatting
+- **Husky** for Git hooks
+- **lint-staged** for pre-commit checks
+
+Pre-commit hooks automatically run linting and formatting on staged files.
 
 ## Brand Identity
 
 **Tagline:** "From noisy video to pristine tape"
 
-**Mission:** Transform videos from social media platforms into high-quality audio and video files with a nostalgic, warm aesthetic that evokes the golden age of analog recording.
+### Color Palette
 
-## Color Palette
+- **Cream White** (`#FDF6E3`) - Primary background
+- **Warm Orange** (`#FF8C42`) - Primary brand color
+- **Deep Brown** (`#8B4513`) - Text and accents
+- **Mint Green** (`#98FB98`) - Action color
+- **Tape Gold** (`#DAA520`) - Accent color
 
-- **Cream White** (`#FDF6E3`) - Primary background, clean and warm
-- **Warm Orange** (`#FF8C42`) - Primary brand color, energetic and inviting  
-- **Deep Brown** (`#8B4513`) - Text and accents, sophisticated and grounded
-- **Mint Green** (`#98FB98`) - Action color for buttons and highlights
-- **Tape Gold** (`#DAA520`) - Accent color for premium elements
+### Current Features
 
-## Logo Design
+- Email subscription system with admin dashboard
+- Brand visual system with custom logo
+- Responsive landing page
+- Admin access at `/admin/subscribers`
 
-The GetGoodTape logo combines:
-- **Tape Machine**: Vintage cassette deck with two reels
-- **Play Button**: Modern circular play button overlay
-- **Color Integration**: Uses brand colors to bridge retro and modern aesthetics
+## License
 
-## Typography
-
-- **Primary Font**: Inter (Google Fonts)
-- **Weights**: 300, 400, 500, 600, 700
-- **Usage**: Clean, modern sans-serif that balances with the vintage aesthetic
-
-## Visual Elements
-
-### Landing Page Features
-- Clean, minimalist design with warm color palette
-- Prominent logo and tagline placement
-- Email subscription form with gradient background
-- Supported platforms showcase
-- Feature preview cards with icons
-- Responsive design for all devices
-
-### Brand Voice
-- Warm and approachable
-- Nostalgic but modern
-- Quality-focused
-- User-friendly
-
-## Features
-
-### Email Subscription System
-- Real email collection with validation
-- Subscriber data stored in JSON format
-- Admin dashboard to view and export subscribers
-- CSV export functionality for email marketing
-
-### Admin Access
-- Visit `/admin/subscribers` to view subscriber list
-- Default password: `getgoodtape2024` (change in production)
-- Export subscriber data as CSV
-
-## Development
-
-```bash
-# Install dependencies
-npm install
-
-# Run development server
-npm run dev
-
-# Build for production
-npm run build
-```
-
-## API Endpoints
-
-- `POST /api/subscribe` - Subscribe to email list
-- `GET /api/subscribers` - Get all subscribers (admin)
-- `GET /api/health` - Health check
-
-## File Structure
-
-```
-/
-├── app/
-│   ├── globals.css      # Global styles and brand colors
-│   ├── layout.tsx       # Root layout with metadata
-│   └── page.tsx         # Main landing page
-├── components/
-│   └── Logo.tsx         # Brand logo component
-├── tailwind.config.js   # Tailwind configuration with brand colors
-└── package.json         # Dependencies and scripts
-```
+This project is private and proprietary.

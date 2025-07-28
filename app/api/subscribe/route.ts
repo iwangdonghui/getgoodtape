@@ -11,7 +11,8 @@ interface SubscriptionData {
 
 export async function POST(request: NextRequest) {
   try {
-    const { email } = await request.json();
+    const body = (await request.json()) as { email: string };
+    const { email } = body;
 
     // Validate email
     if (!email || !isValidEmail(email)) {
@@ -26,20 +27,19 @@ export async function POST(request: NextRequest) {
       email: email.toLowerCase().trim(),
       timestamp: new Date().toISOString(),
       ip: request.ip || request.headers.get('x-forwarded-for') || 'unknown',
-      userAgent: request.headers.get('user-agent') || 'unknown'
+      userAgent: request.headers.get('user-agent') || 'unknown',
     };
 
     // Save to file (in production, you'd use a database)
     await saveSubscription(subscriptionData);
 
     return NextResponse.json(
-      { 
-        success: true, 
-        message: 'Successfully subscribed to GetGoodTape updates!' 
+      {
+        success: true,
+        message: 'Successfully subscribed to GetGoodTape updates!',
       },
       { status: 200 }
     );
-
   } catch (error) {
     console.error('Subscription error:', error);
     return NextResponse.json(

@@ -4,24 +4,52 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "dev:all": "./scripts/dev.sh",
+    "build": "npm run build:frontend && npm run build:workers",
+    "build:frontend": "next build",
+    "build:workers": "cd workers && npm run build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "npm run lint:frontend && npm run lint:workers",
+    "lint:frontend": "next lint",
+    "lint:workers": "cd workers && npm run lint",
+    "lint:fix": "npm run lint:fix:frontend && npm run lint:fix:workers",
+    "lint:fix:frontend": "next lint --fix",
+    "lint:fix:workers": "cd workers && npm run lint:fix",
+    "format": "prettier --write . && cd workers && npm run format",
+    "format:check": "prettier --check . && cd workers && npm run format:check",
+    "type-check": "tsc --noEmit && cd workers && npm run type-check",
+    "prepare": "husky install",
+    "install:all": "npm install && cd workers && npm install"
   },
   "dependencies": {
-    "next": "14.0.0",
+    "next": "^14.2.30",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "typescript": "^5.2.2",
     "@types/node": "^20.8.0",
     "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0"
+    "@types/react-dom": "^18.2.0",
+    "@tanstack/react-query": "^5.0.0"
   },
   "devDependencies": {
     "tailwindcss": "^3.3.0",
     "autoprefixer": "^10.4.0",
     "postcss": "^8.4.0",
     "eslint": "^8.0.0",
-    "eslint-config-next": "14.0.0"
+    "eslint-config-next": "14.0.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "prettier": "^3.0.0",
+    "husky": "^8.0.0",
+    "lint-staged": "^15.0.0"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,css}": [
+      "prettier --write"
+    ]
   }
 }
