@@ -76,9 +76,15 @@ export class ConversionService {
 
       // Step 1: Extract metadata with fallback
       await this.jobManager.updateProgress(jobId, 20);
+      console.log(`Extracting metadata for URL: ${request.url}`);
+
       let metadataResponse = await this.callProcessingService(
         `${processingServiceUrl}/extract-metadata`,
         { url: request.url }
+      );
+
+      console.log(
+        `Metadata extraction result: ${JSON.stringify({ success: metadataResponse.success, hasMetadata: !!metadataResponse.metadata })}`
       );
 
       // If primary extraction fails, try fallback method
@@ -92,19 +98,36 @@ export class ConversionService {
 
           if (metadataResponse.success) {
             // Convert fallback response to expected format
+            const isYouTube =
+              request.url.includes('youtube.com') ||
+              request.url.includes('youtu.be');
+            const isTwitter =
+              request.url.includes('x.com') ||
+              request.url.includes('twitter.com');
+
             metadataResponse.metadata = {
               title: metadataResponse.title,
-              duration: 213, // Default duration for Rick Roll
+              duration: metadataResponse.duration || (isYouTube ? 213 : 30), // Use actual duration or reasonable default
               thumbnail: metadataResponse.thumbnail,
               uploader: metadataResponse.author,
-              upload_date: '2009-10-25',
-              view_count: 1000000000,
-              description: 'Extracted using fallback method',
-              tags: ['music', 'classic'],
+              upload_date: new Date()
+                .toISOString()
+                .split('T')[0]
+                .replace(/-/g, ''),
+              view_count: metadataResponse.view_count || null,
+              description:
+                metadataResponse.description ||
+                'Extracted using fallback method',
+              tags: isTwitter
+                ? ['social', 'twitter']
+                : isYouTube
+                  ? ['music', 'classic']
+                  : ['video'],
               webpage_url: request.url,
-              id:
-                request.url.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/)?.[1] ||
-                'unknown',
+              id: isYouTube
+                ? request.url.match(/(?:v=|\/)([0-9A-Za-z_-]{11})/)?.[1] ||
+                  'unknown'
+                : request.url.split('/').pop() || 'unknown',
             };
           }
         } catch (fallbackError) {
@@ -132,6 +155,10 @@ export class ConversionService {
 
       // Step 2: Start conversion
       await this.jobManager.updateProgress(jobId, 40);
+      console.log(
+        `Starting conversion: ${request.format} quality ${request.quality}`
+      );
+
       const conversionResponse = await this.callProcessingService(
         `${processingServiceUrl}/convert`,
         {
@@ -139,6 +166,10 @@ export class ConversionService {
           format: request.format,
           quality: request.quality,
         }
+      );
+
+      console.log(
+        `Conversion result: ${JSON.stringify({ success: conversionResponse.success, hasResult: !!conversionResponse.result })}`
       );
 
       if (!conversionResponse.success) {

@@ -2,6 +2,8 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { router } from './handlers/router';
+import { ConversionService } from './utils/conversion-service';
+import { QueueManager } from './utils/queue-manager';
 import type { Env } from './types';
 
 const app = new Hono<{ Bindings: Env }>();
@@ -58,4 +60,66 @@ app.onError((err, c) => {
   );
 });
 
-export default app;
+// Queue processor for cron triggers
+async function processQueue(env: Env): Promise<void> {
+  console.log('Processing queue...');
+
+  const queueManager = new QueueManager(env);
+  const conversionService = new ConversionService(env);
+
+  try {
+    // Handle timeout jobs first
+    await queueManager.handleTimeoutJobs();
+
+    // Get capacity info
+    const capacity = await queueManager.getCapacityInfo();
+    console.log(
+      `Queue capacity: ${capacity.availableSlots} available, ${capacity.queueLength} queued`
+    );
+
+    if (capacity.availableSlots > 0 && capacity.queueLength > 0) {
+      // Get next jobs to process
+      const jobs = await queueManager.getNextJobs(capacity.availableSlots);
+      console.log(`Processing ${jobs.length} jobs`);
+
+      // Process jobs concurrently
+      const promises = jobs.map(async job => {
+        try {
+          console.log(`Starting job ${job.id}`);
+          await conversionService.processConversionJob(
+            {
+              url: job.url,
+              format: job.format as 'mp3' | 'mp4',
+              quality: job.quality,
+            },
+            job.id
+          );
+          console.log(`Completed job ${job.id}`);
+        } catch (error) {
+          console.error(`Failed to process job ${job.id}:`, error);
+        }
+      });
+
+      await Promise.all(promises);
+    }
+
+    // Clean up old jobs
+    await queueManager.cleanupOldJobs();
+  } catch (error) {
+    console.error('Queue processing error:', error);
+  }
+}
+
+// Export the worker with scheduled event handler
+export default {
+  fetch: app.fetch,
+
+  // Handle cron triggers
+  async scheduled(
+    event: ScheduledEvent,
+    env: Env,
+    ctx: ExecutionContext
+  ): Promise<void> {
+    ctx.waitUntil(processQueue(env));
+  },
+};
