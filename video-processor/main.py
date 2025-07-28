@@ -82,7 +82,7 @@ class ConversionResult(BaseModel):
     success: bool
     file_path: Optional[str] = None
     file_size: Optional[int] = None
-    duration: Optional[int] = None
+    duration: Optional[float] = None
     format: Optional[str] = None
     quality: Optional[str] = None
     error: Optional[str] = None
@@ -250,8 +250,9 @@ async def extract_video_metadata(url: str) -> Dict[str, Any]:
         logger.error(f"Failed to extract metadata for {url}: {str(e)}")
         raise
 
-def format_duration(seconds: int) -> str:
+def format_duration(seconds: float) -> str:
     """Format duration in seconds to human readable format"""
+    seconds = int(seconds)  # Convert to int for formatting
     if seconds < 60:
         return f"{seconds}s"
     elif seconds < 3600:
@@ -264,7 +265,7 @@ def format_duration(seconds: int) -> str:
         remaining_seconds = seconds % 60
         return f"{hours}h {remaining_minutes}m {remaining_seconds}s"
 
-def validate_video_duration(duration: int, max_duration: int = 7200) -> Optional[str]:
+def validate_video_duration(duration: float, max_duration: int = 7200) -> Optional[str]:
     """
     Validate video duration and return warning if too long
     max_duration: maximum allowed duration in seconds (default: 2 hours)
@@ -600,7 +601,7 @@ def get_bitrate_for_resolution(height: int, buffer: bool = False) -> str:
 
     return base_bitrate
 
-def estimate_file_size(duration: int, format_type: str, quality: str) -> int:
+def estimate_file_size(duration: float, format_type: str, quality: str) -> int:
     """
     Estimate output file size based on duration, format, and quality
     """
