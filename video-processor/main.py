@@ -118,7 +118,7 @@ async def health_check():
         return HealthResponse(
             status=status,
             service="video-processor",
-            version="1.0.0",
+            version="1.0.1",  # Bump version to force deployment
             dependencies=dependencies
         )
     except Exception as e:
