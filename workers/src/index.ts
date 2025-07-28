@@ -2,14 +2,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { router } from './handlers/router';
-
-// Define the environment bindings
-export interface Env {
-  DB: D1Database;
-  STORAGE: R2Bucket;
-  CACHE: KVNamespace;
-  ENVIRONMENT: string;
-}
+import type { Env } from './types';
 
 const app = new Hono<{ Bindings: Env }>();
 
