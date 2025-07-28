@@ -23,7 +23,7 @@
   - 配置 Cloudflare KV 命名空间
   - _需求: 1.3_
 
-- [ ] 4. 设置 Railway 视频处理服务
+- [x] 4. 设置 Railway 视频处理服务
   - 创建 Python FastAPI 项目结构
   - 配置 Docker 环境，安装 yt-dlp 和 FFmpeg
   - 实现基础的健康检查端点
