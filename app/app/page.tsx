@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Logo from '../../components/Logo';
+import ConversionProgress from '../../components/ConversionProgress';
+import ConversionResult from '../../components/ConversionResult';
+import ConversionError from '../../components/ConversionError';
 import { useConversion } from '../../hooks/useConversion';
 import { apiClient, formatDuration } from '../../lib/api-client';
 
@@ -258,115 +261,47 @@ export default function AppPage() {
               </button>
             </form>
 
-            {/* Progress Bar */}
-            {conversion.isConverting && (
-              <div className="mt-6">
-                <div className="flex justify-between text-sm text-deep-brown mb-2">
-                  <span>
-                    转换进度
-                    {conversion.status !== 'idle' && (
-                      <span className="ml-2 text-xs text-gray-600">
-                        (
-                        {conversion.status === 'queued'
-                          ? '排队中'
-                          : conversion.status === 'processing'
-                            ? '处理中'
-                            : conversion.status}
-                        )
-                      </span>
-                    )}
-                  </span>
-                  <span>{Math.round(conversion.progress)}%</span>
-                </div>
-                <div className="w-full bg-warm-orange/20 rounded-full h-2">
-                  <div
-                    className="bg-gradient-to-r from-warm-orange to-tape-gold h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${conversion.progress}%` }}
-                  ></div>
-                </div>
-                {conversion.jobId && (
-                  <div className="mt-2 text-xs text-gray-500">
-                    任务ID: {conversion.jobId}
-                  </div>
-                )}
-              </div>
+            {/* Progress Display */}
+            <ConversionProgress
+              status={conversion.status}
+              progress={conversion.progress}
+              jobId={conversion.jobId}
+              error={conversion.error}
+            />
+
+            {/* Result or Error Display */}
+            {conversion.error && (
+              <ConversionError
+                error={conversion.error}
+                canRetry={conversion.canRetry}
+                retryCount={conversion.retryCount}
+                onRetry={conversion.retry}
+                onReset={conversion.reset}
+                jobId={conversion.jobId}
+              />
             )}
 
-            {/* Result */}
-            {(conversion.error || conversion.result) && (
-              <div className="mt-6">
-                {conversion.error ? (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <p className="text-red-700">{conversion.error}</p>
-                    <div className="mt-3 flex space-x-3">
-                      {conversion.canRetry && (
-                        <button
-                          onClick={conversion.retry}
-                          className="text-red-600 hover:text-red-800 text-sm underline"
-                        >
-                          重试 ({conversion.retryCount}/3)
-                        </button>
-                      )}
-                      <button
-                        onClick={conversion.reset}
-                        className="text-red-600 hover:text-red-800 text-sm underline"
-                      >
-                        重新开始
-                      </button>
-                    </div>
-                  </div>
-                ) : conversion.result ? (
-                  <div className="bg-mint-green/20 border border-mint-green/30 rounded-lg p-4">
-                    <h3 className="text-lg font-semibold text-deep-brown mb-2">
-                      ✅ 转换完成！
-                    </h3>
-
-                    {/* Video metadata */}
-                    {conversion.result.metadata && (
-                      <div className="mb-4 p-3 bg-white/50 rounded-lg">
-                        <h4 className="font-medium text-deep-brown mb-2">
-                          视频信息
-                        </h4>
-                        <div className="text-sm text-deep-brown/80 space-y-1">
-                          <p>
-                            <strong>标题:</strong>{' '}
-                            {conversion.result.metadata.title}
-                          </p>
-                          <p>
-                            <strong>时长:</strong>{' '}
-                            {formatDuration(
-                              conversion.result.metadata.duration
-                            )}
-                          </p>
-                          <p>
-                            <strong>上传者:</strong>{' '}
-                            {conversion.result.metadata.uploader}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    <p className="text-deep-brown/80 mb-4">
-                      文件名: {conversion.result.filename}
-                    </p>
-                    <div className="flex space-x-3">
-                      <a
-                        href={conversion.result.downloadUrl}
-                        className="btn-primary inline-block"
-                        download={conversion.result.filename}
-                      >
-                        下载文件
-                      </a>
-                      <button
-                        onClick={conversion.reset}
-                        className="px-4 py-2 text-deep-brown border border-warm-orange/30 rounded-lg hover:bg-warm-orange/10 transition-colors"
-                      >
-                        转换新文件
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
+            {conversion.result && !conversion.error && (
+              <ConversionResult
+                downloadUrl={conversion.result.downloadUrl}
+                filename={conversion.result.filename}
+                metadata={conversion.result.metadata}
+                format={conversion.format}
+                quality={conversion.quality}
+                onReset={conversion.reset}
+                onNewConversion={() => {
+                  conversion.reset();
+                  // Focus on URL input
+                  setTimeout(() => {
+                    const urlInput = document.getElementById(
+                      'url'
+                    ) as HTMLInputElement;
+                    if (urlInput) {
+                      urlInput.focus();
+                    }
+                  }, 100);
+                }}
+              />
             )}
           </div>
 
