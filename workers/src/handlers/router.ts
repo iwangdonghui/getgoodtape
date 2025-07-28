@@ -5,6 +5,7 @@ import { UrlValidator } from '../utils/url-validator';
 import { ConversionService } from '../utils/conversion-service';
 import { StorageManager } from '../utils/storage';
 import { QueueManager } from '../utils/queue-manager';
+import { FileCleanupService } from '../utils/file-cleanup';
 import { ErrorType, ConvertRequest, PlatformsResponse, Env } from '../types';
 
 export const router = new Hono<{ Bindings: Env }>();
@@ -383,7 +384,15 @@ router.get('/download/:fileName', async c => {
       );
     }
 
-    return file;
+    // Add download headers to trigger browser download
+    const headers = new Headers(file.headers);
+    headers.set('Content-Disposition', `attachment; filename="${fileName}"`);
+    headers.set('X-Content-Type-Options', 'nosniff');
+
+    return new Response(file.body, {
+      status: file.status,
+      headers,
+    });
   } catch (error) {
     console.error('Download endpoint error:', error);
     return c.json(
@@ -391,6 +400,127 @@ router.get('/download/:fileName', async c => {
         error: {
           type: ErrorType.SERVER_ERROR,
           message: 'Internal server error during file download',
+          retryable: true,
+        },
+      },
+      500
+    );
+  }
+});
+
+// File streaming endpoint for large files
+router.get('/stream/:fileName', async c => {
+  try {
+    const fileName = c.req.param('fileName');
+    const range = c.req.header('Range');
+
+    if (!fileName) {
+      return c.json(
+        {
+          error: {
+            type: ErrorType.INVALID_URL,
+            message: 'File name is required',
+            retryable: false,
+          },
+        },
+        400
+      );
+    }
+
+    const storage = new StorageManager(c.env);
+
+    if (range) {
+      // Handle range requests for streaming
+      const fileMetadata = await storage.getFileMetadata(fileName);
+      if (!fileMetadata) {
+        return c.json(
+          {
+            error: {
+              type: ErrorType.VIDEO_NOT_FOUND,
+              message: 'File not found',
+              retryable: false,
+            },
+          },
+          404
+        );
+      }
+
+      // Parse range header
+      const rangeMatch = range.match(/bytes=(\d+)-(\d*)/);
+      if (!rangeMatch) {
+        return c.json(
+          {
+            error: {
+              type: ErrorType.INVALID_URL,
+              message: 'Invalid range header',
+              retryable: false,
+            },
+          },
+          400
+        );
+      }
+
+      const start = parseInt(rangeMatch[1], 10);
+      const fileSize = fileMetadata.size as number;
+      const end = rangeMatch[2] ? parseInt(rangeMatch[2], 10) : fileSize - 1;
+      const contentLength = end - start + 1;
+
+      // For now, return the full file since R2 range requests need special handling
+      const file = await storage.getFile(fileName);
+      if (!file) {
+        return c.json(
+          {
+            error: {
+              type: ErrorType.VIDEO_NOT_FOUND,
+              message: 'File not found',
+              retryable: false,
+            },
+          },
+          404
+        );
+      }
+
+      return new Response(file.body, {
+        status: 206, // Partial Content
+        headers: {
+          'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+          'Content-Length': contentLength.toString(),
+          'Content-Type':
+            file.headers.get('Content-Type') || 'application/octet-stream',
+          'Accept-Ranges': 'bytes',
+        },
+      });
+    } else {
+      // Regular file request
+      const file = await storage.getFile(fileName);
+      if (!file) {
+        return c.json(
+          {
+            error: {
+              type: ErrorType.VIDEO_NOT_FOUND,
+              message: 'File not found',
+              retryable: false,
+            },
+          },
+          404
+        );
+      }
+
+      const headers = new Headers(file.headers);
+      headers.set('Accept-Ranges', 'bytes');
+
+      return new Response(file.body, {
+        status: file.status,
+        headers,
+      });
+    }
+  } catch (error) {
+    console.error('Stream endpoint error:', error);
+    return c.json(
+      {
+        error: {
+          type: ErrorType.SERVER_ERROR,
+          message: 'Internal server error during file streaming',
           retryable: true,
         },
       },
@@ -567,6 +697,202 @@ router.get('/admin/queue/position/:jobId', async c => {
     });
   } catch (error) {
     console.error('Queue position endpoint error:', error);
+    return c.json(
+      {
+        error: {
+          type: ErrorType.SERVER_ERROR,
+          message: 'Internal server error',
+          retryable: true,
+        },
+      },
+      500
+    );
+  }
+});
+
+// File management endpoints
+router.get('/admin/storage/stats', async c => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const cleanupService = new FileCleanupService(c.env);
+    const storageStats = await cleanupService.getStorageStats();
+    const cleanupStats = cleanupService.getStats();
+
+    return c.json({
+      success: true,
+      storage: storageStats,
+      cleanup: cleanupStats,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Storage stats endpoint error:', error);
+    return c.json(
+      {
+        error: {
+          type: ErrorType.SERVER_ERROR,
+          message: 'Internal server error',
+          retryable: true,
+        },
+      },
+      500
+    );
+  }
+});
+
+router.post('/admin/storage/cleanup', async c => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const body = await c.req.json().catch(() => ({}));
+    const cleanupType = body.type || 'all'; // 'all', 'age', 'size', 'orphaned'
+
+    const cleanupService = new FileCleanupService(c.env);
+    let result;
+
+    switch (cleanupType) {
+      case 'age': {
+        result = await cleanupService.performCleanup();
+        break;
+      }
+      case 'size': {
+        const deletedBySize = await cleanupService.cleanupBySize();
+        result = { filesDeleted: deletedBySize, type: 'size-based' };
+        break;
+      }
+      case 'orphaned': {
+        const deletedOrphaned = await cleanupService.cleanupOrphanedFiles();
+        result = { filesDeleted: deletedOrphaned, type: 'orphaned' };
+        break;
+      }
+      case 'all':
+      default: {
+        const cleanupResult = await cleanupService.performCleanup();
+        const sizeResult = await cleanupService.cleanupBySize();
+        const orphanedResult = await cleanupService.cleanupOrphanedFiles();
+        result = {
+          ...cleanupResult,
+          additionalFilesDeleted: sizeResult + orphanedResult,
+          type: 'comprehensive',
+        };
+        break;
+      }
+    }
+
+    return c.json({
+      success: true,
+      result,
+      message: `Cleanup completed: ${result.filesDeleted || 0} files processed`,
+    });
+  } catch (error) {
+    console.error('Storage cleanup endpoint error:', error);
+    return c.json(
+      {
+        error: {
+          type: ErrorType.SERVER_ERROR,
+          message: 'Internal server error',
+          retryable: true,
+        },
+      },
+      500
+    );
+  }
+});
+
+router.get('/admin/storage/files', async c => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const storage = new StorageManager(c.env);
+    const files = await storage.listFiles();
+
+    // Get metadata for each file
+    const fileDetails = await Promise.all(
+      files.slice(0, 100).map(async key => {
+        // Limit to 100 files
+        const fileName = key.replace('conversions/', '');
+        const metadata = await storage.getFileMetadata(fileName);
+        return {
+          fileName,
+          key,
+          metadata,
+        };
+      })
+    );
+
+    return c.json({
+      success: true,
+      files: fileDetails,
+      total: files.length,
+      showing: Math.min(files.length, 100),
+    });
+  } catch (error) {
+    console.error('Storage files endpoint error:', error);
+    return c.json(
+      {
+        error: {
+          type: ErrorType.SERVER_ERROR,
+          message: 'Internal server error',
+          retryable: true,
+        },
+      },
+      500
+    );
+  }
+});
+
+router.delete('/admin/storage/files/:fileName', async c => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const fileName = c.req.param('fileName');
+    if (!fileName) {
+      return c.json(
+        {
+          error: {
+            type: ErrorType.INVALID_URL,
+            message: 'File name is required',
+            retryable: false,
+          },
+        },
+        400
+      );
+    }
+
+    const storage = new StorageManager(c.env);
+    const deleted = await storage.deleteFile(fileName);
+
+    if (!deleted) {
+      return c.json(
+        {
+          error: {
+            type: ErrorType.VIDEO_NOT_FOUND,
+            message: 'File not found or could not be deleted',
+            retryable: false,
+          },
+        },
+        404
+      );
+    }
+
+    return c.json({
+      success: true,
+      message: `File ${fileName} deleted successfully`,
+    });
+  } catch (error) {
+    console.error('Storage delete endpoint error:', error);
     return c.json(
       {
         error: {

@@ -23,10 +23,11 @@ export class StorageManager {
 
       const key = `conversions/${fileName}`;
 
-      // Generate a signed URL for download
-      // Note: This is a simplified implementation
-      // In production, you'd want to implement proper signed URLs with expiration
-      const downloadUrl = `https://storage.getgoodtape.com/${key}`;
+      if (!this.env.STORAGE) {
+        console.warn('R2 storage not available in development environment');
+        // Return a simulated download URL for development
+        return `https://storage.getgoodtape.com/${key}`;
+      }
 
       // TODO: Implement actual R2 upload
       // const object = await this.env.STORAGE.put(key, fileContent, {
@@ -38,12 +39,67 @@ export class StorageManager {
       console.log(
         `Simulated upload: ${fileName} from ${filePath} (${contentType})`
       );
+
+      // Generate download URL
+      const downloadUrl = await this.generateDownloadUrl(fileName);
+
       return downloadUrl;
     } catch (error) {
       console.error('Storage upload error:', error);
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to upload file: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Upload file content directly to R2
+   */
+  async uploadFileContent(
+    fileName: string,
+    content: ArrayBuffer | Uint8Array | string,
+    contentType: string,
+    metadata?: Record<string, string>
+  ): Promise<string> {
+    try {
+      if (!this.env.STORAGE) {
+        throw new Error('R2 storage not available');
+      }
+
+      const key = `conversions/${fileName}`;
+
+      const object = await this.env.STORAGE.put(key, content, {
+        httpMetadata: {
+          contentType: this.getContentType(contentType),
+          cacheControl: 'public, max-age=31536000', // 1 year
+        },
+        customMetadata: {
+          uploadedAt: Date.now().toString(),
+          ...metadata,
+        },
+      });
+
+      if (!object) {
+        throw new Error('Failed to upload file to R2');
+      }
+
+      const contentSize =
+        content instanceof ArrayBuffer
+          ? content.byteLength
+          : content instanceof Uint8Array
+            ? content.length
+            : content.length;
+      console.log(
+        `Successfully uploaded ${fileName} to R2 (${contentSize} bytes)`
+      );
+
+      // Generate download URL
+      return await this.generateDownloadUrl(fileName);
+    } catch (error) {
+      console.error('Storage upload content error:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to upload file content: ${errorMessage}`);
     }
   }
 
