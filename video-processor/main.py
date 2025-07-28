@@ -1001,7 +1001,7 @@ async def root():
 @app.post("/youtube-bypass")
 async def youtube_bypass_endpoint(request: dict):
     """
-    Specialized YouTube bypass endpoint using multiple strategies
+    Specialized YouTube bypass endpoint using multiple strategies including proxies
     """
     try:
         url = request.get('url')
@@ -1011,6 +1011,14 @@ async def youtube_bypass_endpoint(request: dict):
         import yt_dlp
         import random
         import time
+
+        # Free proxy list (rotate through these)
+        free_proxies = [
+            None,  # No proxy first
+            'http://proxy-server.scraperapi.com:8001',
+            'http://rotating-residential.scraperapi.com:8001',
+            'socks5://127.0.0.1:1080',  # Local SOCKS5 if available
+        ]
 
         # Multiple user agents to rotate
         user_agents = [
@@ -1110,25 +1118,35 @@ async def youtube_bypass_endpoint(request: dict):
             }
         ]
 
+        # Try each strategy with different proxies
         for strategy in strategies:
-            try:
-                print(f"Trying strategy: {strategy['name']}")
-                time.sleep(random.uniform(1, 3))  # Random delay
+            for proxy in free_proxies:
+                try:
+                    strategy_name = f"{strategy['name']}" + (f" + Proxy" if proxy else "")
+                    print(f"Trying strategy: {strategy_name}")
 
-                with yt_dlp.YoutubeDL(strategy['opts']) as ydl:
-                    info = ydl.extract_info(url, download=False)
-                    if info:
-                        return {
-                            "success": True,
-                            "strategy": strategy['name'],
-                            "title": info.get('title', 'Unknown'),
-                            "duration": info.get('duration', 0),
-                            "formats_available": len(info.get('formats', [])),
-                            "message": f"Successfully bypassed using {strategy['name']}"
-                        }
-            except Exception as e:
-                print(f"Strategy {strategy['name']} failed: {str(e)}")
-                continue
+                    # Add proxy to options if available
+                    opts = strategy['opts'].copy()
+                    if proxy:
+                        opts['proxy'] = proxy
+
+                    time.sleep(random.uniform(0.5, 2))  # Random delay
+
+                    with yt_dlp.YoutubeDL(opts) as ydl:
+                        info = ydl.extract_info(url, download=False)
+                        if info:
+                            return {
+                                "success": True,
+                                "strategy": strategy_name,
+                                "title": info.get('title', 'Unknown'),
+                                "duration": info.get('duration', 0),
+                                "formats_available": len(info.get('formats', [])),
+                                "message": f"Successfully bypassed using {strategy_name}",
+                                "proxy_used": proxy is not None
+                            }
+                except Exception as e:
+                    print(f"Strategy {strategy_name} failed: {str(e)}")
+                    continue
 
         return {
             "success": False,
@@ -1138,6 +1156,73 @@ async def youtube_bypass_endpoint(request: dict):
 
     except Exception as e:
         return {"success": False, "error": f"Bypass failed: {str(e)}"}
+
+@app.post("/fallback-extract")
+async def fallback_extract_endpoint(request: dict):
+    """
+    Fallback extraction using alternative methods when yt-dlp fails
+    """
+    try:
+        url = request.get('url')
+        if not url:
+            return {"success": False, "error": "URL is required"}
+
+        # Extract video ID from URL
+        import re
+        video_id_match = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11}).*', url)
+        if not video_id_match:
+            return {"success": False, "error": "Could not extract video ID from URL"}
+
+        video_id = video_id_match.group(1)
+
+        # Try alternative extraction methods
+        methods = [
+            {
+                'name': 'YouTube oEmbed API',
+                'url': f'https://www.youtube.com/oembed?url={url}&format=json'
+            },
+            {
+                'name': 'YouTube RSS Feed',
+                'url': f'https://www.youtube.com/feeds/videos.xml?video_id={video_id}'
+            }
+        ]
+
+        import aiohttp
+        async with aiohttp.ClientSession() as session:
+            for method in methods:
+                try:
+                    async with session.get(method['url']) as response:
+                        if response.status == 200:
+                            if 'oembed' in method['url']:
+                                data = await response.json()
+                                return {
+                                    "success": True,
+                                    "method": method['name'],
+                                    "title": data.get('title', 'Unknown'),
+                                    "author": data.get('author_name', 'Unknown'),
+                                    "thumbnail": data.get('thumbnail_url', ''),
+                                    "message": f"Extracted using {method['name']}"
+                                }
+                            else:
+                                # RSS feed parsing would go here
+                                return {
+                                    "success": True,
+                                    "method": method['name'],
+                                    "message": f"RSS feed accessible for video {video_id}"
+                                }
+                except Exception as e:
+                    print(f"Method {method['name']} failed: {str(e)}")
+                    continue
+
+        return {
+            "success": False,
+            "error": "All fallback methods failed",
+            "video_id": video_id,
+            "suggestion": "Try using a different video or check if the video is publicly accessible"
+        }
+
+    except Exception as e:
+        return {"success": False, "error": f"Fallback extraction failed: {str(e)}"}
 
 if __name__ == "__main__":
     import uvicorn
