@@ -150,7 +150,7 @@ async def extract_video_metadata(url: str) -> Dict[str, Any]:
         # Import yt-dlp
         import yt_dlp
 
-        # Configure yt-dlp options with anti-detection measures
+        # Configure yt-dlp options with enhanced anti-detection measures
         ydl_opts = {
             'quiet': True,
             'no_warnings': True,
@@ -159,32 +159,72 @@ async def extract_video_metadata(url: str) -> Dict[str, Any]:
             'writethumbnail': False,
             'writesubtitles': False,
             'writeautomaticsub': False,
-            # Anti-detection measures
+            # Enhanced anti-detection measures
             'http_headers': {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Accept-Language': 'en-us,en;q=0.5',
-                'Accept-Encoding': 'gzip,deflate',
-                'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
-                'Keep-Alive': '300',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'DNT': '1',
                 'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none',
+                'Sec-Fetch-User': '?1',
+                'Cache-Control': 'max-age=0',
             },
             'extractor_args': {
                 'youtube': {
                     'skip': ['dash', 'hls'],
-                    'player_client': ['android', 'web'],
+                    'player_client': ['android', 'web', 'ios'],
+                    'player_skip': ['configs'],
+                    'comment_sort': ['top'],
+                    'max_comments': [0],
                 }
             },
+            # Additional options to bypass restrictions
+            'geo_bypass': True,
+            'age_limit': 99,
+            'sleep_interval': 1,
+            'max_sleep_interval': 5,
+            'ignoreerrors': False,
+            'no_color': True,
         }
 
-        # Extract metadata
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
+        # Extract metadata with fallback methods
+        info = None
+        last_error = None
 
-            if not info:
-                raise ValueError("Could not extract video information")
+        # Try multiple extraction methods
+        extraction_methods = [
+            # Method 1: Standard extraction
+            ydl_opts,
+            # Method 2: Android client only
+            {**ydl_opts, 'extractor_args': {'youtube': {'player_client': ['android']}}},
+            # Method 3: Web client with different headers
+            {**ydl_opts, 'extractor_args': {'youtube': {'player_client': ['web']}},
+             'http_headers': {**ydl_opts['http_headers'], 'User-Agent': 'Mozilla/5.0 (Android 11; Mobile; rv:68.0) Gecko/68.0 Firefox/88.0'}},
+            # Method 4: iOS client
+            {**ydl_opts, 'extractor_args': {'youtube': {'player_client': ['ios']}}},
+        ]
 
-            return info
+        for i, opts in enumerate(extraction_methods):
+            try:
+                with yt_dlp.YoutubeDL(opts) as ydl:
+                    info = ydl.extract_info(url, download=False)
+                    if info:
+                        print(f"✓ Extraction successful with method {i+1}")
+                        break
+            except Exception as e:
+                last_error = e
+                print(f"✗ Method {i+1} failed: {str(e)}")
+                continue
+
+        if not info:
+            raise ValueError(f"Could not extract video information after trying all methods. Last error: {last_error}")
+
+        return info
 
     except Exception as e:
         logger.error(f"Failed to extract metadata for {url}: {str(e)}")
@@ -952,6 +992,98 @@ async def root():
             }
         }
     }
+
+@app.post("/youtube-bypass")
+async def youtube_bypass_endpoint(request: dict):
+    """
+    Specialized YouTube bypass endpoint using multiple strategies
+    """
+    try:
+        url = request.get('url')
+        if not url:
+            return {"success": False, "error": "URL is required"}
+
+        import yt_dlp
+        import random
+        import time
+
+        # Multiple user agents to rotate
+        user_agents = [
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0',
+            'Mozilla/5.0 (Android 11; Mobile; rv:68.0) Gecko/68.0 Firefox/88.0',
+        ]
+
+        # Advanced bypass strategies
+        strategies = [
+            {
+                'name': 'Android TV',
+                'opts': {
+                    'quiet': True,
+                    'extractor_args': {'youtube': {'player_client': ['android_tv']}},
+                    'http_headers': {'User-Agent': random.choice(user_agents)},
+                }
+            },
+            {
+                'name': 'Android Music',
+                'opts': {
+                    'quiet': True,
+                    'extractor_args': {'youtube': {'player_client': ['android_music']}},
+                    'http_headers': {'User-Agent': random.choice(user_agents)},
+                }
+            },
+            {
+                'name': 'Web Embedded',
+                'opts': {
+                    'quiet': True,
+                    'extractor_args': {'youtube': {'player_client': ['web_embedded']}},
+                    'http_headers': {'User-Agent': random.choice(user_agents)},
+                }
+            },
+            {
+                'name': 'Android with Proxy Headers',
+                'opts': {
+                    'quiet': True,
+                    'extractor_args': {'youtube': {'player_client': ['android']}},
+                    'http_headers': {
+                        'User-Agent': 'com.google.android.youtube/17.36.4 (Linux; U; Android 11) gzip',
+                        'X-YouTube-Client-Name': '3',
+                        'X-YouTube-Client-Version': '17.36.4',
+                    },
+                }
+            }
+        ]
+
+        for strategy in strategies:
+            try:
+                print(f"Trying strategy: {strategy['name']}")
+                time.sleep(random.uniform(1, 3))  # Random delay
+
+                with yt_dlp.YoutubeDL(strategy['opts']) as ydl:
+                    info = ydl.extract_info(url, download=False)
+                    if info:
+                        return {
+                            "success": True,
+                            "strategy": strategy['name'],
+                            "title": info.get('title', 'Unknown'),
+                            "duration": info.get('duration', 0),
+                            "formats_available": len(info.get('formats', [])),
+                            "message": f"Successfully bypassed using {strategy['name']}"
+                        }
+            except Exception as e:
+                print(f"Strategy {strategy['name']} failed: {str(e)}")
+                continue
+
+        return {
+            "success": False,
+            "error": "All bypass strategies failed",
+            "strategies_tried": [s['name'] for s in strategies]
+        }
+
+    except Exception as e:
+        return {"success": False, "error": f"Bypass failed: {str(e)}"}
 
 if __name__ == "__main__":
     import uvicorn
