@@ -246,7 +246,9 @@ export function useConversion(): ConversionState & ConversionActions {
         platform: state.detectedPlatform,
       };
 
+      console.log('Starting conversion with request:', request);
       const response = await apiClient.convert(request);
+      console.log('Conversion response:', response);
 
       if (response.success && response.jobId) {
         setState(prev => ({
@@ -262,20 +264,31 @@ export function useConversion(): ConversionState & ConversionActions {
         // Initial status check
         await pollJobStatus(response.jobId);
       } else {
+        const errorMessage = response.error
+          ? getErrorMessage(response.error)
+          : 'Failed to start conversion';
+
+        console.error('Conversion failed:', errorMessage);
+
         setState(prev => ({
           ...prev,
           isConverting: false,
-          error: response.error
-            ? getErrorMessage(response.error)
-            : 'Failed to start conversion',
+          error: errorMessage,
           canRetry: response.error ? isRetryableError(response.error) : true,
         }));
       }
     } catch (error) {
+      console.error('Conversion error:', error);
+
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Network error during conversion';
+
       setState(prev => ({
         ...prev,
         isConverting: false,
-        error: 'Network error during conversion',
+        error: errorMessage,
         canRetry: true,
       }));
     }

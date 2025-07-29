@@ -91,9 +91,9 @@ class ApiClient {
   private baseUrl: string;
 
   constructor() {
-    // Use Workers API endpoint
+    // Use Workers API endpoint - default to production
     this.baseUrl =
-      process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8788/api';
+      process.env.NEXT_PUBLIC_API_URL || 'https://api.getgoodtape.com/api';
   }
 
   private async request<T>(
@@ -102,19 +102,38 @@ class ApiClient {
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
 
-    const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    });
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+        ...options,
+      });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      if (!response.ok) {
+        // Try to get error details from response
+        let errorMessage = `HTTP ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage =
+            errorData.error?.message || errorData.message || errorMessage;
+        } catch {
+          // Ignore JSON parsing errors
+        }
+        throw new Error(errorMessage);
+      }
+
+      return await response.json();
+    } catch (error) {
+      // Re-throw with more context
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error(
+          'Network connection failed. Please check your internet connection.'
+        );
+      }
+      throw error;
     }
-
-    return await response.json();
   }
 
   /**
