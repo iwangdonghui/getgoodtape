@@ -184,16 +184,16 @@ export function useConversion(): ConversionState & ConversionActions {
       if (response.success && response.status) {
         const jobStatus = response.status;
 
+        console.log(
+          `📈 Job ${jobId} status: ${jobStatus.status}, progress: ${jobStatus.progress}%`
+        );
+
         setState(prev => ({
           ...prev,
           progress:
             typeof jobStatus.progress === 'number' ? jobStatus.progress : 0,
           status: jobStatus.status,
         }));
-
-        console.log(
-          `Job ${jobId} status: ${jobStatus.status}, progress: ${jobStatus.progress}%`
-        );
 
         if (jobStatus.status === 'completed') {
           console.log('🎉 Job completed! Stopping polling...');

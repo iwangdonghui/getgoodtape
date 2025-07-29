@@ -25,10 +25,13 @@ export default function ConversionProgress({
       // Ensure progress is a valid number
       const validProgress =
         typeof progress === 'number' && !isNaN(progress) ? progress : 0;
+      console.log(
+        `🎯 ConversionProgress: progress=${progress}, validProgress=${validProgress}, status=${status}`
+      );
       setAnimatedProgress(validProgress);
     }, 100);
     return () => clearTimeout(timer);
-  }, [progress]);
+  }, [progress, status]);
 
   const getStatusInfo = () => {
     switch (status) {
