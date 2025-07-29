@@ -104,9 +104,8 @@ class ApiClient {
   private baseUrl: string;
 
   constructor() {
-    // Use Workers API endpoint - default to production
-    this.baseUrl =
-      process.env.NEXT_PUBLIC_API_URL || 'https://api.getgoodtape.com/api';
+    // Use relative API paths for local development, absolute for production
+    this.baseUrl = '/api';
   }
 
   private async request<T>(
