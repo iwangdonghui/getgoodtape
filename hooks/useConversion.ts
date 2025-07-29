@@ -238,15 +238,23 @@ export function useConversion(): ConversionState & ConversionActions {
           console.log(
             `🔄 Updating progress: ${jobStatus.progress}% (${jobStatus.status})`
           );
+          console.log('🔍 jobStatus object:', jobStatus);
+          console.log('🔍 jobStatus.progress type:', typeof jobStatus.progress);
+          console.log('🔍 jobStatus.progress value:', jobStatus.progress);
+
           setState(prev => {
             console.log(`📊 Previous state:`, {
               progress: prev.progress,
               status: prev.status,
             });
+
+            const progressValue =
+              typeof jobStatus.progress === 'number' ? jobStatus.progress : 0;
+            console.log('🔍 Calculated progress value:', progressValue);
+
             const newState = {
               ...prev,
-              progress:
-                typeof jobStatus.progress === 'number' ? jobStatus.progress : 0,
+              progress: progressValue,
               status: jobStatus.status,
             };
             console.log(`📈 New state:`, {
