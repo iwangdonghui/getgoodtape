@@ -192,14 +192,36 @@ export class ConversionService {
         throw new Error(`Conversion failed: ${conversionResponse.error}`);
       }
 
-      // Step 3: Upload to R2 storage
+      // Step 3: Download file from processing service and upload to R2 storage
       await this.jobManager.updateProgress(jobId, 80);
       const fileName = this.generateFileName(metadata.title, request.format);
       const resultObj = conversionResponse.result as Record<string, unknown>;
-      const downloadUrl = await this.storage.uploadFile(
+
+      // Download the file from the processing service
+      const relativeUrl = resultObj.download_url as string;
+      const fileUrl = `${processingServiceUrl}${relativeUrl}`;
+      console.log(`Downloading file from processing service: ${fileUrl}`);
+
+      const fileResponse = await fetch(fileUrl);
+      if (!fileResponse.ok) {
+        throw new Error(
+          `Failed to download file from processing service: ${fileResponse.status}`
+        );
+      }
+
+      const fileContent = await fileResponse.arrayBuffer();
+      console.log(`Downloaded file content: ${fileContent.byteLength} bytes`);
+
+      // Upload to R2 storage
+      const downloadUrl = await this.storage.uploadFileContent(
         fileName,
-        resultObj.file_path as string,
-        request.format
+        fileContent,
+        request.format,
+        {
+          originalTitle: metadata.title,
+          platform: request.platform || 'unknown',
+          duration: metadata.duration.toString(),
+        }
       );
 
       // Step 4: Complete job

@@ -85,6 +85,7 @@ class ConversionResult(BaseModel):
     duration: Optional[float] = None
     format: Optional[str] = None
     quality: Optional[str] = None
+    download_url: Optional[str] = None
     error: Optional[str] = None
 
 class ConvertResponse(BaseModel):
@@ -489,13 +490,18 @@ async def convert_to_mp3(url: str, quality: str, output_path: str) -> Conversion
 
                 logger.info(f"Successfully converted to MP3: {title} ({format_duration(duration)}) - {file_size} bytes")
 
+                # Generate download URL for the file
+                filename = os.path.basename(output_path)
+                download_url = f"/download/{filename}"
+
                 return ConversionResult(
                     success=True,
                     file_path=output_path,
                     file_size=file_size,
                     duration=duration,
                     format='mp3',
-                    quality=quality
+                    quality=quality,
+                    download_url=download_url
                 )
 
     except Exception as e:
@@ -604,13 +610,18 @@ async def convert_to_mp4(url: str, quality: str, output_path: str) -> Conversion
 
                 logger.info(f"Successfully converted to MP4: {title} ({format_duration(duration)}) - {format_file_size(file_size)}")
 
+                # Generate download URL for the file
+                filename = os.path.basename(output_path)
+                download_url = f"/download/{filename}"
+
                 return ConversionResult(
                     success=True,
                     file_path=output_path,
                     file_size=file_size,
                     duration=duration,
                     format='mp4',
-                    quality=quality
+                    quality=quality,
+                    download_url=download_url
                 )
 
     except Exception as e:
@@ -1025,6 +1036,38 @@ async def validate_conversion_endpoint(request: ConvertRequest):
             "error": f"Validation failed: {str(e)}"
         }
 
+@app.get("/download/{filename}")
+async def download_file(filename: str):
+    """Download a converted file"""
+    try:
+        import os
+        from fastapi.responses import FileResponse
+
+        # Security: Only allow files from the output directory
+        safe_filename = os.path.basename(filename)
+        file_path = os.path.join("/tmp", safe_filename)
+
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail="File not found")
+
+        # Determine content type based on file extension
+        content_type = "application/octet-stream"
+        if filename.endswith('.mp3'):
+            content_type = "audio/mpeg"
+        elif filename.endswith('.mp4'):
+            content_type = "video/mp4"
+
+        return FileResponse(
+            path=file_path,
+            media_type=content_type,
+            filename=safe_filename,
+            headers={"Cache-Control": "public, max-age=3600"}
+        )
+
+    except Exception as e:
+        logger.error(f"Download error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Download failed")
+
 @app.get("/")
 async def root():
     """Root endpoint"""
@@ -1036,6 +1079,7 @@ async def root():
             "health": "/health",
             "extract_metadata": "/extract-metadata",
             "convert": "/convert",
+            "download": "/download/{filename}",
             "validate_conversion": "/validate-conversion",
             "test_convert": "/test-convert",
             "demo_convert": "/demo-convert",
