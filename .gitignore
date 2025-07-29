@@ -53,3 +53,9 @@ Thumbs.db
 # Ignore data JSON files but not config files
 /data/*.json
 *.data.json
+
+# Security - API keys and secrets
+**/config/secrets.py
+**/config/api_keys.py
+**/*_secrets.py
+**/*_keys.py

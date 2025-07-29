@@ -235,12 +235,26 @@ export function useConversion(): ConversionState & ConversionActions {
           }));
         } else {
           // Update progress for non-completed jobs
-          setState(prev => ({
-            ...prev,
-            progress:
-              typeof jobStatus.progress === 'number' ? jobStatus.progress : 0,
-            status: jobStatus.status,
-          }));
+          console.log(
+            `🔄 Updating progress: ${jobStatus.progress}% (${jobStatus.status})`
+          );
+          setState(prev => {
+            console.log(`📊 Previous state:`, {
+              progress: prev.progress,
+              status: prev.status,
+            });
+            const newState = {
+              ...prev,
+              progress:
+                typeof jobStatus.progress === 'number' ? jobStatus.progress : 0,
+              status: jobStatus.status,
+            };
+            console.log(`📈 New state:`, {
+              progress: newState.progress,
+              status: newState.status,
+            });
+            return newState;
+          });
         }
       } else {
         // API error - check if it's a permanent error

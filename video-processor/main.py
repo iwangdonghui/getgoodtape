@@ -195,7 +195,8 @@ async def extract_video_metadata(url: str) -> Dict[str, Any]:
                     'player_skip': ['configs'],
                     'skip': [],  # Don't skip anything, let yt-dlp decide
                     'innertube_host': ['youtubei.googleapis.com'],
-                    'innertube_key': ['AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8'],
+                    # Note: Using public YouTube API key for yt-dlp compatibility
+                    # This is a public key used by yt-dlp and is safe to use
                 },
                 'twitter': {
                     # Twitter/X specific settings
@@ -1055,7 +1056,7 @@ async def youtube_bypass_endpoint(request: dict):
                         'youtube': {
                             'player_client': ['ios'],
                             'innertube_host': ['youtubei.googleapis.com'],
-                            'innertube_key': ['AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8'],
+                            # Using yt-dlp default key
                         }
                     },
                     'http_headers': {
@@ -1073,7 +1074,7 @@ async def youtube_bypass_endpoint(request: dict):
                         'youtube': {
                             'player_client': ['android'],
                             'innertube_host': ['youtubei.googleapis.com'],
-                            'innertube_key': ['AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8'],
+                            # Using yt-dlp default key
                         }
                     },
                     'http_headers': {
@@ -1091,7 +1092,7 @@ async def youtube_bypass_endpoint(request: dict):
                         'youtube': {
                             'player_client': ['web'],
                             'innertube_host': ['youtubei.googleapis.com'],
-                            'innertube_key': ['AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8'],
+                            # Using yt-dlp default key
                         }
                     },
                     'http_headers': {
