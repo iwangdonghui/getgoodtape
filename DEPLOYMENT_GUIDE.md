@@ -17,7 +17,31 @@ This guide walks you through deploying GetGoodTape to production with:
 
 ## 🚀 Step 1: Deploy Video Processor
 
-### Option A: Railway (Recommended - Easy Setup)
+### 📊 Platform Compatibility Guide
+
+Based on our testing, different cloud platforms have varying levels of success with YouTube video extraction:
+
+#### 🟢 Excellent YouTube Support (Recommended for Production)
+
+- **Google Cloud Run**: Best IP reputation, reliable YouTube access, auto-scaling
+- **AWS Lambda/App Runner**: Good IP reputation, works well with YouTube
+- **Vercel**: Good for development, some limitations on execution time
+
+#### 🟡 Partial YouTube Support (Good for Development)
+
+- **Railway**: Generally works but some YouTube videos may be blocked
+- **Heroku**: Mixed results, depends on dyno IP assignment
+- **DigitalOcean**: Usually works but occasional blocks
+- **Fly.io**: Good performance, occasional YouTube restrictions
+
+#### 🔴 Limited YouTube Support (Not Recommended for YouTube)
+
+- **Render**: Frequently blocked by YouTube's anti-bot measures ⚠️
+- **Netlify Functions**: Limited execution time, IP restrictions
+
+**Note**: All platforms work well with Twitter, TikTok, Instagram, and other video platforms. The restrictions mainly affect YouTube due to their aggressive anti-bot measures.
+
+### Option A: Railway (Recommended for Development)
 
 1. **Push to GitHub** (if not already done)
 
@@ -45,7 +69,9 @@ This guide walks you through deploying GetGoodTape to production with:
    - Copy the Railway-provided URL (e.g., `https://your-app.railway.app`)
    - Test health: `curl https://your-app.railway.app/health`
 
-### Option B: Render (Good Alternative)
+### Option B: Render (⚠️ Limited YouTube Support)
+
+> **Warning**: Render's IP addresses are frequently blocked by YouTube's anti-bot measures. While it works perfectly for Twitter, TikTok, Instagram, and other platforms, YouTube videos will often fail to extract. Consider using Google Cloud Run or Railway for better YouTube compatibility.
 
 1. **Create Web Service**
    - Go to [render.com](https://render.com)
@@ -94,7 +120,9 @@ This guide walks you through deploying GetGoodTape to production with:
    - Set environment variables in fly.toml or via CLI
    - Get URL: `https://your-app.fly.dev`
 
-### Option D: Google Cloud Run (Scalable)
+### Option D: Google Cloud Run (🟢 Recommended for Production)
+
+> **Best Choice**: Excellent YouTube support, reliable IP reputation, auto-scaling, and cost-effective pricing.
 
 1. **Setup**
 
@@ -105,13 +133,23 @@ This guide walks you through deploying GetGoodTape to production with:
    ```
 
 2. **Deploy**
+
    ```bash
    cd video-processor
    gcloud run deploy getgoodtape-processor \
      --source . \
      --platform managed \
      --region us-central1 \
-     --allow-unauthenticated
+     --allow-unauthenticated \
+     --memory 2Gi \
+     --cpu 2 \
+     --timeout 900
+   ```
+
+3. **Environment Variables**
+   ```
+   PORT=8080
+   GOOGLE_CLOUD=true
    ```
 
 ### Option E: AWS App Runner (AWS Ecosystem)
