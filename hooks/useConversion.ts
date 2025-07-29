@@ -171,7 +171,9 @@ export function useConversion(): ConversionState & ConversionActions {
 
   const pollJobStatus = useCallback(async (jobId: string) => {
     try {
+      console.log(`📡 Polling status for job: ${jobId}`);
       const response = await apiClient.getStatus(jobId);
+      console.log(`📊 Status response:`, response);
 
       if (response.success && response.status) {
         const jobStatus = response.status;
@@ -302,17 +304,25 @@ export function useConversion(): ConversionState & ConversionActions {
       console.log('Conversion response:', response);
 
       if (response.success && response.jobId) {
+        console.log(
+          '✅ Conversion started successfully, jobId:',
+          response.jobId
+        );
+
         setState(prev => ({
           ...prev,
           jobId: response.jobId!,
         }));
 
         // Start polling for status
+        console.log('🔄 Starting polling for job:', response.jobId);
         pollingRef.current = setInterval(() => {
+          console.log('⏰ Polling job status for:', response.jobId);
           pollJobStatus(response.jobId!);
         }, POLLING_INTERVAL);
 
         // Initial status check
+        console.log('🔍 Initial status check for:', response.jobId);
         await pollJobStatus(response.jobId);
       } else {
         const errorMessage = response.error

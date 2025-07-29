@@ -189,9 +189,15 @@ export default function ConversionProgress({
       <div className="flex justify-between items-center text-sm text-gray-600">
         <div className="flex items-center space-x-4">
           {jobId && (
-            <span className="font-mono bg-gray-100 px-2 py-1 rounded">
+            <span
+              className="font-mono bg-gray-100 px-2 py-1 rounded"
+              title={jobId}
+            >
               ID: {jobId.slice(-8)}
             </span>
+          )}
+          {jobId && (
+            <span className="text-xs text-gray-400">Full ID: {jobId}</span>
           )}
           {estimatedTimeRemaining &&
             estimatedTimeRemaining > 0 &&
