@@ -35,10 +35,15 @@ export default function ConversionResult({
 
     setIsDownloading(true);
     try {
-      console.log('Starting download from:', downloadUrl);
+      // Ensure we use the correct URL - if it's relative, it will go through Next.js API routes
+      const fullDownloadUrl = downloadUrl.startsWith('http')
+        ? downloadUrl
+        : downloadUrl; // Keep relative path for Next.js API routes
+
+      console.log('Starting download from:', fullDownloadUrl);
 
       // Fetch the file as blob to handle CORS and ensure proper download
-      const response = await fetch(downloadUrl);
+      const response = await fetch(fullDownloadUrl);
 
       if (!response.ok) {
         throw new Error(

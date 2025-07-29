@@ -187,7 +187,7 @@ export class StorageManager {
     console.log(
       `Generated download URL for ${fileName}, expires in ${expiresIn}s`
     );
-    // Use relative path so it works with Next.js API rewrites
+    // Return relative path - the frontend will handle the full URL construction
     return `/api/download/${fileName}`;
   }
 
