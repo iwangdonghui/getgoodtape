@@ -217,21 +217,40 @@ async def extract_video_metadata(url: str) -> Dict[str, Any]:
         info = None
         last_error = None
 
-        # Try multiple extraction methods
+        # Try multiple extraction methods with environment-specific optimizations
+        import os
+        is_cloud_env = bool(os.getenv('RENDER') or os.getenv('RAILWAY') or os.getenv('HEROKU'))
+
         extraction_methods = [
             # Method 1: Standard extraction
             ydl_opts,
-            # Method 2: Android client only
+            # Method 2: Android client only (works better in cloud environments)
             {**ydl_opts, 'extractor_args': {'youtube': {'player_client': ['android']}}},
-            # Method 3: Web client with different headers
+            # Method 3: iOS client (often bypasses restrictions)
+            {**ydl_opts, 'extractor_args': {'youtube': {'player_client': ['ios']}}},
+            # Method 4: Web client with mobile user agent
             {**ydl_opts, 'extractor_args': {'youtube': {'player_client': ['web']}},
              'http_headers': {**ydl_opts['http_headers'], 'User-Agent': 'Mozilla/5.0 (Android 11; Mobile; rv:68.0) Gecko/68.0 Firefox/88.0'}},
-            # Method 4: iOS client
-            {**ydl_opts, 'extractor_args': {'youtube': {'player_client': ['ios']}}},
+            # Method 5: TV embedded client (for cloud environments)
+            {**ydl_opts, 'extractor_args': {'youtube': {'player_client': ['tv_embedded']}}},
         ]
+
+        # For cloud environments, try more aggressive methods first
+        if is_cloud_env:
+            extraction_methods = [
+                # Start with iOS client for cloud environments
+                {**ydl_opts, 'extractor_args': {'youtube': {'player_client': ['ios']}}},
+                # Then Android
+                {**ydl_opts, 'extractor_args': {'youtube': {'player_client': ['android']}}},
+                # TV embedded
+                {**ydl_opts, 'extractor_args': {'youtube': {'player_client': ['tv_embedded']}}},
+                # Standard as fallback
+                ydl_opts,
+            ]
 
         for i, opts in enumerate(extraction_methods):
             try:
+                print(f"🔄 Trying extraction method {i+1}/{len(extraction_methods)}")
                 with yt_dlp.YoutubeDL(opts) as ydl:
                     info = ydl.extract_info(url, download=False)
                     if info:
@@ -239,11 +258,31 @@ async def extract_video_metadata(url: str) -> Dict[str, Any]:
                         break
             except Exception as e:
                 last_error = e
-                print(f"✗ Method {i+1} failed: {str(e)}")
+                error_msg = str(e)
+                print(f"✗ Method {i+1} failed: {error_msg}")
+
+                # Check for specific YouTube errors that indicate IP blocking
+                if 'Sign in to confirm' in error_msg or 'This video is not available' in error_msg:
+                    print(f"⚠️ Detected YouTube access restriction, trying next method...")
                 continue
 
         if not info:
-            raise ValueError(f"Could not extract video information after trying all methods. Last error: {last_error}")
+            # Provide helpful error message based on the platform
+            if 'youtube.com' in url or 'youtu.be' in url:
+                if is_cloud_env:
+                    error_msg = (
+                        "YouTube access is currently restricted from this server location. "
+                        "This is a temporary limitation. Please try:\n"
+                        "• A different YouTube video\n"
+                        "• Videos from other platforms (Twitter, TikTok, etc.)\n"
+                        "• Trying again in a few minutes"
+                    )
+                else:
+                    error_msg = f"Could not extract YouTube video information. Last error: {last_error}"
+            else:
+                error_msg = f"Could not extract video information after trying all methods. Last error: {last_error}"
+
+            raise ValueError(error_msg)
 
         return info
 
