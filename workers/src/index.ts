@@ -86,14 +86,11 @@ async function processQueue(env: Env): Promise<void> {
       const promises = jobs.map(async job => {
         try {
           console.log(`Starting job ${job.id}`);
-          await conversionService.processConversionJob(
-            {
-              url: job.url,
-              format: job.format as 'mp3' | 'mp4',
-              quality: job.quality,
-            },
-            job.id
-          );
+          await conversionService.processConversion(job.id, {
+            url: job.url,
+            format: job.format as 'mp3' | 'mp4',
+            quality: job.quality,
+          });
           console.log(`Completed job ${job.id}`);
         } catch (error) {
           console.error(`Failed to process job ${job.id}:`, error);

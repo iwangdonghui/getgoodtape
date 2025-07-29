@@ -45,4 +45,4 @@ id = "your-dev-kv-namespace-id"
 
 # Cron triggers for queue processing
 [triggers]
-crons = ["*/30 * * * *"]  # Run every 30 seconds
+crons = ["* * * * *"]  # Run every minute
