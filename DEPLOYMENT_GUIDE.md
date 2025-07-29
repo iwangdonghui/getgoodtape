@@ -63,6 +63,7 @@ Based on our testing, different cloud platforms have varying levels of success w
    ```
    PORT=8000
    PYTHONUNBUFFERED=1
+   YOUTUBE_API_KEY=your_youtube_api_key_here
    ```
 
 4. **Get Deployment URL**
@@ -93,6 +94,7 @@ Based on our testing, different cloud platforms have varying levels of success w
    ```
    PORT=8000
    PYTHONUNBUFFERED=1
+   YOUTUBE_API_KEY=your_youtube_api_key_here
    ```
 
 ### Option C: Fly.io (Developer Friendly)
@@ -176,6 +178,7 @@ Based on our testing, different cloud platforms have varying levels of success w
    Environment Variables:
      PORT=8000
      PYTHONUNBUFFERED=1
+     YOUTUBE_API_KEY=your_youtube_api_key_here
    ```
 
 ### Option G: Heroku (Classic Choice)

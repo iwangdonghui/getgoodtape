@@ -14,6 +14,19 @@ import subprocess
 import json
 from datetime import datetime
 
+# Import YouTube API integration
+try:
+    from youtube_api import youtube_api, get_youtube_metadata_via_api
+    YOUTUBE_API_AVAILABLE = True
+    logger.info("YouTube API integration loaded successfully")
+except ImportError as e:
+    YOUTUBE_API_AVAILABLE = False
+    logger.warning(f"YouTube API integration not available: {e}")
+
+    # Fallback functions
+    async def get_youtube_metadata_via_api(url: str):
+        return None
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -104,11 +117,14 @@ async def health_check():
         # Check if required dependencies are available
         ytdlp_info = check_ytdlp()
         ffmpeg_info = check_ffmpeg()
+        youtube_api_info = check_youtube_api()
         dependencies = {
             "yt-dlp": ytdlp_info["available"],
             "yt-dlp-version": ytdlp_info["version"],
             "ffmpeg": ffmpeg_info["available"],
             "ffmpeg-version": ffmpeg_info["version"],
+            "youtube-api": youtube_api_info["available"],
+            "youtube-api-status": youtube_api_info["status"],
             "python": True
         }
         
@@ -153,6 +169,20 @@ def check_ffmpeg() -> dict:
             return {"available": False, "version": "Not available"}
     except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.SubprocessError):
         return {"available": False, "version": "Not available"}
+
+def check_youtube_api() -> dict:
+    """Check if YouTube API is available and configured"""
+    if not YOUTUBE_API_AVAILABLE:
+        return {"available": False, "status": "Module not imported"}
+
+    api_key = os.getenv('YOUTUBE_API_KEY')
+    if not api_key:
+        return {"available": False, "status": "API key not configured"}
+
+    if api_key == 'your_youtube_api_key_here':
+        return {"available": False, "status": "Default placeholder API key"}
+
+    return {"available": True, "status": "Configured and ready"}
 
 async def extract_video_metadata(url: str) -> Dict[str, Any]:
     """
@@ -268,16 +298,47 @@ async def extract_video_metadata(url: str) -> Dict[str, Any]:
                 continue
 
         if not info:
+            # Try YouTube API as fallback for YouTube videos
+            if ('youtube.com' in url or 'youtu.be' in url) and YOUTUBE_API_AVAILABLE:
+                print("🔄 Trying YouTube Data API as fallback...")
+                try:
+                    api_metadata = await get_youtube_metadata_via_api(url)
+                    if api_metadata:
+                        print("✓ YouTube API fallback successful")
+                        # Convert API metadata to yt-dlp format
+                        info = {
+                            'title': api_metadata['title'],
+                            'duration': api_metadata['duration'],
+                            'uploader': api_metadata['uploader'],
+                            'view_count': api_metadata.get('view_count', 0),
+                            'thumbnail': api_metadata.get('thumbnail', ''),
+                            'webpage_url': url,
+                            'id': youtube_api.extract_video_id(url),
+                            'extractor': 'youtube_api_fallback'
+                        }
+                        return info
+                except Exception as e:
+                    print(f"✗ YouTube API fallback failed: {e}")
+
             # Provide helpful error message based on the platform
             if 'youtube.com' in url or 'youtu.be' in url:
                 if is_cloud_env:
-                    error_msg = (
-                        "YouTube access is currently restricted from this server location. "
-                        "This is a temporary limitation. Please try:\n"
-                        "• A different YouTube video\n"
-                        "• Videos from other platforms (Twitter, TikTok, etc.)\n"
-                        "• Trying again in a few minutes"
-                    )
+                    if YOUTUBE_API_AVAILABLE:
+                        error_msg = (
+                            "YouTube access is currently restricted from this server location and API fallback failed. "
+                            "This is a temporary limitation. Please try:\n"
+                            "• A different YouTube video\n"
+                            "• Videos from other platforms (Twitter, TikTok, etc.)\n"
+                            "• Trying again in a few minutes"
+                        )
+                    else:
+                        error_msg = (
+                            "YouTube access is currently restricted from this server location. "
+                            "YouTube API is not configured for fallback. Please try:\n"
+                            "• A different YouTube video\n"
+                            "• Videos from other platforms (Twitter, TikTok, etc.)\n"
+                            "• Trying again in a few minutes"
+                        )
                 else:
                     error_msg = f"Could not extract YouTube video information. Last error: {last_error}"
             else:
@@ -1112,7 +1173,12 @@ async def root():
             "test_convert": "/test-convert",
             "demo_convert": "/demo-convert",
             "demo_video_convert": "/demo-video-convert",
+            "youtube_api_test": "/youtube-api-test",
             "docs": "/docs"
+        },
+        "features": {
+            "youtube_api_fallback": YOUTUBE_API_AVAILABLE,
+            "youtube_api_configured": bool(os.getenv('YOUTUBE_API_KEY') and os.getenv('YOUTUBE_API_KEY') != 'your_youtube_api_key_here')
         },
         "supported_formats": {
             "mp3": {
@@ -1125,6 +1191,45 @@ async def root():
             }
         }
     }
+
+@app.post("/youtube-api-test")
+async def test_youtube_api(request: dict):
+    """
+    Test YouTube Data API functionality
+    """
+    if not YOUTUBE_API_AVAILABLE:
+        return {
+            "success": False,
+            "error": "YouTube API module not available",
+            "details": "youtube_api.py not imported successfully"
+        }
+
+    api_key = os.getenv('YOUTUBE_API_KEY')
+    if not api_key or api_key == 'your_youtube_api_key_here':
+        return {
+            "success": False,
+            "error": "YouTube API key not configured",
+            "details": "Set YOUTUBE_API_KEY environment variable"
+        }
+
+    url = request.get('url')
+    if not url:
+        # Use default test video
+        url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+
+    try:
+        result = await youtube_api.validate_video_url(url)
+        return {
+            "success": True,
+            "api_test_result": result,
+            "test_url": url
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"YouTube API test failed: {str(e)}",
+            "test_url": url
+        }
 
 @app.post("/youtube-bypass")
 async def youtube_bypass_endpoint(request: dict):
