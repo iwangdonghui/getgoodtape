@@ -14,6 +14,10 @@ import subprocess
 import json
 from datetime import datetime
 
+# Configure logging first
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Import YouTube API integration
 try:
     from youtube_api import youtube_api, get_youtube_metadata_via_api
@@ -26,10 +30,6 @@ except ImportError as e:
     # Fallback functions
     async def get_youtube_metadata_via_api(url: str):
         return None
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="GetGoodTape Video Processor",
