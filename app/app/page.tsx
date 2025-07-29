@@ -231,9 +231,18 @@ export default function AppPage() {
                     className="w-full px-4 py-3 rounded-lg border border-warm-orange/30 focus:outline-none focus:ring-2 focus:ring-mint-green"
                     disabled={conversion.isConverting}
                   >
-                    <option value="high">高质量</option>
-                    <option value="medium">中等质量</option>
-                    <option value="low">低质量 (更快)</option>
+                    <option value="high">
+                      高质量 ({conversion.format === 'mp3' ? '192kbps' : '720p'}
+                      )
+                    </option>
+                    <option value="medium">
+                      中等质量 (
+                      {conversion.format === 'mp3' ? '128kbps' : '360p'})
+                    </option>
+                    <option value="low">
+                      低质量 ({conversion.format === 'mp3' ? '128kbps' : '360p'}
+                      ) - 更快
+                    </option>
                   </select>
                 </div>
               </div>

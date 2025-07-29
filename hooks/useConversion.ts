@@ -239,10 +239,38 @@ export function useConversion(): ConversionState & ConversionActions {
     }));
 
     try {
+      // Map quality options to API values
+      const getQualityValue = (quality: string, format: string): string => {
+        if (format === 'mp3') {
+          switch (quality) {
+            case 'high':
+              return '192';
+            case 'medium':
+              return '128';
+            case 'low':
+              return '128'; // Use 128 for low quality MP3
+            default:
+              return '128';
+          }
+        } else {
+          // mp4
+          switch (quality) {
+            case 'high':
+              return '720';
+            case 'medium':
+              return '360';
+            case 'low':
+              return '360'; // Use 360 for low quality MP4
+            default:
+              return '360';
+          }
+        }
+      };
+
       const request: ConvertRequest = {
         url: state.url,
         format: state.format,
-        quality: state.quality,
+        quality: getQualityValue(state.quality, state.format),
         platform: state.detectedPlatform,
       };
 
