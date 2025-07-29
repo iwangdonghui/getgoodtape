@@ -35,18 +35,36 @@ export default function ConversionResult({
 
     setIsDownloading(true);
     try {
+      console.log('Starting download from:', downloadUrl);
+
+      // Fetch the file as blob to handle CORS and ensure proper download
+      const response = await fetch(downloadUrl);
+
+      if (!response.ok) {
+        throw new Error(
+          `Download failed: ${response.status} ${response.statusText}`
+        );
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+
       // Create a temporary link to trigger download
       const link = document.createElement('a');
-      link.href = downloadUrl;
+      link.href = url;
       link.download = filename || `converted.${format}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
 
+      // Clean up the blob URL
+      window.URL.revokeObjectURL(url);
+
       // Track download
-      console.log('Download started:', filename);
+      console.log('Download completed:', filename);
     } catch (error) {
       console.error('Download failed:', error);
+      alert('下载失败，请稍后重试或联系客服。');
     } finally {
       setTimeout(() => setIsDownloading(false), 2000);
     }

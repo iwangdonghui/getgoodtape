@@ -110,7 +110,8 @@ export class StorageManager {
     try {
       if (!this.env.STORAGE) {
         console.warn('R2 storage not available in development environment');
-        return null;
+        // Return a mock file for development/testing
+        return this.createMockFile(fileName);
       }
 
       const key = `conversions/${fileName}`;
@@ -132,6 +133,29 @@ export class StorageManager {
       console.error('Storage get error:', error);
       return null;
     }
+  }
+
+  /**
+   * Create a mock file for development/testing
+   */
+  private createMockFile(fileName: string): Response {
+    const isMP3 = fileName.toLowerCase().endsWith('.mp3');
+    const contentType = isMP3 ? 'audio/mpeg' : 'video/mp4';
+
+    // Create a small mock file content
+    const mockContent = isMP3
+      ? 'Mock MP3 file content for development testing'
+      : 'Mock MP4 file content for development testing';
+
+    const blob = new Blob([mockContent], { type: contentType });
+
+    return new Response(blob, {
+      headers: {
+        'Content-Type': contentType,
+        'Content-Length': blob.size.toString(),
+        'Cache-Control': 'public, max-age=3600',
+      },
+    });
   }
 
   /**
