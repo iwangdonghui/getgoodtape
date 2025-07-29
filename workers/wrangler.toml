@@ -12,7 +12,7 @@ local_protocol = "http"
 vars = { ENVIRONMENT = "development" }
 
 [env.production]
-vars = { ENVIRONMENT = "production", PROCESSING_SERVICE_URL = "https://getgoodtape.railway.internal" }
+vars = { ENVIRONMENT = "production", PROCESSING_SERVICE_URL = "https://getgoodtape-production.up.railway.app" }
 
 # D1 Database bindings
 [[env.production.d1_databases]]
