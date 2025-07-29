@@ -6,19 +6,23 @@ const nextConfig = {
     return [
       {
         source: '/api/convert/:path*',
-        destination: 'https://api.getgoodtape.com/convert/:path*',
+        destination:
+          'https://getgoodtape-api-production.wangdonghuiibt-cloudflare.workers.dev/convert/:path*',
       },
       {
         source: '/api/status/:path*',
-        destination: 'https://api.getgoodtape.com/status/:path*',
+        destination:
+          'https://getgoodtape-api-production.wangdonghuiibt-cloudflare.workers.dev/status/:path*',
       },
       {
         source: '/api/platforms/:path*',
-        destination: 'https://api.getgoodtape.com/platforms/:path*',
+        destination:
+          'https://getgoodtape-api-production.wangdonghuiibt-cloudflare.workers.dev/platforms/:path*',
       },
       {
         source: '/api/download/:path*',
-        destination: 'https://api.getgoodtape.com/download/:path*',
+        destination:
+          'https://getgoodtape-api-production.wangdonghuiibt-cloudflare.workers.dev/download/:path*',
       },
     ];
   },
