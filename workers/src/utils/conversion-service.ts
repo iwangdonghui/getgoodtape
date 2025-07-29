@@ -247,21 +247,38 @@ export class ConversionService {
     url: string,
     data: Record<string, unknown>
   ): Promise<Record<string, unknown>> {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
+    // Create AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes timeout
 
-    if (!response.ok) {
-      throw new Error(
-        `Processing service error: ${response.status} ${response.statusText}`
-      );
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(
+          `Processing service error: ${response.status} ${response.statusText}`
+        );
+      }
+
+      return (await response.json()) as Record<string, unknown>;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error(
+          'Processing service timeout - video conversion took too long'
+        );
+      }
+      throw error;
     }
-
-    return (await response.json()) as Record<string, unknown>;
   }
 
   /**

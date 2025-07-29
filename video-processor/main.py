@@ -727,14 +727,26 @@ async def extract_metadata_endpoint(request: VideoMetadataRequest):
 @app.post("/convert", response_model=ConvertResponse)
 async def convert_video_endpoint(request: ConvertRequest):
     """
-    Convert video to specified format and quality
+    Convert video to specified format and quality with timeout protection
     """
     try:
         logger.info(f"Starting conversion: {request.url} -> {request.format} ({request.quality})")
 
-        # First extract metadata to get duration for size estimation
-        raw_info = await extract_video_metadata(request.url)
-        metadata = process_metadata(raw_info)
+        # Quick metadata extraction with timeout
+        try:
+            import asyncio
+            raw_info = await asyncio.wait_for(extract_video_metadata(request.url), timeout=30.0)
+            metadata = process_metadata(raw_info)
+        except asyncio.TimeoutError:
+            return ConvertResponse(
+                success=False,
+                error="Metadata extraction timed out. The video may be too large or the source is slow."
+            )
+        except Exception as e:
+            return ConvertResponse(
+                success=False,
+                error=f"Failed to extract video metadata: {str(e)}"
+            )
 
         # Validate format and quality
         supported_formats = ['mp3', 'mp4']
@@ -744,8 +756,12 @@ async def convert_video_endpoint(request: ConvertRequest):
                 error=f"Unsupported format: {request.format}. Supported formats: {', '.join(supported_formats)}"
             )
 
-        # Estimate file size
-        estimated_size = estimate_file_size(metadata.duration, request.format, request.quality)
+        # Check video duration - reject very long videos
+        if metadata.duration and metadata.duration > 3600:  # 1 hour limit
+            return ConvertResponse(
+                success=False,
+                error=f"Video too long ({metadata.duration/60:.1f} minutes). Maximum duration is 60 minutes."
+            )
 
         # Generate output filename
         safe_title = "".join(c for c in metadata.title if c.isalnum() or c in (' ', '-', '_')).rstrip()
@@ -753,20 +769,33 @@ async def convert_video_endpoint(request: ConvertRequest):
         output_filename = f"{safe_title}.{request.format.lower()}"
         output_path = f"/tmp/{output_filename}"
 
-        # Perform conversion based on format
-        if request.format.lower() == 'mp3':
-            result = await convert_to_mp3(request.url, request.quality, output_path)
-        elif request.format.lower() == 'mp4':
-            result = await convert_to_mp4(request.url, request.quality, output_path)
-        else:
+        # Perform conversion with timeout based on video duration
+        conversion_timeout = min(300, max(60, metadata.duration * 2)) if metadata.duration else 120
+
+        try:
+            if request.format.lower() == 'mp3':
+                result = await asyncio.wait_for(
+                    convert_to_mp3(request.url, request.quality, output_path),
+                    timeout=conversion_timeout
+                )
+            elif request.format.lower() == 'mp4':
+                result = await asyncio.wait_for(
+                    convert_to_mp4(request.url, request.quality, output_path),
+                    timeout=conversion_timeout
+                )
+            else:
+                return ConvertResponse(
+                    success=False,
+                    error=f"Unsupported format: {request.format}"
+                )
+        except asyncio.TimeoutError:
             return ConvertResponse(
                 success=False,
-                error=f"Unsupported format: {request.format}"
+                error=f"Conversion timed out after {conversion_timeout} seconds. Try a shorter video or lower quality."
             )
 
         if result.success:
             logger.info(f"Conversion completed: {output_filename} ({format_file_size(result.file_size)})")
-
             return ConvertResponse(
                 success=True,
                 result=result
@@ -780,7 +809,6 @@ async def convert_video_endpoint(request: ConvertRequest):
     except Exception as e:
         error_msg = str(e)
         logger.error(f"Conversion endpoint error: {error_msg}")
-
         return ConvertResponse(
             success=False,
             error=f"Conversion failed: {error_msg}"
