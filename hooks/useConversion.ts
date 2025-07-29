@@ -188,18 +188,11 @@ export function useConversion(): ConversionState & ConversionActions {
           `📈 Job ${jobId} status: ${jobStatus.status}, progress: ${jobStatus.progress}%`
         );
 
-        setState(prev => ({
-          ...prev,
-          progress:
-            typeof jobStatus.progress === 'number' ? jobStatus.progress : 0,
-          status: jobStatus.status,
-        }));
-
         if (jobStatus.status === 'completed') {
           console.log('🎉 Job completed! Stopping polling...');
           console.log('pollingRef.current:', pollingRef.current);
 
-          // Stop polling
+          // Stop polling FIRST
           if (pollingRef.current) {
             console.log('🛑 Clearing interval:', pollingRef.current);
             clearInterval(pollingRef.current);
@@ -209,8 +202,11 @@ export function useConversion(): ConversionState & ConversionActions {
             console.warn('⚠️ pollingRef.current is null, cannot stop polling');
           }
 
+          // Update state with final completion data
           setState(prev => ({
             ...prev,
+            progress: 100, // Ensure 100% for completed jobs
+            status: 'completed',
             isConverting: false,
             result: {
               downloadUrl: jobStatus.downloadUrl,
@@ -218,9 +214,6 @@ export function useConversion(): ConversionState & ConversionActions {
               metadata: jobStatus.metadata,
             },
           }));
-
-          // Force return to prevent further execution
-          return;
         } else if (jobStatus.status === 'failed') {
           console.log('❌ Job failed! Stopping polling...');
 
@@ -239,6 +232,14 @@ export function useConversion(): ConversionState & ConversionActions {
             isConverting: false,
             error: jobStatus.error || 'Conversion failed',
             canRetry: true,
+          }));
+        } else {
+          // Update progress for non-completed jobs
+          setState(prev => ({
+            ...prev,
+            progress:
+              typeof jobStatus.progress === 'number' ? jobStatus.progress : 0,
+            status: jobStatus.status,
           }));
         }
       } else {

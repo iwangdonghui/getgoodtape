@@ -272,6 +272,15 @@ export default function AppPage() {
             </form>
 
             {/* Progress Display */}
+            {(() => {
+              console.log('🔄 App rendering ConversionProgress with:', {
+                status: conversion.status,
+                progress: conversion.progress,
+                jobId: conversion.jobId,
+                error: conversion.error,
+              });
+              return null;
+            })()}
             <ConversionProgress
               status={conversion.status}
               progress={conversion.progress}
