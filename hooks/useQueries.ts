@@ -66,10 +66,7 @@ export function useConversionStatus(
     refetchInterval: query => {
       // Stop polling if conversion is complete or failed
       const data = query.state.data as StatusResponse | undefined;
-      if (
-        data?.status?.status === 'completed' ||
-        data?.status?.status === 'failed'
-      ) {
+      if (data?.status === 'completed' || data?.status === 'failed') {
         return false;
       }
       return pollInterval;

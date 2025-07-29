@@ -238,7 +238,10 @@ export function useConversion(): ConversionState & ConversionActions {
           setState(prev => ({
             ...prev,
             isConverting: false,
-            error: jobStatus.error || 'Conversion failed',
+            error:
+              typeof jobStatus.error === 'string'
+                ? jobStatus.error
+                : 'Conversion failed',
             canRetry: true,
           }));
         } else {
@@ -263,7 +266,7 @@ export function useConversion(): ConversionState & ConversionActions {
             const newState = {
               ...prev,
               progress: progressValue,
-              status: jobStatus.status,
+              status: jobStatus.status || 'processing',
             };
             console.log(`📈 New state:`, {
               progress: newState.progress,
@@ -292,9 +295,10 @@ export function useConversion(): ConversionState & ConversionActions {
             ...prev,
             isConverting: false,
             error:
-              errorObj?.message || typeof response.error === 'string'
+              errorObj?.message ||
+              (typeof response.error === 'string'
                 ? response.error
-                : 'Job not found',
+                : 'Job not found'),
             canRetry: false,
           }));
         }
