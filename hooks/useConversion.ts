@@ -181,8 +181,16 @@ export function useConversion(): ConversionState & ConversionActions {
       const response = await apiClient.getStatus(jobId);
       console.log(`📊 Status response:`, response);
 
-      if (response.success && response.status) {
-        const jobStatus = response.status;
+      if (response.success) {
+        // API returns flat structure, not nested under 'status'
+        const jobStatus = {
+          jobId: response.jobId,
+          status: response.status,
+          progress: response.progress,
+          downloadUrl: response.downloadUrl,
+          metadata: response.metadata,
+          error: response.error,
+        };
 
         console.log(
           `📈 Job ${jobId} status: ${jobStatus.status}, progress: ${jobStatus.progress}%`
@@ -268,9 +276,11 @@ export function useConversion(): ConversionState & ConversionActions {
         // API error - check if it's a permanent error
         console.warn('Failed to get job status:', response.error);
 
+        const errorObj =
+          typeof response.error === 'object' ? response.error : null;
         if (
-          response.error?.type === 'VIDEO_NOT_FOUND' ||
-          response.error?.retryable === false
+          errorObj?.type === 'VIDEO_NOT_FOUND' ||
+          errorObj?.retryable === false
         ) {
           // Stop polling for permanent errors
           if (pollingRef.current) {
@@ -281,7 +291,10 @@ export function useConversion(): ConversionState & ConversionActions {
           setState(prev => ({
             ...prev,
             isConverting: false,
-            error: response.error?.message || 'Job not found',
+            error:
+              errorObj?.message || typeof response.error === 'string'
+                ? response.error
+                : 'Job not found',
             canRetry: false,
           }));
         }

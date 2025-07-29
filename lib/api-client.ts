@@ -36,12 +36,25 @@ export interface JobStatus {
 
 export interface StatusResponse {
   success: boolean;
-  status?: JobStatus;
-  error?: {
-    type: string;
-    message: string;
-    retryable: boolean;
+  // Success case - API returns flat structure, not nested
+  jobId?: string;
+  status?: 'queued' | 'processing' | 'completed' | 'failed';
+  progress?: number;
+  downloadUrl?: string;
+  metadata?: {
+    title: string;
+    duration: number;
+    thumbnail: string;
+    uploader: string;
   };
+  // Error cases
+  error?:
+    | string
+    | {
+        type: string;
+        message: string;
+        retryable: boolean;
+      };
 }
 
 export interface PlatformInfo {

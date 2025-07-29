@@ -160,13 +160,11 @@ export class StorageManager {
     fileName: string,
     expiresIn: number = 3600
   ): Promise<string> {
-    // For now, return a simple URL
-    // In production, implement proper signed URLs with expiration
-    const key = `conversions/${fileName}`;
+    // Use the API download endpoint instead of direct storage URL
     console.log(
       `Generated download URL for ${fileName}, expires in ${expiresIn}s`
     );
-    return `https://storage.getgoodtape.com/${key}`;
+    return `https://api.getgoodtape.com/download/${fileName}`;
   }
 
   /**
