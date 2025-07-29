@@ -6,19 +6,19 @@ const nextConfig = {
     return [
       {
         source: '/api/convert/:path*',
-        destination: 'https://api.getgoodtape.com/api/convert/:path*',
+        destination: 'https://api.getgoodtape.com/convert/:path*',
       },
       {
         source: '/api/status/:path*',
-        destination: 'https://api.getgoodtape.com/api/status/:path*',
+        destination: 'https://api.getgoodtape.com/status/:path*',
       },
       {
         source: '/api/platforms/:path*',
-        destination: 'https://api.getgoodtape.com/api/platforms/:path*',
+        destination: 'https://api.getgoodtape.com/platforms/:path*',
       },
       {
         source: '/api/download/:path*',
-        destination: 'https://api.getgoodtape.com/api/download/:path*',
+        destination: 'https://api.getgoodtape.com/download/:path*',
       },
     ];
   },

@@ -188,7 +188,8 @@ export class StorageManager {
     console.log(
       `Generated download URL for ${fileName}, expires in ${expiresIn}s`
     );
-    return `https://api.getgoodtape.com/download/${fileName}`;
+    // Use relative path so it works with Next.js API rewrites
+    return `/api/download/${fileName}`;
   }
 
   /**
