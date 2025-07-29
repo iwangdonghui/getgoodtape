@@ -171,6 +171,12 @@ export function useConversion(): ConversionState & ConversionActions {
 
   const pollJobStatus = useCallback(async (jobId: string) => {
     try {
+      // Check if polling should continue
+      if (!pollingRef.current) {
+        console.log('🚫 Polling stopped, skipping status check for:', jobId);
+        return;
+      }
+
       console.log(`📡 Polling status for job: ${jobId}`);
       const response = await apiClient.getStatus(jobId);
       console.log(`📊 Status response:`, response);
@@ -190,10 +196,17 @@ export function useConversion(): ConversionState & ConversionActions {
         );
 
         if (jobStatus.status === 'completed') {
+          console.log('🎉 Job completed! Stopping polling...');
+          console.log('pollingRef.current:', pollingRef.current);
+
           // Stop polling
           if (pollingRef.current) {
+            console.log('🛑 Clearing interval:', pollingRef.current);
             clearInterval(pollingRef.current);
             pollingRef.current = null;
+            console.log('✅ Polling stopped');
+          } else {
+            console.warn('⚠️ pollingRef.current is null, cannot stop polling');
           }
 
           setState(prev => ({
@@ -205,9 +218,18 @@ export function useConversion(): ConversionState & ConversionActions {
               metadata: jobStatus.metadata,
             },
           }));
+
+          // Force return to prevent further execution
+          return;
         } else if (jobStatus.status === 'failed') {
+          console.log('❌ Job failed! Stopping polling...');
+
           // Stop polling
           if (pollingRef.current) {
+            console.log(
+              '🛑 Clearing interval for failed job:',
+              pollingRef.current
+            );
             clearInterval(pollingRef.current);
             pollingRef.current = null;
           }
@@ -380,6 +402,7 @@ export function useConversion(): ConversionState & ConversionActions {
   const reset = useCallback(() => {
     // Clear polling
     if (pollingRef.current) {
+      console.log('🧹 Cleaning up polling in reset');
       clearInterval(pollingRef.current);
       pollingRef.current = null;
     }
@@ -391,6 +414,21 @@ export function useConversion(): ConversionState & ConversionActions {
     }
 
     setState(INITIAL_STATE);
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      console.log('🧹 Component unmounting, cleaning up polling');
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+      if (validationTimeoutRef.current) {
+        clearTimeout(validationTimeoutRef.current);
+        validationTimeoutRef.current = null;
+      }
+    };
   }, []);
 
   return {
