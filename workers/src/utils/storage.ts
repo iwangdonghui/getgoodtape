@@ -21,15 +21,14 @@ export class StorageManager {
       // In a real implementation, the processing service would upload directly to R2
       // or return the file content for us to upload
 
-      const key = `conversions/${fileName}`;
-
       if (!this.env.STORAGE) {
         console.warn('R2 storage not available in development environment');
-        // Return a simulated download URL for development
-        return `https://storage.getgoodtape.com/${key}`;
+        // Generate download URL using the same method as production
+        return await this.generateDownloadUrl(fileName);
       }
 
       // TODO: Implement actual R2 upload
+      // const key = `conversions/${fileName}`;
       // const object = await this.env.STORAGE.put(key, fileContent, {
       //   httpMetadata: {
       //     contentType: this.getContentType(contentType),
