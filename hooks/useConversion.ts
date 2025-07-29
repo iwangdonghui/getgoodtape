@@ -178,9 +178,14 @@ export function useConversion(): ConversionState & ConversionActions {
 
         setState(prev => ({
           ...prev,
-          progress: jobStatus.progress,
+          progress:
+            typeof jobStatus.progress === 'number' ? jobStatus.progress : 0,
           status: jobStatus.status,
         }));
+
+        console.log(
+          `Job ${jobId} status: ${jobStatus.status}, progress: ${jobStatus.progress}%`
+        );
 
         if (jobStatus.status === 'completed') {
           // Stop polling
@@ -213,8 +218,26 @@ export function useConversion(): ConversionState & ConversionActions {
           }));
         }
       } else {
-        // API error, but keep polling for a while
+        // API error - check if it's a permanent error
         console.warn('Failed to get job status:', response.error);
+
+        if (
+          response.error?.type === 'VIDEO_NOT_FOUND' ||
+          response.error?.retryable === false
+        ) {
+          // Stop polling for permanent errors
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
+
+          setState(prev => ({
+            ...prev,
+            isConverting: false,
+            error: response.error?.message || 'Job not found',
+            canRetry: false,
+          }));
+        }
       }
     } catch (error) {
       console.error('Polling error:', error);

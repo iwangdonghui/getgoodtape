@@ -22,7 +22,10 @@ export default function ConversionProgress({
   // Animate progress changes
   useEffect(() => {
     const timer = setTimeout(() => {
-      setAnimatedProgress(progress);
+      // Ensure progress is a valid number
+      const validProgress =
+        typeof progress === 'number' && !isNaN(progress) ? progress : 0;
+      setAnimatedProgress(validProgress);
     }, 100);
     return () => clearTimeout(timer);
   }, [progress]);
@@ -125,7 +128,7 @@ export default function ConversionProgress({
 
         {/* Progress Percentage */}
         <div className={`text-2xl font-bold ${statusInfo.color}`}>
-          {Math.round(animatedProgress)}%
+          {Math.round(animatedProgress || 0)}%
         </div>
       </div>
 
@@ -139,7 +142,7 @@ export default function ConversionProgress({
                   ? 'bg-gradient-to-r from-green-400 to-green-600'
                   : 'bg-gradient-to-r from-warm-orange to-tape-gold'
               }`}
-              style={{ width: `${animatedProgress}%` }}
+              style={{ width: `${animatedProgress || 0}%` }}
             >
               {/* Animated shine effect */}
               {status === 'processing' && (
