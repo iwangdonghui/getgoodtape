@@ -4,7 +4,8 @@ const nextConfig = {
 
   // 性能优化配置
   experimental: {
-    optimizeCss: true, // CSS 优化
+    // 暂时禁用CSS优化以避免Vercel部署问题
+    // optimizeCss: true, // CSS 优化
     optimizePackageImports: ['@tanstack/react-query'], // 包导入优化
   },
 
