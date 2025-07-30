@@ -137,15 +137,17 @@ export default function ConversionResult({
   };
 
   return (
-    <div className="mt-6 bg-gradient-to-br from-green-50 to-mint-green/20 border border-green-200 rounded-xl p-6">
+    <div className="mt-4 sm:mt-6 bg-gradient-to-br from-green-50 to-mint-green/20 border border-green-200 rounded-xl p-4 sm:p-6">
       {/* Success Header */}
-      <div className="flex items-center space-x-3 mb-6">
-        <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
-          <span className="text-2xl text-white">✓</span>
+      <div className="flex items-center space-x-3 mb-4 sm:mb-6">
+        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+          <span className="text-lg sm:text-2xl text-white">✓</span>
         </div>
-        <div>
-          <h3 className="text-xl font-bold text-deep-brown">转换完成！</h3>
-          <p className="text-green-700">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-lg sm:text-xl font-bold text-deep-brown">
+            转换完成！
+          </h3>
+          <p className="text-sm sm:text-base text-green-700">
             您的{format.toUpperCase()}文件已准备好下载
           </p>
         </div>
@@ -165,25 +167,29 @@ export default function ConversionResult({
 
       {/* Video Metadata (Expandable) */}
       {metadata && (
-        <div className="mb-6">
+        <div className="mb-4 sm:mb-6">
           <button
             onClick={() => setShowDetails(!showDetails)}
-            className="flex items-center space-x-2 text-sm text-deep-brown hover:text-warm-orange transition-colors"
+            className="flex items-center space-x-2 text-sm text-deep-brown hover:text-warm-orange transition-colors min-h-[44px]"
           >
             <span>{showDetails ? '▼' : '▶'}</span>
             <span>视频详细信息</span>
           </button>
 
           {showDetails && (
-            <div className="mt-3 p-4 bg-gray-50 rounded-lg">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
+            <div className="mt-3 p-3 sm:p-4 bg-gray-50 rounded-lg">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
+                <div className="sm:col-span-2">
                   <span className="font-medium text-gray-700">标题:</span>
-                  <p className="mt-1 text-gray-600">{metadata.title}</p>
+                  <p className="mt-1 text-gray-600 break-words">
+                    {metadata.title}
+                  </p>
                 </div>
                 <div>
                   <span className="font-medium text-gray-700">上传者:</span>
-                  <p className="mt-1 text-gray-600">{metadata.uploader}</p>
+                  <p className="mt-1 text-gray-600 break-words">
+                    {metadata.uploader}
+                  </p>
                 </div>
                 <div>
                   <span className="font-medium text-gray-700">时长:</span>
@@ -205,7 +211,7 @@ export default function ConversionResult({
                   <img
                     src={metadata.thumbnail}
                     alt="Video thumbnail"
-                    className="mt-2 w-32 h-18 object-cover rounded border"
+                    className="mt-2 w-24 h-14 sm:w-32 sm:h-18 object-cover rounded border"
                     onError={e => {
                       (e.target as HTMLImageElement).style.display = 'none';
                     }}
@@ -221,7 +227,7 @@ export default function ConversionResult({
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
         <button
           onClick={onNewConversion}
-          className="bg-warm-orange text-white px-8 py-3 rounded-lg font-semibold hover:bg-warm-orange/90 transition-colors flex items-center justify-center space-x-2"
+          className="bg-warm-orange text-white px-6 sm:px-8 py-3 rounded-lg font-semibold hover:bg-warm-orange/90 transition-colors flex items-center justify-center space-x-2 min-h-[44px] touch-action-manipulation"
         >
           <span>🔄</span>
           <span>转换新文件</span>
@@ -229,7 +235,7 @@ export default function ConversionResult({
 
         <button
           onClick={onReset}
-          className="px-6 py-3 text-deep-brown border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center space-x-2"
+          className="px-4 sm:px-6 py-3 text-deep-brown border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center space-x-2 min-h-[44px] touch-action-manipulation"
         >
           <span>🏠</span>
           <span>返回首页</span>
@@ -238,8 +244,10 @@ export default function ConversionResult({
 
       {/* Download Tips */}
       <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-        <h5 className="font-medium text-blue-800 mb-2">💡 下载提示</h5>
-        <ul className="text-sm text-blue-700 space-y-1">
+        <h5 className="font-medium text-blue-800 mb-2 text-sm sm:text-base">
+          💡 下载提示
+        </h5>
+        <ul className="text-xs sm:text-sm text-blue-700 space-y-1">
           <li>• 文件将自动开始下载到您的默认下载文件夹</li>
           <li>• 如果下载没有开始，请检查浏览器的下载设置</li>
           <li>• 文件链接将在24小时后过期</li>

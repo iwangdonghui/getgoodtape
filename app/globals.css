@@ -7,24 +7,255 @@
 @layer base {
   html {
     font-family: 'Inter', system-ui, sans-serif;
+    /* 防止iOS Safari缩放 */
+    -webkit-text-size-adjust: 100%;
+    /* 改善移动端滚动 */
+    -webkit-overflow-scrolling: touch;
   }
 
   body {
     background-color: #fdf6e3;
     color: #8b4513;
+    /* 防止移动端橡皮筋效果 */
+    overscroll-behavior: none;
+    /* 改善移动端触摸反馈 */
+    -webkit-tap-highlight-color: rgba(255, 140, 66, 0.2);
+  }
+
+  /* 移动端输入框优化 */
+  input,
+  textarea,
+  select {
+    /* 防止iOS Safari缩放 */
+    font-size: 16px;
+    /* 改善移动端输入体验 */
+    -webkit-appearance: none;
+    border-radius: 0;
+  }
+
+  /* 移动端按钮优化 */
+  button {
+    /* 改善触摸目标大小 */
+    min-height: 44px;
+    /* 防止双击缩放 */
+    touch-action: manipulation;
   }
 }
 
 @layer components {
   .btn-primary {
     @apply bg-mint-green hover:bg-green-400 text-deep-brown font-medium px-6 py-3 rounded-lg transition-colors duration-200;
+    /* 移动端触摸优化 */
+    min-height: 44px;
+    touch-action: manipulation;
   }
 
   .btn-secondary {
     @apply bg-warm-orange hover:bg-orange-500 text-white font-medium px-6 py-3 rounded-lg transition-colors duration-200;
+    /* 移动端触摸优化 */
+    min-height: 44px;
+    touch-action: manipulation;
   }
 
   .brand-gradient {
     background: linear-gradient(135deg, #ff8c42 0%, #daa520 100%);
+  }
+
+  /* 移动端专用样式 */
+  .mobile-container {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+
+  .mobile-card {
+    @apply bg-white/70 backdrop-blur-sm rounded-2xl p-4 sm:p-6 lg:p-8 border border-warm-orange/20;
+  }
+
+  .mobile-input {
+    @apply w-full px-4 py-3 rounded-lg border border-warm-orange/30 focus:outline-none focus:ring-2 focus:ring-mint-green focus:border-transparent;
+    /* 移动端输入优化 */
+    font-size: 16px;
+    -webkit-appearance: none;
+  }
+
+  /* 确保 radio 和 checkbox 不受 mobile-input 影响 */
+  input[type='radio'],
+  input[type='checkbox'] {
+    @apply w-auto px-0 py-0 rounded-none border-0;
+    -webkit-appearance: auto;
+    font-size: inherit;
+  }
+
+  .mobile-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4;
+  }
+
+  .mobile-flex {
+    @apply flex flex-col sm:flex-row gap-3;
+  }
+
+  /* 移动端触摸友好的链接 */
+  .mobile-link {
+    @apply inline-flex min-h-[44px] items-center justify-center;
+    touch-action: manipulation;
+  }
+
+  /* 移动端滚动优化 */
+  .mobile-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  /* 移动端手势优化 */
+  .mobile-swipe {
+    touch-action: pan-x pan-y;
+  }
+
+  .mobile-no-select {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+
+  /* 移动端焦点优化 */
+  .mobile-focus:focus {
+    outline: 2px solid #ff8c42;
+    outline-offset: 2px;
+  }
+
+  /* 移动端动画优化 */
+  @media (prefers-reduced-motion: reduce) {
+    .mobile-animate {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+
+  /* 移动端键盘适配 */
+  .mobile-keyboard-adjust {
+    transition: margin-bottom 0.3s ease;
+  }
+
+  /* 移动端安全区域适配 */
+  .mobile-safe-area {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* 性能优化相关样式 */
+  .reduce-animations * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .low-end-device {
+    /* 低端设备优化 */
+    will-change: auto !important;
+  }
+
+  .low-end-device * {
+    /* 禁用复杂的CSS效果 */
+    box-shadow: none !important;
+    text-shadow: none !important;
+    filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .save-data img,
+  .save-data video {
+    /* 省流量模式下的图片优化 */
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+
+  /* 移动端滚动性能优化 */
+  .mobile-scroll-optimized {
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    will-change: scroll-position;
+  }
+
+  /* 移动端图片懒加载优化 */
+  .mobile-lazy-image {
+    content-visibility: auto;
+    contain-intrinsic-size: 200px;
+  }
+
+  /* 跨浏览器兼容性修复 */
+
+  /* Safari 特定修复 */
+  @supports (-webkit-appearance: none) {
+    .mobile-input {
+      /* 修复 Safari 输入框样式 */
+      -webkit-appearance: none;
+      border-radius: 0;
+    }
+
+    .mobile-button {
+      /* 修复 Safari 按钮样式 */
+      -webkit-appearance: none;
+    }
+  }
+
+  /* Firefox 特定修复 */
+  @-moz-document url-prefix() {
+    .mobile-input {
+      /* Firefox 输入框修复 */
+      -moz-appearance: none;
+    }
+  }
+
+  /* 老版本 iOS Safari 修复 */
+  @supports (-webkit-touch-callout: none) {
+    .mobile-container {
+      /* 修复老版本 iOS 的滚动问题 */
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+
+  /* Android Chrome 特定修复 */
+  @media screen and (-webkit-min-device-pixel-ratio: 0) {
+    .mobile-input:focus {
+      /* 防止 Android Chrome 缩放 */
+      font-size: 16px;
+    }
+  }
+
+  /* 高对比度模式支持 */
+  @media (prefers-contrast: high) {
+    .mobile-card {
+      border: 2px solid;
+    }
+
+    .mobile-button {
+      border: 2px solid;
+    }
+  }
+
+  /* 深色模式支持 */
+  @media (prefers-color-scheme: dark) {
+    .mobile-card {
+      background-color: #1f2937;
+      color: #f9fafb;
+    }
+
+    .mobile-input {
+      background-color: #374151;
+      color: #f9fafb;
+      border-color: #6b7280;
+    }
+  }
+
+  /* 降低动画偏好支持 */
+  @media (prefers-reduced-motion: reduce) {
+    .mobile-animate,
+    .mobile-button,
+    .mobile-link {
+      animation: none !important;
+      transition: none !important;
+    }
   }
 }

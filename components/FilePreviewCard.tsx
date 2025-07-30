@@ -57,7 +57,7 @@ export default function FilePreviewCard({
   return (
     <div className="bg-white rounded-xl shadow-lg overflow-hidden max-w-sm mx-auto">
       {/* 缩略图区域 */}
-      <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200">
+      <div className="relative h-36 sm:h-48 bg-gradient-to-br from-gray-100 to-gray-200">
         {metadata?.thumbnail ? (
           <img
             src={metadata.thumbnail}
@@ -70,45 +70,48 @@ export default function FilePreviewCard({
               if (parent) {
                 const fallback = document.createElement('div');
                 fallback.className =
-                  'w-full h-full bg-gradient-to-br from-warm-orange to-tape-gold flex items-center justify-center text-6xl';
+                  'w-full h-full bg-gradient-to-br from-warm-orange to-tape-gold flex items-center justify-center text-4xl sm:text-6xl';
                 fallback.innerHTML = getFileIcon();
                 parent.appendChild(fallback);
               }
             }}
           />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-warm-orange to-tape-gold flex items-center justify-center text-6xl">
+          <div className="w-full h-full bg-gradient-to-br from-warm-orange to-tape-gold flex items-center justify-center text-4xl sm:text-6xl">
             {getFileIcon()}
           </div>
         )}
 
         {/* 格式标签 */}
-        <div className="absolute top-3 right-3 bg-black/70 text-white px-2 py-1 rounded text-sm font-medium">
+        <div className="absolute top-2 sm:top-3 right-2 sm:right-3 bg-black/70 text-white px-2 py-1 rounded text-xs sm:text-sm font-medium">
           {format.toUpperCase()}
         </div>
 
         {/* 时长标签 */}
         {metadata?.duration && (
-          <div className="absolute bottom-3 right-3 bg-black/70 text-white px-2 py-1 rounded text-sm font-medium">
+          <div className="absolute bottom-2 sm:bottom-3 right-2 sm:right-3 bg-black/70 text-white px-2 py-1 rounded text-xs sm:text-sm font-medium">
             {formatDuration(metadata.duration)}
           </div>
         )}
       </div>
 
       {/* 文件信息区域 */}
-      <div className="p-4">
-        <h3 className="font-semibold text-gray-900 text-lg mb-2 line-clamp-2">
+      <div className="p-3 sm:p-4">
+        <h3 className="font-semibold text-gray-900 text-base sm:text-lg mb-2 line-clamp-2 break-words">
           {metadata?.title || filename || `转换后的${format.toUpperCase()}文件`}
         </h3>
 
-        <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
+        <div className="flex items-center justify-between text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
           <span className="flex items-center space-x-1">
             <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
             <span>{getQualityLabel()}</span>
           </span>
 
           {metadata?.uploader && (
-            <span className="truncate max-w-32" title={metadata.uploader}>
+            <span
+              className="truncate max-w-20 sm:max-w-32"
+              title={metadata.uploader}
+            >
               {metadata.uploader}
             </span>
           )}
@@ -118,17 +121,17 @@ export default function FilePreviewCard({
         <button
           onClick={onDownload}
           disabled={isDownloading}
-          className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-3 rounded-lg font-semibold hover:from-green-600 hover:to-green-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+          className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-3 rounded-lg font-semibold hover:from-green-600 hover:to-green-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 min-h-[44px] touch-action-manipulation"
         >
           {isDownloading ? (
             <>
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              <span>下载中...</span>
+              <span className="text-sm sm:text-base">下载中...</span>
             </>
           ) : (
             <>
               <span>📥</span>
-              <span>下载文件</span>
+              <span className="text-sm sm:text-base">下载文件</span>
             </>
           )}
         </button>
