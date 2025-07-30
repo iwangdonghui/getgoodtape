@@ -1,4 +1,5 @@
 // API client for GetGoodTape conversion service
+import { apiCache, platformCache, withCache } from './cache-manager';
 
 export interface ConvertRequest {
   url: string;
@@ -192,14 +193,29 @@ class ApiClient {
   }
 
   /**
-   * Validate URL and get platform info
+   * Validate URL and get platform info (with caching)
    */
   async validateUrl(url: string): Promise<ValidationResponse> {
+    const cacheKey = `validate_${url}`;
+
+    // 尝试从缓存获取
+    const cached = apiCache.get<ValidationResponse>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     try {
-      return await this.request<ValidationResponse>('/validate', {
+      const result = await this.request<ValidationResponse>('/validate', {
         method: 'POST',
         body: JSON.stringify({ url }),
       });
+
+      // 只缓存有效的URL验证结果
+      if (result.isValid) {
+        apiCache.set(cacheKey, result, 10 * 60 * 1000); // 缓存10分钟
+      }
+
+      return result;
     } catch (error) {
       console.error('Validation API error:', error);
       return {
@@ -215,11 +231,26 @@ class ApiClient {
   }
 
   /**
-   * Get supported platforms
+   * Get supported platforms (with caching)
    */
   async getPlatforms(): Promise<PlatformsResponse> {
+    const cacheKey = 'platforms';
+
+    // 尝试从缓存获取
+    const cached = platformCache.get<PlatformsResponse>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     try {
-      return await this.request<PlatformsResponse>('/platforms');
+      const result = await this.request<PlatformsResponse>('/platforms');
+
+      // 只缓存成功的响应
+      if (result.success) {
+        platformCache.set(cacheKey, result, 30 * 60 * 1000); // 缓存30分钟
+      }
+
+      return result;
     } catch (error) {
       console.error('Platforms API error:', error);
       return {

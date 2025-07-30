@@ -3,9 +3,14 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Logo from '../../components/Logo';
-import ConversionProgress from '../../components/ConversionProgress';
-import ConversionResult from '../../components/ConversionResult';
-import ConversionError from '../../components/ConversionError';
+import PerformanceMonitor from '../../components/PerformanceMonitor';
+import SEOHead, { pageSEO } from '../../components/SEOHead';
+import {
+  LazyConversionProgress,
+  LazyConversionResult,
+  LazyConversionError,
+  smartPreload,
+} from '../../components/LazyComponents';
 
 import { useConversion } from '../../hooks/useConversion';
 import { apiClient, formatDuration } from '../../lib/api-client';
@@ -45,308 +50,333 @@ export default function AppPage() {
   };
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    conversion.setUrl(e.target.value);
+    const url = e.target.value;
+    conversion.setUrl(url);
+
+    // 智能预加载：当用户开始输入URL时预加载转换相关组件
+    if (url.length > 10) {
+      smartPreload.onUrlInput();
+    }
   };
 
   return (
-    <div className="min-h-screen bg-cream">
-      {/* Header */}
-      <header className="bg-white/50 backdrop-blur-sm border-b border-warm-orange/20">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link
-              href="/"
-              className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
-            >
-              <Logo size="md" />
-              <div>
-                <h1 className="text-xl font-bold text-deep-brown">
-                  GetGoodTape
-                </h1>
-                <p className="text-xs text-deep-brown/60">Beta Version</p>
-              </div>
-            </Link>
-            <div className="flex items-center space-x-4">
+    <>
+      <SEOHead {...pageSEO.app} />
+      <div className="min-h-screen bg-cream">
+        {/* 性能监控组件 */}
+        <PerformanceMonitor
+          enableLogging={process.env.NODE_ENV === 'development'}
+          onMetrics={metrics => {
+            // 在生产环境中可以发送到分析服务
+            if (process.env.NODE_ENV === 'production') {
+              // TODO: 发送到分析服务 (如 Google Analytics, Vercel Analytics)
+              console.log('Performance metrics:', metrics);
+            }
+          }}
+        />
+        {/* Header */}
+        <header className="bg-white/50 backdrop-blur-sm border-b border-warm-orange/20">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex items-center justify-between">
               <Link
                 href="/"
-                className="text-sm text-deep-brown/70 hover:text-deep-brown transition-colors"
+                className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
               >
-                ← Back to Home
+                <Logo size="md" />
+                <div>
+                  <h1 className="text-xl font-bold text-deep-brown">
+                    GetGoodTape
+                  </h1>
+                  <p className="text-xs text-deep-brown/60">Beta Version</p>
+                </div>
               </Link>
-              <div className="text-sm text-deep-brown/70 bg-mint-green/20 px-3 py-1 rounded-full">
-                Beta
+              <div className="flex items-center space-x-4">
+                <Link
+                  href="/"
+                  className="text-sm text-deep-brown/70 hover:text-deep-brown transition-colors"
+                >
+                  ← Back to Home
+                </Link>
+                <div className="text-sm text-deep-brown/70 bg-mint-green/20 px-3 py-1 rounded-full">
+                  Beta
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Conversion Form */}
-          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-warm-orange/20">
-            <h2 className="text-2xl font-bold text-deep-brown mb-6 text-center">
-              视频转换工具
-            </h2>
+        {/* Main Content */}
+        <main className="container mx-auto px-4 py-8">
+          <div className="max-w-4xl mx-auto">
+            {/* Conversion Form */}
+            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-warm-orange/20">
+              <h2 className="text-2xl font-bold text-deep-brown mb-6 text-center">
+                视频转换工具
+              </h2>
 
-            <form onSubmit={handleConvert} className="space-y-6">
-              {/* URL Input */}
-              <div>
-                <label
-                  htmlFor="url"
-                  className="block text-sm font-medium text-deep-brown mb-2"
-                >
-                  视频链接
-                </label>
-                <div className="relative">
-                  <input
-                    type="url"
-                    id="url"
-                    value={conversion.url}
-                    onChange={handleUrlChange}
-                    placeholder="粘贴视频链接..."
-                    className={`w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-mint-green focus:border-transparent ${
-                      conversion.urlError
-                        ? 'border-red-300 bg-red-50'
-                        : conversion.detectedPlatform
-                          ? 'border-green-300 bg-green-50'
-                          : 'border-warm-orange/30'
-                    }`}
-                    disabled={conversion.isConverting}
-                    required
-                  />
-
-                  {/* Platform Detection Indicator */}
-                  {conversion.detectedPlatform && (
-                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                      <div className="flex items-center space-x-2">
-                        <div className="text-green-600">
-                          {
-                            supportedPlatforms.find(
-                              p => p.name === conversion.detectedPlatform
-                            )?.icon
-                          }
-                        </div>
-                        <span className="text-sm font-medium text-green-600">
-                          {conversion.detectedPlatform}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Loading indicator */}
-                  {conversion.isValidating && (
-                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-warm-orange"></div>
-                    </div>
-                  )}
-                </div>
-
-                {/* URL Status Messages */}
-                {conversion.urlError && (
-                  <div className="mt-2 text-sm text-red-600 flex items-center">
-                    <span className="mr-1">⚠️</span>
-                    {conversion.urlError}
-                  </div>
-                )}
-
-                {conversion.detectedPlatform && !conversion.urlError && (
-                  <div className="mt-2 text-sm text-green-600 flex items-center">
-                    <span className="mr-1">✅</span>
-                    已识别 {conversion.detectedPlatform} 链接
-                    {conversion.urlMetadata?.title && (
-                      <span className="ml-2 text-xs text-gray-600">
-                        - {conversion.urlMetadata.title}
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {conversion.isValidating && (
-                  <div className="mt-2 text-sm text-yellow-600 flex items-center">
-                    <span className="mr-1">🔍</span>
-                    正在验证链接...
-                  </div>
-                )}
-
-                {conversion.url &&
-                  !conversion.detectedPlatform &&
-                  !conversion.urlError &&
-                  !conversion.isValidating && (
-                    <div className="mt-2 text-sm text-yellow-600 flex items-center">
-                      <span className="mr-1">❓</span>
-                      未识别的平台，请检查链接
-                    </div>
-                  )}
-              </div>
-
-              {/* Format Selection */}
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-deep-brown mb-2">
-                    输出格式
-                  </label>
-                  <div className="flex space-x-4">
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        value="mp3"
-                        checked={conversion.format === 'mp3'}
-                        onChange={e =>
-                          conversion.setFormat(e.target.value as 'mp3' | 'mp4')
-                        }
-                        className="mr-2"
-                        disabled={conversion.isConverting}
-                      />
-                      <span className="text-deep-brown">MP3 (音频)</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        value="mp4"
-                        checked={conversion.format === 'mp4'}
-                        onChange={e =>
-                          conversion.setFormat(e.target.value as 'mp3' | 'mp4')
-                        }
-                        className="mr-2"
-                        disabled={conversion.isConverting}
-                      />
-                      <span className="text-deep-brown">MP4 (视频)</span>
-                    </label>
-                  </div>
-                </div>
-
+              <form onSubmit={handleConvert} className="space-y-6">
+                {/* URL Input */}
                 <div>
                   <label
-                    htmlFor="quality"
+                    htmlFor="url"
                     className="block text-sm font-medium text-deep-brown mb-2"
                   >
-                    质量选择
+                    视频链接
                   </label>
-                  <select
-                    id="quality"
-                    value={conversion.quality}
-                    onChange={e => conversion.setQuality(e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg border border-warm-orange/30 focus:outline-none focus:ring-2 focus:ring-mint-green"
-                    disabled={conversion.isConverting}
-                  >
-                    <option value="high">
-                      高质量 ({conversion.format === 'mp3' ? '192kbps' : '720p'}
-                      )
-                    </option>
-                    <option value="medium">
-                      中等质量 (
-                      {conversion.format === 'mp3' ? '128kbps' : '360p'})
-                    </option>
-                    <option value="low">
-                      低质量 ({conversion.format === 'mp3' ? '128kbps' : '360p'}
-                      ) - 更快
-                    </option>
-                  </select>
-                </div>
-              </div>
+                  <div className="relative">
+                    <input
+                      type="url"
+                      id="url"
+                      value={conversion.url}
+                      onChange={handleUrlChange}
+                      placeholder="粘贴视频链接..."
+                      className={`w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-mint-green focus:border-transparent ${
+                        conversion.urlError
+                          ? 'border-red-300 bg-red-50'
+                          : conversion.detectedPlatform
+                            ? 'border-green-300 bg-green-50'
+                            : 'border-warm-orange/30'
+                      }`}
+                      disabled={conversion.isConverting}
+                      required
+                    />
 
-              {/* Convert Button */}
-              <button
-                type="submit"
-                disabled={
-                  conversion.isConverting ||
-                  !conversion.url.trim() ||
-                  !conversion.detectedPlatform ||
-                  !!conversion.urlError ||
-                  conversion.isValidating
-                }
-                className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {conversion.isConverting
-                  ? `转换中... (${conversion.progress}%)`
-                  : conversion.isValidating
-                    ? '验证中...'
-                    : !conversion.detectedPlatform && conversion.url.trim()
-                      ? '请输入支持的平台链接'
-                      : conversion.urlError
-                        ? '链接格式错误'
-                        : '开始转换'}
-              </button>
-            </form>
+                    {/* Platform Detection Indicator */}
+                    {conversion.detectedPlatform && (
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        <div className="flex items-center space-x-2">
+                          <div className="text-green-600">
+                            {
+                              supportedPlatforms.find(
+                                p => p.name === conversion.detectedPlatform
+                              )?.icon
+                            }
+                          </div>
+                          <span className="text-sm font-medium text-green-600">
+                            {conversion.detectedPlatform}
+                          </span>
+                        </div>
+                      </div>
+                    )}
 
-            {/* Progress Display */}
-            {(() => {
-              console.log('🔄 App rendering ConversionProgress with:', {
-                status: conversion.status,
-                progress: conversion.progress,
-                jobId: conversion.jobId,
-                error: conversion.error,
-              });
-              return null;
-            })()}
-            <ConversionProgress
-              status={conversion.status}
-              progress={conversion.progress}
-              jobId={conversion.jobId}
-              error={conversion.error}
-            />
-
-            {/* Result or Error Display */}
-            {conversion.error && (
-              <ConversionError
-                error={conversion.error}
-                canRetry={conversion.canRetry}
-                retryCount={conversion.retryCount}
-                onRetry={conversion.retry}
-                onReset={conversion.reset}
-                jobId={conversion.jobId}
-              />
-            )}
-
-            {conversion.result && !conversion.error && (
-              <ConversionResult
-                downloadUrl={conversion.result.downloadUrl}
-                filename={conversion.result.filename}
-                metadata={conversion.result.metadata}
-                format={conversion.format}
-                quality={conversion.quality}
-                onReset={conversion.reset}
-                onNewConversion={() => {
-                  conversion.reset();
-                  // Focus on URL input
-                  setTimeout(() => {
-                    const urlInput = document.getElementById(
-                      'url'
-                    ) as HTMLInputElement;
-                    if (urlInput) {
-                      urlInput.focus();
-                    }
-                  }, 100);
-                }}
-              />
-            )}
-          </div>
-
-          {/* Supported Platforms */}
-          <div className="bg-white/50 backdrop-blur-sm rounded-2xl p-6 border border-warm-orange/20">
-            <h3 className="text-lg font-semibold text-deep-brown mb-4">
-              支持的平台
-            </h3>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {supportedPlatforms.map(platform => (
-                <div
-                  key={platform.name}
-                  className={`rounded-lg p-4 border ${platform.color}`}
-                >
-                  <div className="flex items-center space-x-3 mb-2">
-                    <div className="flex-shrink-0">{platform.icon}</div>
-                    <h4 className="font-medium">{platform.name}</h4>
+                    {/* Loading indicator */}
+                    {conversion.isValidating && (
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-warm-orange"></div>
+                      </div>
+                    )}
                   </div>
-                  <p className="text-xs opacity-70">{platform.example}</p>
+
+                  {/* URL Status Messages */}
+                  {conversion.urlError && (
+                    <div className="mt-2 text-sm text-red-600 flex items-center">
+                      <span className="mr-1">⚠️</span>
+                      {conversion.urlError}
+                    </div>
+                  )}
+
+                  {conversion.detectedPlatform && !conversion.urlError && (
+                    <div className="mt-2 text-sm text-green-600 flex items-center">
+                      <span className="mr-1">✅</span>
+                      已识别 {conversion.detectedPlatform} 链接
+                      {conversion.urlMetadata?.title && (
+                        <span className="ml-2 text-xs text-gray-600">
+                          - {conversion.urlMetadata.title}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {conversion.isValidating && (
+                    <div className="mt-2 text-sm text-yellow-600 flex items-center">
+                      <span className="mr-1">🔍</span>
+                      正在验证链接...
+                    </div>
+                  )}
+
+                  {conversion.url &&
+                    !conversion.detectedPlatform &&
+                    !conversion.urlError &&
+                    !conversion.isValidating && (
+                      <div className="mt-2 text-sm text-yellow-600 flex items-center">
+                        <span className="mr-1">❓</span>
+                        未识别的平台，请检查链接
+                      </div>
+                    )}
                 </div>
-              ))}
+
+                {/* Format Selection */}
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-deep-brown mb-2">
+                      输出格式
+                    </label>
+                    <div className="flex space-x-4">
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          value="mp3"
+                          checked={conversion.format === 'mp3'}
+                          onChange={e =>
+                            conversion.setFormat(
+                              e.target.value as 'mp3' | 'mp4'
+                            )
+                          }
+                          className="mr-2"
+                          disabled={conversion.isConverting}
+                        />
+                        <span className="text-deep-brown">MP3 (音频)</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          value="mp4"
+                          checked={conversion.format === 'mp4'}
+                          onChange={e =>
+                            conversion.setFormat(
+                              e.target.value as 'mp3' | 'mp4'
+                            )
+                          }
+                          className="mr-2"
+                          disabled={conversion.isConverting}
+                        />
+                        <span className="text-deep-brown">MP4 (视频)</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="quality"
+                      className="block text-sm font-medium text-deep-brown mb-2"
+                    >
+                      质量选择
+                    </label>
+                    <select
+                      id="quality"
+                      value={conversion.quality}
+                      onChange={e => conversion.setQuality(e.target.value)}
+                      className="w-full px-4 py-3 rounded-lg border border-warm-orange/30 focus:outline-none focus:ring-2 focus:ring-mint-green"
+                      disabled={conversion.isConverting}
+                    >
+                      <option value="high">
+                        高质量 (
+                        {conversion.format === 'mp3' ? '192kbps' : '720p'})
+                      </option>
+                      <option value="medium">
+                        中等质量 (
+                        {conversion.format === 'mp3' ? '128kbps' : '360p'})
+                      </option>
+                      <option value="low">
+                        低质量 (
+                        {conversion.format === 'mp3' ? '128kbps' : '360p'}) -
+                        更快
+                      </option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Convert Button */}
+                <button
+                  type="submit"
+                  disabled={
+                    conversion.isConverting ||
+                    !conversion.url.trim() ||
+                    !conversion.detectedPlatform ||
+                    !!conversion.urlError ||
+                    conversion.isValidating
+                  }
+                  className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {conversion.isConverting
+                    ? `转换中... (${conversion.progress}%)`
+                    : conversion.isValidating
+                      ? '验证中...'
+                      : !conversion.detectedPlatform && conversion.url.trim()
+                        ? '请输入支持的平台链接'
+                        : conversion.urlError
+                          ? '链接格式错误'
+                          : '开始转换'}
+                </button>
+              </form>
+
+              {/* Progress Display */}
+              {(() => {
+                console.log('🔄 App rendering ConversionProgress with:', {
+                  status: conversion.status,
+                  progress: conversion.progress,
+                  jobId: conversion.jobId,
+                  error: conversion.error,
+                });
+                return null;
+              })()}
+              <LazyConversionProgress
+                status={conversion.status}
+                progress={conversion.progress}
+                jobId={conversion.jobId}
+                error={conversion.error}
+              />
+
+              {/* Result or Error Display */}
+              {conversion.error && (
+                <LazyConversionError
+                  error={conversion.error}
+                  canRetry={conversion.canRetry}
+                  retryCount={conversion.retryCount}
+                  onRetry={conversion.retry}
+                  onReset={conversion.reset}
+                  jobId={conversion.jobId}
+                />
+              )}
+
+              {conversion.result && !conversion.error && (
+                <LazyConversionResult
+                  downloadUrl={conversion.result.downloadUrl}
+                  filename={conversion.result.filename}
+                  metadata={conversion.result.metadata}
+                  format={conversion.format}
+                  quality={conversion.quality}
+                  onReset={conversion.reset}
+                  onNewConversion={() => {
+                    conversion.reset();
+                    // Focus on URL input
+                    setTimeout(() => {
+                      const urlInput = document.getElementById(
+                        'url'
+                      ) as HTMLInputElement;
+                      if (urlInput) {
+                        urlInput.focus();
+                      }
+                    }, 100);
+                  }}
+                />
+              )}
+            </div>
+
+            {/* Supported Platforms */}
+            <div className="bg-white/50 backdrop-blur-sm rounded-2xl p-6 border border-warm-orange/20">
+              <h3 className="text-lg font-semibold text-deep-brown mb-4">
+                支持的平台
+              </h3>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {supportedPlatforms.map(platform => (
+                  <div
+                    key={platform.name}
+                    className={`rounded-lg p-4 border ${platform.color}`}
+                  >
+                    <div className="flex items-center space-x-3 mb-2">
+                      <div className="flex-shrink-0">{platform.icon}</div>
+                      <h4 className="font-medium">{platform.name}</h4>
+                    </div>
+                    <p className="text-xs opacity-70">{platform.example}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      </main>
-    </div>
+        </main>
+      </div>
+    </>
   );
 }
 

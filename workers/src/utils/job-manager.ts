@@ -21,15 +21,16 @@ export class JobManager {
   ): Promise<string> {
     const jobId = this.generateJobId();
 
-    const job: Omit<ConversionJob, 'created_at' | 'updated_at' | 'expires_at'> = {
-      id: jobId,
-      url,
-      platform,
-      format,
-      quality,
-      status: 'queued',
-      progress: 0,
-    };
+    const job: Omit<ConversionJob, 'created_at' | 'updated_at' | 'expires_at'> =
+      {
+        id: jobId,
+        url,
+        platform,
+        format,
+        quality,
+        status: 'queued',
+        progress: 0,
+      };
 
     await this.db.createConversionJob(job);
     return jobId;
