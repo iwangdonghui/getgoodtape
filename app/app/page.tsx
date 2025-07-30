@@ -261,16 +261,17 @@ export default function AppPage() {
                     >
                       <option value="high">
                         高质量 (
-                        {conversion.format === 'mp3' ? '192kbps' : '720p'})
+                        {conversion.format === 'mp3' ? '320kbps' : '720p'})
                       </option>
                       <option value="medium">
                         中等质量 (
-                        {conversion.format === 'mp3' ? '128kbps' : '360p'})
+                        {conversion.format === 'mp3' ? '128kbps' : '360p'}) -
+                        推荐
                       </option>
                       <option value="low">
                         低质量 (
-                        {conversion.format === 'mp3' ? '128kbps' : '360p'}) -
-                        更快
+                        {conversion.format === 'mp3' ? '96kbps' : '360p'}) -
+                        更快下载
                       </option>
                     </select>
                   </div>

@@ -331,11 +331,11 @@ export function useConversion(): ConversionState & ConversionActions {
         if (format === 'mp3') {
           switch (quality) {
             case 'high':
-              return '192';
+              return '320'; // 高质量使用320k
             case 'medium':
-              return '128';
+              return '128'; // 中等质量使用128k (默认)
             case 'low':
-              return '128'; // Use 128 for low quality MP3
+              return '96'; // 低质量使用96k
             default:
               return '128';
           }

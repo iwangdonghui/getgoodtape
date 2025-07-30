@@ -452,11 +452,12 @@ def get_quality_settings(format_type: str, quality: str) -> Dict[str, Any]:
 
     if format_type.lower() == 'mp3':
         quality_map = {
+            '96': {'bitrate': '96k', 'codec': 'libmp3lame'},
             '128': {'bitrate': '128k', 'codec': 'libmp3lame'},
-            '192': {'bitrate': '192k', 'codec': 'libmp3lame'},
+            '256': {'bitrate': '256k', 'codec': 'libmp3lame'},
             '320': {'bitrate': '320k', 'codec': 'libmp3lame'},
         }
-        return quality_map.get(quality, quality_map['192'])
+        return quality_map.get(quality, quality_map['128'])  # 默认使用128k
 
     elif format_type.lower() == 'mp4':
         quality_map = {
@@ -484,9 +485,10 @@ async def convert_to_mp3(url: str, quality: str, output_path: str) -> Conversion
         # Create temporary directory for processing
         with tempfile.TemporaryDirectory() as temp_dir:
             # Configure yt-dlp options for audio extraction
+            # Use a simple filename to avoid issues with special characters
             ydl_opts = {
                 'format': 'bestaudio/best',
-                'outtmpl': os.path.join(temp_dir, '%(title)s.%(ext)s'),
+                'outtmpl': os.path.join(temp_dir, 'downloaded_audio.%(ext)s'),
                 'postprocessors': [{
                     'key': 'FFmpegExtractAudio',
                     'preferredcodec': 'mp3',
@@ -607,9 +609,10 @@ async def convert_to_mp4(url: str, quality: str, output_path: str) -> Conversion
         # Create temporary directory for processing
         with tempfile.TemporaryDirectory() as temp_dir:
             # Configure yt-dlp options for video download
+            # Use a simple filename to avoid issues with special characters
             ydl_opts = {
                 'format': f'best[height<={height}]/best',
-                'outtmpl': os.path.join(temp_dir, '%(title)s.%(ext)s'),
+                'outtmpl': os.path.join(temp_dir, 'downloaded_video.%(ext)s'),
                 'postprocessors': [{
                     'key': 'FFmpegVideoConvertor',
                     'preferedformat': 'mp4',
@@ -737,11 +740,12 @@ def estimate_file_size(duration: float, format_type: str, quality: str) -> int:
     if format_type.lower() == 'mp3':
         # MP3 bitrate estimates (bytes per second)
         bitrate_map = {
+            '96': 12000,   # 96 kbps ≈ 12 KB/s
             '128': 16000,  # 128 kbps ≈ 16 KB/s
-            '192': 24000,  # 192 kbps ≈ 24 KB/s
+            '256': 32000,  # 256 kbps ≈ 32 KB/s
             '320': 40000,  # 320 kbps ≈ 40 KB/s
         }
-        bytes_per_second = bitrate_map.get(quality, 24000)
+        bytes_per_second = bitrate_map.get(quality, 16000)  # 默认128k
         return duration * bytes_per_second
 
     elif format_type.lower() == 'mp4':

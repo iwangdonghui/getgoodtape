@@ -87,8 +87,8 @@ export default function ConversionResult({
     let sizePerSecond: number;
 
     if (format === 'mp3') {
-      const bitrates = { low: 128, medium: 192, high: 320 };
-      const bitrate = bitrates[quality as keyof typeof bitrates] || 192;
+      const bitrates = { low: 96, medium: 128, high: 320 };
+      const bitrate = bitrates[quality as keyof typeof bitrates] || 128;
       sizePerSecond = (bitrate * 1000) / 8 / 1000; // KB per second
     } else {
       const bitrates = { low: 1000, medium: 2000, high: 4000 };
