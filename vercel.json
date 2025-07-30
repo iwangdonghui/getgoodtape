@@ -6,8 +6,11 @@
     "app/api/health/route.ts": {
       "maxDuration": 5
     },
-    "app/api/sitemap/route.ts": {
+    "app/sitemap.xml/route.ts": {
       "maxDuration": 10
+    },
+    "app/robots.txt/route.ts": {
+      "maxDuration": 5
     }
   },
   "env": {
