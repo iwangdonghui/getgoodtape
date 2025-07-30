@@ -45,6 +45,9 @@ export interface StatusResponse {
   status?: 'queued' | 'processing' | 'completed' | 'failed';
   progress?: number;
   downloadUrl?: string;
+  filename?: string;
+  queuePosition?: number;
+  estimatedTimeRemaining?: number;
   metadata?: {
     title: string;
     duration: number;

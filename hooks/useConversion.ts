@@ -190,6 +190,9 @@ export function useConversion(): ConversionState & ConversionActions {
           status: response.status,
           progress: response.progress,
           downloadUrl: response.downloadUrl,
+          filename: response.filename,
+          queuePosition: response.queuePosition,
+          estimatedTimeRemaining: response.estimatedTimeRemaining,
           metadata: response.metadata,
           error: response.error,
         };
