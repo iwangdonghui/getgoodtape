@@ -74,6 +74,10 @@ export default function ConversionResult({
 
       // Extract filename with multiple fallback strategies
       let downloadFilename = filename;
+      console.log('🔍 Download filename analysis:');
+      console.log('  - filename prop:', filename);
+      console.log('  - downloadUrl:', downloadUrl);
+      console.log('  - format:', format);
 
       // Strategy 1: Use filename prop
       if (!downloadFilename) {
@@ -92,10 +96,12 @@ export default function ConversionResult({
           downloadFilename = urlParts[urlParts.length - 1];
           console.log('Using filename from URL:', downloadFilename);
         }
+      } else {
+        console.log('✅ Using filename prop directly:', downloadFilename);
       }
 
       link.download = downloadFilename || `converted.${format}`;
-      console.log('Final download filename:', link.download);
+      console.log('🎯 Final download filename:', link.download);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
