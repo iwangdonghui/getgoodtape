@@ -97,6 +97,7 @@ class ConvertRequest(BaseModel):
     format: str = Field(..., description="Output format: mp3 or mp4")
     quality: str = Field(..., description="Quality setting")
     platform: Optional[str] = None
+    useBypass: Optional[bool] = Field(False, description="Use YouTube bypass methods if available")
 
 class ConversionProgress(BaseModel):
     percentage: float
@@ -469,7 +470,7 @@ def get_quality_settings(format_type: str, quality: str) -> Dict[str, Any]:
 
     return {}
 
-async def convert_to_mp3(url: str, quality: str, output_path: str) -> ConversionResult:
+async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: bool = False) -> ConversionResult:
     """
     Convert video to MP3 using yt-dlp and FFmpeg
     """
@@ -496,23 +497,56 @@ async def convert_to_mp3(url: str, quality: str, output_path: str) -> Conversion
                 }],
                 'quiet': False,  # Enable output for debugging
                 'no_warnings': False,
-                # Enhanced anti-detection measures
-                'http_headers': {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                    'Accept-Language': 'en-us,en;q=0.5',
-                    'Accept-Encoding': 'gzip,deflate',
-                    'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
-                    'Keep-Alive': '300',
-                    'Connection': 'keep-alive',
-                },
-                'extractor_args': {
-                    'youtube': {
-                        'skip': ['dash', 'hls'],
-                        'player_client': ['android', 'web'],
-                    }
-                },
             }
+
+            # Apply bypass methods if requested
+            if use_bypass and ('youtube.com' in url or 'youtu.be' in url):
+                print("🔄 Using YouTube bypass methods for MP3 conversion")
+                # Use the same bypass configuration as the youtube-bypass endpoint
+                ydl_opts.update({
+                    'http_headers': {
+                        'User-Agent': 'com.google.ios.youtube/19.29.1 (iPhone16,2; U; CPU iOS 17_5 like Mac OS X)',
+                        'X-YouTube-Client-Name': '5',
+                        'X-YouTube-Client-Version': '19.29.1',
+                    },
+                    'extractor_args': {
+                        'youtube': {
+                            'player_client': ['ios'],
+                            'innertube_host': ['youtubei.googleapis.com'],
+                        }
+                    },
+                })
+
+                # Try to get proxy configuration
+                try:
+                    from proxy_config import proxy_manager, get_yt_dlp_proxy_options
+                    proxies = proxy_manager.get_proxy_list(include_no_proxy=False)
+                    if proxies:
+                        best_proxy = proxies[0]  # Use the first available proxy
+                        proxy_opts = get_yt_dlp_proxy_options(best_proxy)
+                        ydl_opts.update(proxy_opts)
+                        print(f"🔄 Using proxy for bypass: {best_proxy is not None}")
+                except Exception as e:
+                    print(f"⚠️ Could not configure proxy: {e}")
+            else:
+                # Standard configuration for non-bypass mode
+                ydl_opts.update({
+                    'http_headers': {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                        'Accept-Language': 'en-us,en;q=0.5',
+                        'Accept-Encoding': 'gzip,deflate',
+                        'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
+                        'Keep-Alive': '300',
+                        'Connection': 'keep-alive',
+                    },
+                    'extractor_args': {
+                        'youtube': {
+                            'skip': ['dash', 'hls'],
+                            'player_client': ['android', 'web'],
+                        }
+                    },
+                })
 
             # Download and convert
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -592,7 +626,7 @@ async def convert_to_mp3(url: str, quality: str, output_path: str) -> Conversion
             error=f"MP3 conversion failed: {error_msg}"
         )
 
-async def convert_to_mp4(url: str, quality: str, output_path: str) -> ConversionResult:
+async def convert_to_mp4(url: str, quality: str, output_path: str, use_bypass: bool = False) -> ConversionResult:
     """
     Convert video to MP4 using yt-dlp and FFmpeg
     """
@@ -620,23 +654,56 @@ async def convert_to_mp4(url: str, quality: str, output_path: str) -> Conversion
                 }],
                 'quiet': True,
                 'no_warnings': True,
-                # Enhanced anti-detection measures
-                'http_headers': {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                    'Accept-Language': 'en-us,en;q=0.5',
-                    'Accept-Encoding': 'gzip,deflate',
-                    'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
-                    'Keep-Alive': '300',
-                    'Connection': 'keep-alive',
-                },
-                'extractor_args': {
-                    'youtube': {
-                        'skip': ['dash', 'hls'],
-                        'player_client': ['android', 'web'],
-                    }
-                },
             }
+
+            # Apply bypass methods if requested
+            if use_bypass and ('youtube.com' in url or 'youtu.be' in url):
+                print("🔄 Using YouTube bypass methods for MP4 conversion")
+                # Use the same bypass configuration as the youtube-bypass endpoint
+                ydl_opts.update({
+                    'http_headers': {
+                        'User-Agent': 'com.google.ios.youtube/19.29.1 (iPhone16,2; U; CPU iOS 17_5 like Mac OS X)',
+                        'X-YouTube-Client-Name': '5',
+                        'X-YouTube-Client-Version': '19.29.1',
+                    },
+                    'extractor_args': {
+                        'youtube': {
+                            'player_client': ['ios'],
+                            'innertube_host': ['youtubei.googleapis.com'],
+                        }
+                    },
+                })
+
+                # Try to get proxy configuration
+                try:
+                    from proxy_config import proxy_manager, get_yt_dlp_proxy_options
+                    proxies = proxy_manager.get_proxy_list(include_no_proxy=False)
+                    if proxies:
+                        best_proxy = proxies[0]  # Use the first available proxy
+                        proxy_opts = get_yt_dlp_proxy_options(best_proxy)
+                        ydl_opts.update(proxy_opts)
+                        print(f"🔄 Using proxy for bypass: {best_proxy is not None}")
+                except Exception as e:
+                    print(f"⚠️ Could not configure proxy: {e}")
+            else:
+                # Standard configuration for non-bypass mode
+                ydl_opts.update({
+                    'http_headers': {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                        'Accept-Language': 'en-us,en;q=0.5',
+                        'Accept-Encoding': 'gzip,deflate',
+                        'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
+                        'Keep-Alive': '300',
+                        'Connection': 'keep-alive',
+                    },
+                    'extractor_args': {
+                        'youtube': {
+                            'skip': ['dash', 'hls'],
+                            'player_client': ['android', 'web'],
+                        }
+                    },
+                })
 
             # Download and convert
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -872,14 +939,15 @@ async def convert_video_endpoint(request: ConvertRequest):
         conversion_timeout = min(300, max(60, metadata.duration * 2)) if metadata.duration else 120
 
         try:
+            print(f"🔧 Conversion parameters: format={request.format}, quality={request.quality}, useBypass={request.useBypass}")
             if request.format.lower() == 'mp3':
                 result = await asyncio.wait_for(
-                    convert_to_mp3(request.url, request.quality, output_path),
+                    convert_to_mp3(request.url, request.quality, output_path, request.useBypass),
                     timeout=conversion_timeout
                 )
             elif request.format.lower() == 'mp4':
                 result = await asyncio.wait_for(
-                    convert_to_mp4(request.url, request.quality, output_path),
+                    convert_to_mp4(request.url, request.quality, output_path, request.useBypass),
                     timeout=conversion_timeout
                 )
             else:
@@ -1313,6 +1381,11 @@ async def youtube_bypass_endpoint(request: dict):
     """
     Specialized YouTube bypass endpoint using multiple strategies including proxies
     """
+    import yt_dlp
+    import random
+    import time
+    from proxy_config import proxy_manager, get_yt_dlp_proxy_options
+
     start_time = time.time()
     proxy_used = "none"
 
@@ -1320,11 +1393,6 @@ async def youtube_bypass_endpoint(request: dict):
         url = request.get('url')
         if not url:
             return {"success": False, "error": "URL is required"}
-
-        import yt_dlp
-        import random
-        import time
-        from proxy_config import proxy_manager, get_yt_dlp_proxy_options
 
         # Get optimized proxy list
         proxies = proxy_manager.get_proxy_list(include_no_proxy=True)

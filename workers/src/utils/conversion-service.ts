@@ -177,7 +177,7 @@ export class ConversionService {
         `Starting conversion: ${request.format} quality ${request.quality}`
       );
 
-      const conversionResponse = await this.callProcessingService(
+      let conversionResponse = await this.callProcessingService(
         `${processingServiceUrl}/convert`,
         {
           url: request.url,
@@ -190,24 +190,67 @@ export class ConversionService {
         `Conversion result: ${JSON.stringify({ success: conversionResponse.success, hasResult: !!conversionResponse.result })}`
       );
 
+      // If conversion fails and it's a YouTube video, try the bypass endpoint
       if (!conversionResponse.success) {
-        // Provide helpful error message for YouTube restrictions
         const isYouTube =
           request.url.includes('youtube.com') ||
           request.url.includes('youtu.be');
+
         if (
           isYouTube &&
-          conversionResponse.error?.includes('Sign in to confirm')
+          (conversionResponse.error?.includes('Sign in to confirm') ||
+            conversionResponse.error?.includes('temporarily restricted') ||
+            conversionResponse.error?.includes('This video is not available') ||
+            conversionResponse.error?.includes('anti-bot'))
         ) {
-          throw new Error(
-            'YouTube has temporarily restricted access to this video. This is a common anti-bot measure. Please try:\n' +
-              '• Using a different YouTube video\n' +
-              '• Trying again in a few minutes\n' +
-              '• Using videos from other platforms (TikTok, Instagram, etc.)\n' +
-              '\nWe are continuously working to improve YouTube compatibility.'
-          );
+          console.log('YouTube access restricted, trying bypass endpoint...');
+          await this.jobManager.updateProgress(jobId, 50);
+
+          try {
+            // First try the YouTube bypass endpoint to test if we can access the video
+            const bypassResponse = await this.callProcessingService(
+              `${processingServiceUrl}/youtube-bypass`,
+              { url: request.url }
+            );
+
+            if (bypassResponse.success) {
+              console.log(
+                `YouTube bypass successful with strategy: ${bypassResponse.strategy}`
+              );
+
+              // Now try conversion again with the knowledge that bypass works
+              conversionResponse = await this.callProcessingService(
+                `${processingServiceUrl}/convert`,
+                {
+                  url: request.url,
+                  format: request.format,
+                  quality: request.quality,
+                  useBypass: true, // Signal to use bypass methods
+                }
+              );
+
+              if (conversionResponse.success) {
+                console.log('Conversion successful after bypass verification');
+              }
+            }
+          } catch (bypassError) {
+            console.log(`YouTube bypass failed: ${bypassError}`);
+          }
         }
-        throw new Error(`Conversion failed: ${conversionResponse.error}`);
+
+        // If still failed, provide helpful error message
+        if (!conversionResponse.success) {
+          if (isYouTube) {
+            throw new Error(
+              'YouTube has temporarily restricted access to this video. This is a common anti-bot measure. Please try:\n' +
+                '• Using a different YouTube video\n' +
+                '• Trying again in a few minutes\n' +
+                '• Using videos from other platforms (TikTok, Instagram, etc.)\n' +
+                '\nWe are continuously working to improve YouTube compatibility.'
+            );
+          }
+          throw new Error(`Conversion failed: ${conversionResponse.error}`);
+        }
       }
 
       // Step 3: Download file from processing service and upload to R2 storage
