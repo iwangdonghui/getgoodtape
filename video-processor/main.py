@@ -455,7 +455,6 @@ def get_quality_settings(format_type: str, quality: str) -> Dict[str, Any]:
         quality_map = {
             '96': {'bitrate': '96k', 'codec': 'libmp3lame'},
             '128': {'bitrate': '128k', 'codec': 'libmp3lame'},
-            '256': {'bitrate': '256k', 'codec': 'libmp3lame'},
             '320': {'bitrate': '320k', 'codec': 'libmp3lame'},
         }
         return quality_map.get(quality, quality_map['128'])  # 默认使用128k

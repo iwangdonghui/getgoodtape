@@ -62,7 +62,7 @@ const INITIAL_STATE: ConversionState = {
   detectedPlatform: null,
   urlMetadata: null,
   format: 'mp3',
-  quality: 'high',
+  quality: 'medium',
   isConverting: false,
   jobId: null,
   progress: 0,
