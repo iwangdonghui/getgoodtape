@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { formatDuration } from '../lib/api-client';
+import FilePreviewCard from './FilePreviewCard';
 
 interface VideoMetadata {
   title: string;
@@ -120,49 +121,16 @@ export default function ConversionResult({
         </div>
       </div>
 
-      {/* File Info Card */}
-      <div className="bg-white rounded-lg p-4 mb-6 border border-green-100">
-        <div className="flex items-start space-x-4">
-          {/* File Icon */}
-          <div className="w-16 h-16 bg-gradient-to-br from-warm-orange to-tape-gold rounded-lg flex items-center justify-center text-2xl">
-            {getFileIcon()}
-          </div>
-
-          {/* File Details */}
-          <div className="flex-1 min-w-0">
-            <h4 className="font-semibold text-deep-brown truncate">
-              {metadata?.title ||
-                filename ||
-                `转换后的${format.toUpperCase()}文件`}
-            </h4>
-
-            <div className="mt-2 grid grid-cols-2 gap-4 text-sm text-gray-600">
-              <div>
-                <span className="font-medium">格式:</span>{' '}
-                {format.toUpperCase()}
-              </div>
-              <div>
-                <span className="font-medium">质量:</span> {quality}
-              </div>
-              {metadata?.duration && (
-                <div>
-                  <span className="font-medium">时长:</span>{' '}
-                  {formatDuration(metadata.duration)}
-                </div>
-              )}
-              <div>
-                <span className="font-medium">大小:</span>{' '}
-                {getFileSizeEstimate()}
-              </div>
-            </div>
-
-            {metadata?.uploader && (
-              <div className="mt-2 text-sm text-gray-600">
-                <span className="font-medium">来源:</span> {metadata.uploader}
-              </div>
-            )}
-          </div>
-        </div>
+      {/* 文件预览卡片 */}
+      <div className="mb-6">
+        <FilePreviewCard
+          metadata={metadata}
+          filename={filename}
+          format={format}
+          quality={quality}
+          onDownload={handleDownload}
+          isDownloading={isDownloading}
+        />
       </div>
 
       {/* Video Metadata (Expandable) */}
@@ -220,28 +188,10 @@ export default function ConversionResult({
       )}
 
       {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <button
-          onClick={handleDownload}
-          disabled={!downloadUrl || isDownloading}
-          className="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-green-600 hover:to-green-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
-        >
-          {isDownloading ? (
-            <>
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              <span>下载中...</span>
-            </>
-          ) : (
-            <>
-              <span>📥</span>
-              <span>下载文件</span>
-            </>
-          )}
-        </button>
-
+      <div className="flex flex-col sm:flex-row gap-3 justify-center">
         <button
           onClick={onNewConversion}
-          className="flex-1 bg-warm-orange text-white px-6 py-3 rounded-lg font-semibold hover:bg-warm-orange/90 transition-colors flex items-center justify-center space-x-2"
+          className="bg-warm-orange text-white px-8 py-3 rounded-lg font-semibold hover:bg-warm-orange/90 transition-colors flex items-center justify-center space-x-2"
         >
           <span>🔄</span>
           <span>转换新文件</span>
