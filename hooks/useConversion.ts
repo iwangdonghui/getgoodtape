@@ -225,7 +225,7 @@ export function useConversion(): ConversionState & ConversionActions {
             isConverting: false,
             result: {
               downloadUrl: jobStatus.downloadUrl,
-              filename: jobStatus.filename || `converted.${prev.format}`,
+              filename: jobStatus.filename, // Don't set fallback here, let ConversionResult handle it
               metadata: jobStatus.metadata,
             },
           }));
