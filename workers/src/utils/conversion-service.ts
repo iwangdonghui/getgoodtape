@@ -247,7 +247,7 @@ export class ConversionService {
       await this.jobManager.completeJob(
         jobId,
         downloadUrl,
-        resultObj.file_path as string,
+        fileName, // Use the generated filename instead of the temporary file path
         metadata
       );
     } catch (error) {
