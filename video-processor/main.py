@@ -534,7 +534,9 @@ async def convert_to_mp3(url: str, quality: str, output_path: str) -> Conversion
                         logger.info(f"Found audio file to convert: {audio_files[0]}")
                         # Use FFmpeg to convert to MP3
                         input_file = os.path.join(temp_dir, audio_files[0])
-                        output_file = os.path.join(temp_dir, 'converted.mp3')
+                        # Generate unique temp filename based on output path
+                        temp_filename = os.path.basename(output_path)
+                        output_file = os.path.join(temp_dir, temp_filename)
 
                         ffmpeg_cmd = [
                             'ffmpeg', '-i', input_file,
@@ -650,7 +652,9 @@ async def convert_to_mp4(url: str, quality: str, output_path: str) -> Conversion
                 temp_file = os.path.join(temp_dir, converted_files[0])
 
                 # Additional FFmpeg processing for quality optimization
-                final_output = os.path.join(temp_dir, 'final_output.mp4')
+                # Generate unique temp filename based on output path
+                temp_filename = os.path.basename(output_path)
+                final_output = os.path.join(temp_dir, f"final_{temp_filename}")
 
                 # Build FFmpeg command for quality optimization
                 ffmpeg_cmd = [
@@ -837,10 +841,25 @@ async def convert_video_endpoint(request: ConvertRequest):
                 error=f"Video too long ({metadata.duration/60:.1f} minutes). Maximum duration is 60 minutes."
             )
 
-        # Generate output filename
+        # Generate unique output filename
+        import time
+        import hashlib
+
+        # Clean title for filename
         safe_title = "".join(c for c in metadata.title if c.isalnum() or c in (' ', '-', '_')).rstrip()
-        safe_title = safe_title[:50]  # Limit length
-        output_filename = f"{safe_title}.{request.format.lower()}"
+        safe_title = safe_title[:40]  # Limit length to leave room for timestamp
+
+        # Add timestamp and video ID for uniqueness
+        timestamp = int(time.time())
+        video_id = request.url.split('/')[-1].split('?')[0].split('&')[0][-11:]  # Get YouTube video ID
+
+        # Create unique filename: title_videoID_timestamp.format
+        if safe_title:
+            output_filename = f"{safe_title}_{video_id}_{timestamp}.{request.format.lower()}"
+        else:
+            # Fallback if title is empty or only special chars
+            output_filename = f"video_{video_id}_{timestamp}.{request.format.lower()}"
+
         output_path = f"/tmp/{output_filename}"
 
         # Perform conversion with timeout based on video duration
