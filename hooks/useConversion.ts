@@ -29,6 +29,8 @@ export interface ConversionState {
   jobId: string | null;
   progress: number;
   status: 'idle' | 'queued' | 'processing' | 'completed' | 'failed';
+  queuePosition?: number;
+  estimatedTimeRemaining?: number;
 
   // Results
   result: {
@@ -218,7 +220,7 @@ export function useConversion(): ConversionState & ConversionActions {
             isConverting: false,
             result: {
               downloadUrl: jobStatus.downloadUrl,
-              filename: `converted.${prev.format}`,
+              filename: jobStatus.filename || `converted.${prev.format}`,
               metadata: jobStatus.metadata,
             },
           }));
@@ -267,6 +269,8 @@ export function useConversion(): ConversionState & ConversionActions {
               ...prev,
               progress: progressValue,
               status: jobStatus.status || 'processing',
+              queuePosition: jobStatus.queuePosition,
+              estimatedTimeRemaining: jobStatus.estimatedTimeRemaining,
             };
             console.log(`📈 New state:`, {
               progress: newState.progress,

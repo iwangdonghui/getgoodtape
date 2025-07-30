@@ -7,6 +7,7 @@ interface ConversionProgressProps {
   estimatedTimeRemaining?: number;
   currentStep?: string;
   error?: string | null;
+  queuePosition?: number;
 }
 
 export default function ConversionProgress({
@@ -16,6 +17,7 @@ export default function ConversionProgress({
   estimatedTimeRemaining,
   currentStep,
   error,
+  queuePosition,
 }: ConversionProgressProps) {
   const [animatedProgress, setAnimatedProgress] = useState(0);
 
@@ -227,11 +229,15 @@ export default function ConversionProgress({
           <div className="flex items-center justify-between">
             <span className="text-sm text-yellow-800">您在队列中的位置</span>
             <span className="font-semibold text-yellow-800">
-              #{Math.max(1, Math.floor((100 - progress) / 10))}
+              #{queuePosition || '计算中...'}
             </span>
           </div>
           <div className="mt-2 text-xs text-yellow-700">
-            平均等待时间: 2-5分钟
+            {queuePosition && queuePosition <= 3
+              ? '即将开始处理'
+              : queuePosition && queuePosition <= 10
+                ? '预计等待时间: 2-5分钟'
+                : '预计等待时间: 5-10分钟'}
           </div>
         </div>
       )}

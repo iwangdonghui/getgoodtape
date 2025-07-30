@@ -112,6 +112,7 @@ class ConversionResult(BaseModel):
     format: Optional[str] = None
     quality: Optional[str] = None
     download_url: Optional[str] = None
+    filename: Optional[str] = None
     error: Optional[str] = None
 
 class ConvertResponse(BaseModel):
@@ -579,7 +580,8 @@ async def convert_to_mp3(url: str, quality: str, output_path: str) -> Conversion
                     duration=duration,
                     format='mp3',
                     quality=quality,
-                    download_url=download_url
+                    download_url=download_url,
+                    filename=filename
                 )
 
     except Exception as e:
@@ -702,7 +704,8 @@ async def convert_to_mp4(url: str, quality: str, output_path: str) -> Conversion
                     duration=duration,
                     format='mp4',
                     quality=quality,
-                    download_url=download_url
+                    download_url=download_url,
+                    filename=filename
                 )
 
     except Exception as e:

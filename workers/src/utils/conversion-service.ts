@@ -1,5 +1,6 @@
 import { ConvertRequest, VideoMetadata, Env } from '../types';
 import { JobManager } from './job-manager';
+import { QueueManager } from './queue-manager';
 import { StorageManager } from './storage';
 
 export class ConversionService {
@@ -46,11 +47,28 @@ export class ConversionService {
       return null;
     }
 
+    // Get queue position and estimated time if job is queued
+    let queuePosition: number | undefined;
+    let estimatedTimeRemaining: number | undefined;
+
+    if (job.status === 'queued') {
+      const queueManager = new QueueManager(this.env);
+      queuePosition = await queueManager.getJobQueuePosition(jobId);
+
+      // Calculate estimated time based on queue position and average processing time
+      const stats = await queueManager.getQueueStats();
+      const avgProcessingTime = stats.avgProcessingTime || 180; // Default 3 minutes
+      estimatedTimeRemaining = queuePosition * avgProcessingTime;
+    }
+
     return {
       jobId: job.id,
       status: job.status,
       progress: job.progress,
       downloadUrl: job.download_url,
+      filename: job.file_path ? job.file_path.split('/').pop() : undefined,
+      queuePosition,
+      estimatedTimeRemaining,
       metadata: job.metadata ? JSON.parse(job.metadata) : undefined,
       error: job.error_message,
       createdAt: new Date(job.created_at).toISOString(),

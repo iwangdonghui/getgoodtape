@@ -316,6 +316,8 @@ export default function AppPage() {
                 progress={conversion.progress}
                 jobId={conversion.jobId}
                 error={conversion.error}
+                queuePosition={conversion.queuePosition}
+                estimatedTimeRemaining={conversion.estimatedTimeRemaining}
               />
 
               {/* Result or Error Display */}
