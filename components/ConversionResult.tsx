@@ -60,7 +60,16 @@ export default function ConversionResult({
       // Create a temporary link to trigger download
       const link = document.createElement('a');
       link.href = url;
-      link.download = filename || `converted.${format}`;
+
+      // Extract filename from downloadUrl if filename prop is not available
+      let downloadFilename = filename;
+      if (!downloadFilename && downloadUrl) {
+        // Extract filename from URL like "/api/download/KUNLUN_-_9__1753853169825.mp3"
+        const urlParts = downloadUrl.split('/');
+        downloadFilename = urlParts[urlParts.length - 1];
+      }
+
+      link.download = downloadFilename || `converted.${format}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
