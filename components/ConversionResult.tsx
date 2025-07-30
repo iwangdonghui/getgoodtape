@@ -42,6 +42,8 @@ export default function ConversionResult({
         : downloadUrl; // Keep relative path for Next.js API routes
 
       console.log('Starting download from:', fullDownloadUrl);
+      console.log('Download filename:', filename);
+      console.log('Download format:', format);
 
       // Fetch the file as blob to handle CORS and ensure proper download
       const response = await fetch(fullDownloadUrl);

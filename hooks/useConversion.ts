@@ -204,6 +204,8 @@ export function useConversion(): ConversionState & ConversionActions {
         if (jobStatus.status === 'completed') {
           console.log('🎉 Job completed! Stopping polling...');
           console.log('pollingRef.current:', pollingRef.current);
+          console.log('📁 Job status filename:', jobStatus.filename);
+          console.log('📁 Job status downloadUrl:', jobStatus.downloadUrl);
 
           // Stop polling FIRST
           if (pollingRef.current) {
