@@ -8,6 +8,10 @@ import random
 import time
 from typing import List, Optional, Dict, Any
 import logging
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -30,11 +34,24 @@ class ProxyManager:
         primary_endpoint = os.getenv('RESIDENTIAL_PROXY_ENDPOINT')
 
         if primary_user and primary_pass and primary_endpoint:
-            # 添加多个session以提高成功率
-            for i in range(3):
-                session_id = random.randint(10000, 99999)
-                proxy_url = f'http://{primary_user}-session-{session_id}:{primary_pass}@{primary_endpoint}'
-                proxies.append(proxy_url)
+            # Decodo支持多个端口，添加更多端口以提高成功率
+            decodo_ports = [
+                'gate.decodo.com:10001',
+                'gate.decodo.com:10002',
+                'gate.decodo.com:10003',
+                'gate.decodo.com:10004',
+                'gate.decodo.com:10005',
+                'gate.decodo.com:10006',
+                'gate.decodo.com:10007',
+                'gate.decodo.com:10008'
+            ]
+
+            # 为每个端口创建多个session
+            for port in decodo_ports:
+                for i in range(2):  # 每个端口2个session
+                    session_id = random.randint(10000, 99999)
+                    proxy_url = f'http://{primary_user}-session-{session_id}:{primary_pass}@{port}'
+                    proxies.append(proxy_url)
 
         # Smartproxy residential (备用)
         smartproxy_user = os.getenv('SMARTPROXY_USER')
