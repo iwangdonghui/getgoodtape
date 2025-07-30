@@ -54,6 +54,17 @@ export default function ConversionResult({
         );
       }
 
+      // Try to get filename from Content-Disposition header as backup
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let serverFilename: string | undefined;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="([^"]+)"/);
+        if (filenameMatch) {
+          serverFilename = filenameMatch[1];
+          console.log('Server filename from header:', serverFilename);
+        }
+      }
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
 
@@ -61,15 +72,30 @@ export default function ConversionResult({
       const link = document.createElement('a');
       link.href = url;
 
-      // Extract filename from downloadUrl if filename prop is not available
+      // Extract filename with multiple fallback strategies
       let downloadFilename = filename;
-      if (!downloadFilename && downloadUrl) {
-        // Extract filename from URL like "/api/download/KUNLUN_-_9__1753853169825.mp3"
-        const urlParts = downloadUrl.split('/');
-        downloadFilename = urlParts[urlParts.length - 1];
+
+      // Strategy 1: Use filename prop
+      if (!downloadFilename) {
+        console.log(
+          'Filename prop is undefined, trying fallback strategies...'
+        );
+
+        // Strategy 2: Use server's Content-Disposition header
+        if (serverFilename) {
+          downloadFilename = serverFilename;
+          console.log('Using server filename from header:', downloadFilename);
+        }
+        // Strategy 3: Extract from downloadUrl
+        else if (downloadUrl) {
+          const urlParts = downloadUrl.split('/');
+          downloadFilename = urlParts[urlParts.length - 1];
+          console.log('Using filename from URL:', downloadFilename);
+        }
       }
 
       link.download = downloadFilename || `converted.${format}`;
+      console.log('Final download filename:', link.download);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
