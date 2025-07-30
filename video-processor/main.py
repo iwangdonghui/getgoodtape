@@ -31,6 +31,19 @@ except ImportError as e:
     async def get_youtube_metadata_via_api(url: str):
         return None
 
+# Import proxy monitoring
+try:
+    from proxy_monitor import record_proxy_usage, proxy_monitor
+    PROXY_MONITORING_AVAILABLE = True
+    logger.info("Proxy monitoring loaded successfully")
+except ImportError as e:
+    PROXY_MONITORING_AVAILABLE = False
+    logger.warning(f"Proxy monitoring not available: {e}")
+
+    # Fallback function
+    def record_proxy_usage(*args, **kwargs):
+        pass
+
 app = FastAPI(
     title="GetGoodTape Video Processor",
     description="Video processing service for converting videos to MP3/MP4",
@@ -1231,11 +1244,53 @@ async def test_youtube_api(request: dict):
             "test_url": url
         }
 
+@app.get("/proxy-stats")
+async def proxy_stats_endpoint():
+    """
+    Get proxy usage statistics and cost analysis
+    """
+    if not PROXY_MONITORING_AVAILABLE:
+        return {
+            "success": False,
+            "error": "Proxy monitoring not available"
+        }
+
+    try:
+        # Get today's stats
+        daily_stats = proxy_monitor.get_daily_stats()
+
+        # Get this month's stats
+        monthly_stats = proxy_monitor.get_monthly_stats()
+
+        return {
+            "success": True,
+            "daily_stats": daily_stats,
+            "monthly_stats": monthly_stats,
+            "recommendations": {
+                "current_plan": monthly_stats.get('recommendation', 'Unknown'),
+                "cost_analysis": {
+                    "8gb_plan": "$22/month (推荐)",
+                    "2gb_plan": "$6/month (轻度使用)",
+                    "25gb_plan": "$65/month (重度使用)",
+                    "payg": f"${monthly_stats.get('estimated_cost_payg', 0)}/month (按需付费)"
+                }
+            }
+        }
+    except Exception as e:
+        logger.error(f"Proxy stats error: {str(e)}")
+        return {
+            "success": False,
+            "error": f"Failed to get proxy stats: {str(e)}"
+        }
+
 @app.post("/youtube-bypass")
 async def youtube_bypass_endpoint(request: dict):
     """
     Specialized YouTube bypass endpoint using multiple strategies including proxies
     """
+    start_time = time.time()
+    proxy_used = "none"
+
     try:
         url = request.get('url')
         if not url:
@@ -1244,14 +1299,10 @@ async def youtube_bypass_endpoint(request: dict):
         import yt_dlp
         import random
         import time
+        from proxy_config import proxy_manager, get_yt_dlp_proxy_options
 
-        # Free proxy list (rotate through these)
-        free_proxies = [
-            None,  # No proxy first
-            'http://proxy-server.scraperapi.com:8001',
-            'http://rotating-residential.scraperapi.com:8001',
-            'socks5://127.0.0.1:1080',  # Local SOCKS5 if available
-        ]
+        # Get optimized proxy list
+        proxies = proxy_manager.get_proxy_list(include_no_proxy=True)
 
         # Multiple user agents to rotate
         user_agents = [
@@ -1353,21 +1404,27 @@ async def youtube_bypass_endpoint(request: dict):
 
         # Try each strategy with different proxies
         for strategy in strategies:
-            for proxy in free_proxies:
+            for proxy in proxies:
                 try:
+                    # Add session rotation for residential proxies
+                    if proxy and ('smartproxy' in proxy or 'brightdata' in proxy or 'oxylabs' in proxy):
+                        proxy = proxy_manager.get_proxy_with_session(proxy)
+
                     strategy_name = f"{strategy['name']}" + (f" + Proxy" if proxy else "")
                     print(f"Trying strategy: {strategy_name}")
 
                     # Add proxy to options if available
                     opts = strategy['opts'].copy()
-                    if proxy:
-                        opts['proxy'] = proxy
+                    proxy_opts = get_yt_dlp_proxy_options(proxy)
+                    opts.update(proxy_opts)
 
                     time.sleep(random.uniform(0.5, 2))  # Random delay
 
                     with yt_dlp.YoutubeDL(opts) as ydl:
                         info = ydl.extract_info(url, download=False)
                         if info:
+                            # Record successful proxy usage
+                            proxy_manager.record_proxy_result(proxy, True)
                             return {
                                 "success": True,
                                 "strategy": strategy_name,
@@ -1375,9 +1432,12 @@ async def youtube_bypass_endpoint(request: dict):
                                 "duration": info.get('duration', 0),
                                 "formats_available": len(info.get('formats', [])),
                                 "message": f"Successfully bypassed using {strategy_name}",
-                                "proxy_used": proxy is not None
+                                "proxy_used": proxy is not None,
+                                "proxy_type": "residential" if proxy and any(x in proxy for x in ['smartproxy', 'brightdata', 'oxylabs']) else "datacenter" if proxy else "none"
                             }
                 except Exception as e:
+                    # Record failed proxy usage
+                    proxy_manager.record_proxy_result(proxy, False)
                     print(f"Strategy {strategy_name} failed: {str(e)}")
                     continue
 
@@ -1389,6 +1449,52 @@ async def youtube_bypass_endpoint(request: dict):
 
     except Exception as e:
         return {"success": False, "error": f"Bypass failed: {str(e)}"}
+
+
+@app.get("/proxy-stats")
+async def get_proxy_stats():
+    """Get proxy performance statistics"""
+    try:
+        from proxy_config import proxy_manager
+
+        stats = proxy_manager.get_proxy_stats()
+        best_proxies = proxy_manager.get_best_proxies(min_attempts=3)
+
+        return {
+            "success": True,
+            "proxy_stats": stats,
+            "best_proxies": best_proxies,
+            "total_proxies_configured": len(proxy_manager.get_proxy_list()),
+            "residential_proxies": len(proxy_manager.residential_proxies),
+            "datacenter_proxies": len(proxy_manager.datacenter_proxies),
+            "free_proxies": len(proxy_manager.free_proxies)
+        }
+    except Exception as e:
+        return {"success": False, "error": f"Failed to get proxy stats: {str(e)}"}
+
+
+@app.post("/test-proxy")
+async def test_proxy_endpoint(request: dict):
+    """Test a specific proxy configuration"""
+    try:
+        from proxy_config import test_proxy
+
+        proxy_url = request.get('proxy_url')
+        test_url = request.get('test_url', 'https://httpbin.org/ip')
+
+        if not proxy_url:
+            return {"success": False, "error": "proxy_url is required"}
+
+        is_working = test_proxy(proxy_url, test_url)
+
+        return {
+            "success": True,
+            "proxy_url": proxy_url,
+            "is_working": is_working,
+            "test_url": test_url
+        }
+    except Exception as e:
+        return {"success": False, "error": f"Proxy test failed: {str(e)}"}
 
 @app.post("/fallback-extract")
 async def fallback_extract_endpoint(request: dict):

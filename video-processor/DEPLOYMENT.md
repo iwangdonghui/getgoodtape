@@ -31,6 +31,14 @@
    ```
    PORT=8000
    PYTHONUNBUFFERED=1
+
+   # 代理配置 (推荐8GB套餐 $22/月)
+   RESIDENTIAL_PROXY_USER=your_proxy_username
+   RESIDENTIAL_PROXY_PASS=your_proxy_password
+   RESIDENTIAL_PROXY_ENDPOINT=your_proxy_endpoint
+
+   # YouTube API (可选，作为备用)
+   YOUTUBE_API_KEY=your_youtube_api_key_here
    ```
 
 4. **Custom Domain (Optional)**
@@ -55,9 +63,18 @@
    ```
 
 3. **Environment Variables**
+
    ```
    PORT=8000
    PYTHONUNBUFFERED=1
+
+   # 代理配置 (推荐8GB套餐 $22/月)
+   RESIDENTIAL_PROXY_USER=your_proxy_username
+   RESIDENTIAL_PROXY_PASS=your_proxy_password
+   RESIDENTIAL_PROXY_ENDPOINT=your_proxy_endpoint
+
+   # YouTube API (可选，作为备用)
+   YOUTUBE_API_KEY=your_youtube_api_key_here
    ```
 
 ### Alternative: Docker Deployment
@@ -122,6 +139,30 @@ curl -X POST https://your-deployment-url/convert \
     "format": "mp3",
     "quality": "128"
   }'
+```
+
+### 4. Test Proxy Stats
+
+```bash
+curl https://your-deployment-url/proxy-stats
+```
+
+Expected response:
+
+```json
+{
+  "success": true,
+  "daily_stats": {
+    "total_requests": 10,
+    "successful_requests": 9,
+    "success_rate": 90.0,
+    "total_data_mb": 45.2
+  },
+  "monthly_stats": {
+    "total_data_gb": 1.2,
+    "recommendation": "推荐: 8GB套餐 ($22/月) - 最佳性价比 🏆"
+  }
+}
 ```
 
 ## Configuration for Workers API

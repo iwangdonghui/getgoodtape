@@ -1,0 +1,1042 @@
+[
+  {
+    "timestamp": "2025-07-30T10:35:14.730632",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example0",
+    "success": true,
+    "response_size_mb": 95.5023035915952,
+    "response_time_ms": 3685,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.730817",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example1",
+    "success": true,
+    "response_size_mb": 54.093844358092,
+    "response_time_ms": 1470,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.730909",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example2",
+    "success": true,
+    "response_size_mb": 17.262718306666002,
+    "response_time_ms": 4907,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.730996",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example3",
+    "success": true,
+    "response_size_mb": 103.85101150798528,
+    "response_time_ms": 1622,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.731085",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example4",
+    "success": true,
+    "response_size_mb": 88.81217576101291,
+    "response_time_ms": 2008,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.731184",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example5",
+    "success": true,
+    "response_size_mb": 123.98088866027031,
+    "response_time_ms": 3620,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.731293",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example6",
+    "success": true,
+    "response_size_mb": 4.297718037690848,
+    "response_time_ms": 1239,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.731416",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example7",
+    "success": true,
+    "response_size_mb": 46.382324603637706,
+    "response_time_ms": 2530,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.731706",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example8",
+    "success": true,
+    "response_size_mb": 62.02580531661935,
+    "response_time_ms": 1802,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.731856",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example9",
+    "success": true,
+    "response_size_mb": 62.91072439245971,
+    "response_time_ms": 1613,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.732143",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example10",
+    "success": true,
+    "response_size_mb": 79.19940668883213,
+    "response_time_ms": 4273,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.732405",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example11",
+    "success": true,
+    "response_size_mb": 143.50130000965203,
+    "response_time_ms": 1197,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.732580",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example12",
+    "success": false,
+    "response_size_mb": 26.657985393500347,
+    "response_time_ms": 4571,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.732857",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example13",
+    "success": true,
+    "response_size_mb": 49.737585758394324,
+    "response_time_ms": 4153,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.733063",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example14",
+    "success": true,
+    "response_size_mb": 53.94809974131145,
+    "response_time_ms": 2028,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.733287",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example15",
+    "success": true,
+    "response_size_mb": 106.89229086716341,
+    "response_time_ms": 820,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.733501",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example16",
+    "success": true,
+    "response_size_mb": 26.153408770333996,
+    "response_time_ms": 3884,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.733736",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example17",
+    "success": true,
+    "response_size_mb": 129.49542949361089,
+    "response_time_ms": 2810,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.734077",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example18",
+    "success": false,
+    "response_size_mb": 146.67054406990897,
+    "response_time_ms": 3377,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.734328",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example19",
+    "success": true,
+    "response_size_mb": 71.15545934896518,
+    "response_time_ms": 3342,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.734603",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example0",
+    "success": true,
+    "response_size_mb": 16.675267038332546,
+    "response_time_ms": 742,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.734892",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example1",
+    "success": true,
+    "response_size_mb": 15.921842332353798,
+    "response_time_ms": 2862,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.735246",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example2",
+    "success": true,
+    "response_size_mb": 123.69245066685131,
+    "response_time_ms": 4264,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.735689",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example3",
+    "success": false,
+    "response_size_mb": 142.0940103671081,
+    "response_time_ms": 3808,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.736098",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example4",
+    "success": true,
+    "response_size_mb": 73.80127214901341,
+    "response_time_ms": 2194,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.736486",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example5",
+    "success": false,
+    "response_size_mb": 52.92306202776155,
+    "response_time_ms": 836,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.736819",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example6",
+    "success": true,
+    "response_size_mb": 100.48079418731682,
+    "response_time_ms": 4392,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.737154",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example7",
+    "success": true,
+    "response_size_mb": 49.256636169309296,
+    "response_time_ms": 2067,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.737530",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example8",
+    "success": true,
+    "response_size_mb": 54.05149263255506,
+    "response_time_ms": 3159,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.738036",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example9",
+    "success": true,
+    "response_size_mb": 69.61153047448853,
+    "response_time_ms": 1914,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.738453",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example10",
+    "success": true,
+    "response_size_mb": 115.19773152651636,
+    "response_time_ms": 1274,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.738920",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example11",
+    "success": true,
+    "response_size_mb": 18.763431222120346,
+    "response_time_ms": 1414,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.739619",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example0",
+    "success": true,
+    "response_size_mb": 117.66829206209103,
+    "response_time_ms": 3046,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.740668",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example1",
+    "success": true,
+    "response_size_mb": 88.5014018906803,
+    "response_time_ms": 1037,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.741464",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example2",
+    "success": true,
+    "response_size_mb": 121.51937403237066,
+    "response_time_ms": 4818,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.742169",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example3",
+    "success": true,
+    "response_size_mb": 106.15547573049751,
+    "response_time_ms": 564,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.742737",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example4",
+    "success": true,
+    "response_size_mb": 26.535945024550507,
+    "response_time_ms": 4867,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.743236",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example5",
+    "success": false,
+    "response_size_mb": 104.50022764367527,
+    "response_time_ms": 4977,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.743731",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example6",
+    "success": true,
+    "response_size_mb": 10.181196815044599,
+    "response_time_ms": 1372,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.744236",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example7",
+    "success": true,
+    "response_size_mb": 16.607158740041797,
+    "response_time_ms": 1041,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.744752",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example8",
+    "success": true,
+    "response_size_mb": 13.147827034593499,
+    "response_time_ms": 4890,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.745258",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example9",
+    "success": true,
+    "response_size_mb": 55.468917381465126,
+    "response_time_ms": 638,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.745834",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example10",
+    "success": false,
+    "response_size_mb": 89.72355038603449,
+    "response_time_ms": 3641,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.746790",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example11",
+    "success": true,
+    "response_size_mb": 55.74564135796019,
+    "response_time_ms": 4445,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.747361",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example12",
+    "success": true,
+    "response_size_mb": 131.78566427274006,
+    "response_time_ms": 2384,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.747914",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example13",
+    "success": true,
+    "response_size_mb": 32.59764345295496,
+    "response_time_ms": 843,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.748490",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example14",
+    "success": false,
+    "response_size_mb": 113.42689009760632,
+    "response_time_ms": 754,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.749057",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example15",
+    "success": true,
+    "response_size_mb": 88.7007110347197,
+    "response_time_ms": 3310,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.749644",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example0",
+    "success": true,
+    "response_size_mb": 136.34873133691775,
+    "response_time_ms": 3024,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.750242",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example1",
+    "success": false,
+    "response_size_mb": 2.023442931918636,
+    "response_time_ms": 4868,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.750852",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example2",
+    "success": true,
+    "response_size_mb": 87.73253301230186,
+    "response_time_ms": 2850,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.751526",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example3",
+    "success": false,
+    "response_size_mb": 61.59260792774852,
+    "response_time_ms": 3277,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.752164",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example4",
+    "success": true,
+    "response_size_mb": 17.633402015836207,
+    "response_time_ms": 4356,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.752885",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example5",
+    "success": true,
+    "response_size_mb": 8.070209926128214,
+    "response_time_ms": 4662,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.753550",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example6",
+    "success": true,
+    "response_size_mb": 80.39971954798814,
+    "response_time_ms": 3133,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.754731",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example7",
+    "success": true,
+    "response_size_mb": 35.31260186198029,
+    "response_time_ms": 519,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.755642",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example8",
+    "success": true,
+    "response_size_mb": 124.08575243533012,
+    "response_time_ms": 2651,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.756358",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example9",
+    "success": false,
+    "response_size_mb": 114.89408646052713,
+    "response_time_ms": 1337,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.757222",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example10",
+    "success": true,
+    "response_size_mb": 70.9828522525796,
+    "response_time_ms": 3982,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.758089",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example11",
+    "success": true,
+    "response_size_mb": 103.66639303634193,
+    "response_time_ms": 2187,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.758891",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example12",
+    "success": true,
+    "response_size_mb": 68.18386509655146,
+    "response_time_ms": 3705,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.760888",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example13",
+    "success": true,
+    "response_size_mb": 116.1667394530991,
+    "response_time_ms": 1332,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.761636",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example14",
+    "success": true,
+    "response_size_mb": 61.47870151030729,
+    "response_time_ms": 4663,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.762355",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example0",
+    "success": true,
+    "response_size_mb": 104.06856879824355,
+    "response_time_ms": 1200,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.763153",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example1",
+    "success": false,
+    "response_size_mb": 77.97005505020489,
+    "response_time_ms": 4523,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.763985",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example2",
+    "success": true,
+    "response_size_mb": 121.03359624150337,
+    "response_time_ms": 3234,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.764732",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example3",
+    "success": true,
+    "response_size_mb": 100.99743088516134,
+    "response_time_ms": 4546,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.765543",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example4",
+    "success": true,
+    "response_size_mb": 8.01983416463551,
+    "response_time_ms": 3878,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.766554",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example5",
+    "success": true,
+    "response_size_mb": 60.32248571790606,
+    "response_time_ms": 1405,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.767347",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example6",
+    "success": true,
+    "response_size_mb": 69.07825315649654,
+    "response_time_ms": 1780,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.768653",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example7",
+    "success": true,
+    "response_size_mb": 104.63423208013279,
+    "response_time_ms": 2981,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.769519",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example8",
+    "success": true,
+    "response_size_mb": 64.11902499560169,
+    "response_time_ms": 3466,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.770320",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example9",
+    "success": true,
+    "response_size_mb": 121.50040911149367,
+    "response_time_ms": 4585,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.771124",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example10",
+    "success": true,
+    "response_size_mb": 76.62096775051033,
+    "response_time_ms": 3987,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.772299",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example11",
+    "success": true,
+    "response_size_mb": 77.761224327365,
+    "response_time_ms": 3851,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.773159",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example0",
+    "success": true,
+    "response_size_mb": 106.08853310496903,
+    "response_time_ms": 1788,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.773993",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example1",
+    "success": true,
+    "response_size_mb": 79.19004614529385,
+    "response_time_ms": 2930,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.774852",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example2",
+    "success": true,
+    "response_size_mb": 66.57067885880267,
+    "response_time_ms": 1477,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.775941",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example3",
+    "success": true,
+    "response_size_mb": 88.74168047944482,
+    "response_time_ms": 4792,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.776794",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example4",
+    "success": true,
+    "response_size_mb": 43.844779150688886,
+    "response_time_ms": 3133,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.777747",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example5",
+    "success": true,
+    "response_size_mb": 144.6322303810218,
+    "response_time_ms": 2243,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.778630",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example6",
+    "success": true,
+    "response_size_mb": 45.643704578606744,
+    "response_time_ms": 3475,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.779514",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example7",
+    "success": true,
+    "response_size_mb": 133.87462215997832,
+    "response_time_ms": 3795,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.780458",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example8",
+    "success": true,
+    "response_size_mb": 22.639829219137173,
+    "response_time_ms": 3867,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.781413",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example9",
+    "success": false,
+    "response_size_mb": 42.50679072070646,
+    "response_time_ms": 3537,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.782646",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example10",
+    "success": true,
+    "response_size_mb": 64.09500443384147,
+    "response_time_ms": 763,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.783600",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example11",
+    "success": true,
+    "response_size_mb": 111.19099715759556,
+    "response_time_ms": 2807,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.784764",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example12",
+    "success": false,
+    "response_size_mb": 123.07848780959806,
+    "response_time_ms": 1145,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.785729",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example0",
+    "success": false,
+    "response_size_mb": 120.51100107364381,
+    "response_time_ms": 4817,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.786818",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example1",
+    "success": true,
+    "response_size_mb": 41.07220266144012,
+    "response_time_ms": 3257,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.787894",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example2",
+    "success": true,
+    "response_size_mb": 95.81517835877794,
+    "response_time_ms": 3389,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.788911",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example3",
+    "success": false,
+    "response_size_mb": 45.948899147032265,
+    "response_time_ms": 1863,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.789911",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example4",
+    "success": true,
+    "response_size_mb": 65.82476224063736,
+    "response_time_ms": 1465,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.790957",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example5",
+    "success": true,
+    "response_size_mb": 37.31201995364475,
+    "response_time_ms": 3629,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.791988",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example6",
+    "success": true,
+    "response_size_mb": 125.08761474645384,
+    "response_time_ms": 3947,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.793023",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example7",
+    "success": true,
+    "response_size_mb": 45.13092662433712,
+    "response_time_ms": 2396,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.794110",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example8",
+    "success": true,
+    "response_size_mb": 145.80816920464304,
+    "response_time_ms": 1728,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.795178",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example9",
+    "success": true,
+    "response_size_mb": 4.931004567700748,
+    "response_time_ms": 3510,
+    "error_message": "Connection timeout"
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.796242",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example10",
+    "success": true,
+    "response_size_mb": 104.05843861664816,
+    "response_time_ms": 3829,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.797605",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example11",
+    "success": true,
+    "response_size_mb": 122.21757200198755,
+    "response_time_ms": 4221,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.798716",
+    "proxy_type": "residential",
+    "operation": "metadata",
+    "url": "https://youtube.com/watch?v=example12",
+    "success": true,
+    "response_size_mb": 21.073880848460014,
+    "response_time_ms": 828,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.799809",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example13",
+    "success": true,
+    "response_size_mb": 48.55576898308144,
+    "response_time_ms": 1640,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.800944",
+    "proxy_type": "residential",
+    "operation": "convert",
+    "url": "https://youtube.com/watch?v=example14",
+    "success": true,
+    "response_size_mb": 65.62705387531017,
+    "response_time_ms": 2983,
+    "error_message": null
+  },
+  {
+    "timestamp": "2025-07-30T10:35:14.802075",
+    "proxy_type": "residential",
+    "operation": "download",
+    "url": "https://youtube.com/watch?v=example15",
+    "success": true,
+    "response_size_mb": 87.21075488491704,
+    "response_time_ms": 584,
+    "error_message": "Connection timeout"
+  }
+]
