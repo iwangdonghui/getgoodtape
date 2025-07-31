@@ -66,13 +66,22 @@ class ProxyManager:
             for endpoint in endpoints:
                 proxies.append(f'http://{smartproxy_user}:{smartproxy_pass}@{endpoint}')
 
-        # Bright Data residential (备用)
+        # Bright Data residential (推荐替换Decodo)
         brightdata_user = os.getenv('BRIGHTDATA_USER')
         brightdata_pass = os.getenv('BRIGHTDATA_PASS')
         brightdata_zone = os.getenv('BRIGHTDATA_ZONE', 'residential')
         if brightdata_user and brightdata_pass:
-            proxy_url = f'http://{brightdata_user}-session-{random.randint(1000,9999)}:{brightdata_pass}@zproxy.lum-superproxy.io:22225'
-            proxies.append(proxy_url)
+            # Bright Data 多端口配置，更好的YouTube兼容性
+            brightdata_ports = [22225, 22226, 22227, 22228, 22229]
+            countries = ['US', 'GB', 'CA', 'AU', 'DE', 'FR', 'NL', 'SE', 'JP', 'KR']
+
+            for port in brightdata_ports:
+                for _ in range(3):  # 每个端口3个session
+                    session_id = random.randint(100000, 999999)
+                    country = random.choice(countries)
+                    # Bright Data 支持国家和会话轮换
+                    proxy_url = f'http://{brightdata_user}-session-{session_id}-country-{country}:{brightdata_pass}@zproxy.lum-superproxy.io:{port}'
+                    proxies.append(proxy_url)
 
         return proxies
     
@@ -95,32 +104,40 @@ class ProxyManager:
             # Add more free proxies as needed
         ]
     
-    def get_proxy_list(self, include_no_proxy: bool = True) -> List[Optional[str]]:
-        """Get ordered list of proxies to try"""
+    def get_proxy_list(self, include_no_proxy: bool = True, prioritize_youtube: bool = True) -> List[Optional[str]]:
+        """Get ordered list of proxies to try, optimized for YouTube"""
         proxy_list = []
-        
-        # Start with no proxy if requested
-        if include_no_proxy:
+
+        # For YouTube, skip no-proxy as it's likely to fail
+        if include_no_proxy and not prioritize_youtube:
             proxy_list.append(None)
-        
-        # Add residential proxies (highest priority)
-        proxy_list.extend(self.residential_proxies)
-        
-        # Add datacenter proxies
-        proxy_list.extend(self.datacenter_proxies)
-        
-        # Add free proxies as last resort
-        proxy_list.extend(self.free_proxies)
-        
-        # Shuffle residential proxies to distribute load
-        if len(self.residential_proxies) > 1:
+
+        # Prioritize Bright Data for YouTube (better success rate)
+        if prioritize_youtube:
+            brightdata_proxies = [p for p in self.residential_proxies if 'lum-superproxy.io' in p]
+            decodo_proxies = [p for p in self.residential_proxies if 'decodo.com' in p]
+            other_residential = [p for p in self.residential_proxies if p not in brightdata_proxies and p not in decodo_proxies]
+
+            # Order: Bright Data > Other Residential > Decodo (as Decodo seems less effective)
+            random.shuffle(brightdata_proxies)
+            random.shuffle(other_residential)
+            random.shuffle(decodo_proxies)
+
+            proxy_list.extend(brightdata_proxies)
+            proxy_list.extend(other_residential)
+            proxy_list.extend(decodo_proxies)
+        else:
+            # Normal priority order
             residential_shuffled = self.residential_proxies.copy()
             random.shuffle(residential_shuffled)
-            # Replace residential section with shuffled version
-            start_idx = 1 if include_no_proxy else 0
-            end_idx = start_idx + len(self.residential_proxies)
-            proxy_list[start_idx:end_idx] = residential_shuffled
-        
+            proxy_list.extend(residential_shuffled)
+
+        # Add datacenter proxies
+        proxy_list.extend(self.datacenter_proxies)
+
+        # Add free proxies as last resort
+        proxy_list.extend(self.free_proxies)
+
         return proxy_list
     
     def get_proxy_with_session(self, base_proxy: str) -> str:

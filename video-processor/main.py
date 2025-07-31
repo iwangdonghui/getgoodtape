@@ -298,24 +298,37 @@ async def extract_video_metadata(url: str) -> Dict[str, Any]:
             try:
                 print(f"🔄 Trying extraction method {i+1}/{len(extraction_methods)}")
 
-                # Try to add proxy configuration for YouTube URLs with rotation
+                # Try to add proxy configuration for YouTube URLs with YouTube-optimized rotation
                 if 'youtube.com' in url or 'youtu.be' in url:
                     try:
                         from proxy_config import proxy_manager, get_yt_dlp_proxy_options
                         import random
 
-                        # Get available proxies and use random selection
-                        proxies = proxy_manager.get_proxy_list(include_no_proxy=False)
+                        # Get YouTube-optimized proxy list (prioritizes Bright Data)
+                        proxies = proxy_manager.get_proxy_list(include_no_proxy=False, prioritize_youtube=True)
                         if proxies:
-                            # Use random proxy for better distribution
-                            selected_proxy = random.choice(proxies)
-                            # Add session rotation for residential proxies
-                            if selected_proxy and any(x in selected_proxy for x in ['smartproxy', 'brightdata', 'oxylabs', 'decodo']):
-                                selected_proxy = proxy_manager.get_proxy_with_session(selected_proxy)
+                            # Try top 3 proxies for better success rate
+                            selected_proxy = proxies[0] if proxies else None
+                            if selected_proxy:
+                                # Add session rotation for residential proxies
+                                if any(x in selected_proxy for x in ['smartproxy', 'brightdata', 'oxylabs', 'decodo', 'lum-superproxy']):
+                                    selected_proxy = proxy_manager.get_proxy_with_session(selected_proxy)
 
-                            proxy_opts = get_yt_dlp_proxy_options(selected_proxy)
-                            opts.update(proxy_opts)
-                            print(f"🔄 Using rotated proxy for metadata: {selected_proxy is not None}")
+                                proxy_opts = get_yt_dlp_proxy_options(selected_proxy)
+                                opts.update(proxy_opts)
+
+                                # Identify proxy type for logging
+                                proxy_type = "Unknown"
+                                if 'lum-superproxy.io' in selected_proxy:
+                                    proxy_type = "Bright Data"
+                                elif 'decodo.com' in selected_proxy:
+                                    proxy_type = "Decodo"
+                                elif 'smartproxy.com' in selected_proxy:
+                                    proxy_type = "Smartproxy"
+
+                                print(f"🔄 Using {proxy_type} proxy for YouTube metadata extraction")
+                            else:
+                                print("⚠️ No proxy available for YouTube metadata extraction")
                         else:
                             # Fallback to environment variables
                             import os
