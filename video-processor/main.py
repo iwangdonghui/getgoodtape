@@ -493,12 +493,13 @@ def get_quality_settings(format_type: str, quality: str) -> Dict[str, Any]:
 
 async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: bool = False) -> ConversionResult:
     """
-    Convert video to MP3 using yt-dlp and FFmpeg
+    Convert video to MP3 using yt-dlp and FFmpeg with speed optimizations
     """
     try:
         import yt_dlp
         import tempfile
         import os
+        import asyncio
 
         # Get quality settings
         quality_settings = get_quality_settings('mp3', quality)
@@ -506,24 +507,45 @@ async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: b
 
         # Create temporary directory for processing
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Configure yt-dlp options for audio extraction
-            # Use a simple filename to avoid issues with special characters
+            # Speed-optimized yt-dlp configuration
             ydl_opts = {
-                'format': 'bestaudio/best',
-                'outtmpl': os.path.join(temp_dir, 'downloaded_audio.%(ext)s'),
+                # Audio-only format selection for faster download
+                'format': 'bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best[height<=480]',
+                'outtmpl': os.path.join(temp_dir, 'audio.%(ext)s'),
+
+                # Optimized post-processing
                 'postprocessors': [{
                     'key': 'FFmpegExtractAudio',
                     'preferredcodec': 'mp3',
-                    'preferredquality': quality,
+                    'preferredquality': bitrate.replace('k', ''),
                 }],
-                'quiet': False,  # Enable output for debugging
-                'no_warnings': False,
+
+                # Speed optimizations
+                'concurrent_fragment_downloads': 4,  # Parallel fragment downloads
+                'fragment_retries': 2,  # Reduce retry attempts
+                'retries': 2,
+                'socket_timeout': 15,  # Faster timeout
+                'http_chunk_size': 1048576,  # 1MB chunks for faster download
+
+                # Disable unnecessary features
+                'writeinfojson': False,
+                'writesubtitles': False,
+                'writeautomaticsub': False,
+                'writethumbnail': False,
+                'writedescription': False,
+                'writecomments': False,
+                'getcomments': False,
+                'writeannotations': False,
+
+                # Minimal output
+                'quiet': True,
+                'no_warnings': True,
+                'no_color': True,
             }
 
-            # Apply bypass methods if requested
-            if use_bypass and ('youtube.com' in url or 'youtu.be' in url):
-                print("🔄 Using YouTube bypass methods for MP3 conversion")
-                # Use the same bypass configuration as the youtube-bypass endpoint
+            # Always apply optimized configuration for YouTube
+            if 'youtube.com' in url or 'youtu.be' in url:
+                # Fast YouTube configuration
                 ydl_opts.update({
                     'http_headers': {
                         'User-Agent': 'com.google.ios.youtube/19.29.1 (iPhone16,2; U; CPU iOS 17_5 like Mac OS X)',
@@ -532,52 +554,37 @@ async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: b
                     },
                     'extractor_args': {
                         'youtube': {
-                            'player_client': ['ios'],
-                            'innertube_host': ['youtubei.googleapis.com'],
+                            'player_client': ['ios'],  # iOS client is fastest
+                            'skip': ['dash'],  # Skip DASH for faster processing
                         }
                     },
                 })
 
-                # Try to get proxy configuration
+                # Add proxy for YouTube (always use for reliability)
                 try:
-                    from proxy_config import proxy_manager, get_yt_dlp_proxy_options
-                    proxies = proxy_manager.get_proxy_list(include_no_proxy=False)
-                    if proxies:
-                        best_proxy = proxies[0]  # Use the first available proxy
-                        proxy_opts = get_yt_dlp_proxy_options(best_proxy)
-                        ydl_opts.update(proxy_opts)
-                        print(f"🔄 Using proxy for bypass: {best_proxy is not None}")
-                except Exception as e:
-                    print(f"⚠️ Could not configure proxy: {e}")
+                    import os
+                    user = os.getenv('RESIDENTIAL_PROXY_USER')
+                    password = os.getenv('RESIDENTIAL_PROXY_PASS')
+                    endpoint = os.getenv('RESIDENTIAL_PROXY_ENDPOINT')
+
+                    if user and password and endpoint:
+                        ydl_opts['proxy'] = f"http://{user}:{password}@{endpoint}"
+                except Exception:
+                    pass  # Continue without proxy if not available
             else:
-                # Standard configuration for non-bypass mode
+                # Fast configuration for other platforms
                 ydl_opts.update({
                     'http_headers': {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                        'Accept-Language': 'en-us,en;q=0.5',
-                        'Accept-Encoding': 'gzip,deflate',
-                        'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
-                        'Keep-Alive': '300',
-                        'Connection': 'keep-alive',
-                    },
-                    'extractor_args': {
-                        'youtube': {
-                            'skip': ['dash', 'hls'],
-                            'player_client': ['android', 'web'],
-                        }
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                     },
                 })
 
-            # Download and convert
+            # Fast download and convert in one step
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                # Extract info first
-                info = ydl.extract_info(url, download=False)
+                # Download and convert in one operation (faster than separate steps)
+                info = ydl.extract_info(url, download=True)
                 title = info.get('title', 'audio')
                 duration = info.get('duration', 0)
-
-                # Download and convert
-                ydl.download([url])
 
                 # Find the converted file
                 all_files = os.listdir(temp_dir)
@@ -896,10 +903,61 @@ async def extract_metadata_endpoint(request: VideoMetadataRequest):
             error=f"Failed to extract video metadata: {error_msg}"
         )
 
+@app.post("/convert-fast", response_model=ConvertResponse)
+async def convert_video_fast_endpoint(request: ConvertRequest):
+    """
+    Fast video conversion with speed optimizations (recommended for best performance)
+    Skips metadata pre-check to save 5-10 seconds
+    """
+    try:
+        logger.info(f"Starting FAST conversion: {request.url} -> {request.format} ({request.quality})")
+
+        # Validate format and quality
+        supported_formats = ['mp3', 'mp4']
+        if request.format.lower() not in supported_formats:
+            return ConvertResponse(
+                success=False,
+                error=f"Unsupported format: {request.format}. Supported formats: {', '.join(supported_formats)}"
+            )
+
+        # Generate output filename
+        import time
+        timestamp = int(time.time())
+        safe_filename = f"converted_{timestamp}.{request.format.lower()}"
+        output_path = f"/tmp/{safe_filename}"
+
+        # Direct conversion without metadata pre-check (saves time)
+        if request.format.lower() == 'mp3':
+            result = await convert_to_mp3(request.url, request.quality, output_path, use_bypass=True)
+        else:
+            result = await convert_to_mp4(request.url, request.quality, output_path, use_bypass=True)
+
+        if result.success:
+            logger.info(f"FAST conversion completed: {result.file_path}")
+            return ConvertResponse(
+                success=True,
+                result=result
+            )
+        else:
+            logger.error(f"FAST conversion failed: {result.error}")
+            return ConvertResponse(
+                success=False,
+                error=result.error
+            )
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"FAST conversion error: {error_msg}")
+        return ConvertResponse(
+            success=False,
+            error=f"Conversion failed: {error_msg}"
+        )
+
 @app.post("/convert", response_model=ConvertResponse)
 async def convert_video_endpoint(request: ConvertRequest):
     """
     Convert video to specified format and quality with timeout protection
+    (Standard endpoint with metadata validation - slower but safer)
     """
     try:
         logger.info(f"Starting conversion: {request.url} -> {request.format} ({request.quality})")
@@ -1295,6 +1353,7 @@ async def root():
             "health": "/health",
             "extract_metadata": "/extract-metadata",
             "convert": "/convert",
+            "convert_fast": "/convert-fast",  # NEW: Speed-optimized conversion (recommended)
             "download": "/download/{filename}",
             "validate_conversion": "/validate-conversion",
             "test_convert": "/test-convert",
