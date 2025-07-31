@@ -287,12 +287,39 @@ router.post('/convert', async c => {
     const conversionService = new ConversionService(c.env);
     const jobId = await conversionService.startConversion(conversionRequest);
 
+    // Try to process immediately if capacity allows
+    try {
+      const queueManager = new QueueManager(c.env);
+      const capacity = await queueManager.getCapacityInfo();
+
+      if (capacity.availableSlots > 0) {
+        // Process immediately in background
+        c.executionCtx.waitUntil(
+          conversionService
+            .processConversion(jobId, conversionRequest)
+            .catch(error =>
+              console.error(`Immediate processing failed for ${jobId}:`, error)
+            )
+        );
+
+        return c.json({
+          success: true,
+          jobId,
+          status: 'processing',
+          message: 'Conversion started immediately',
+          estimatedTime: '30-120 seconds',
+        });
+      }
+    } catch (error) {
+      console.error('Failed to start immediate processing:', error);
+    }
+
     return c.json({
       success: true,
       jobId,
       status: 'queued',
-      message: 'Conversion job started successfully',
-      estimatedTime: '30-120 seconds',
+      message: 'Conversion job queued successfully',
+      estimatedTime: '15-60 seconds',
     });
   } catch (error) {
     console.error('Conversion endpoint error:', error);

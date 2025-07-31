@@ -45,4 +45,4 @@ id = "your-dev-kv-namespace-id"
 
 # Cron triggers for queue processing
 [triggers]
-crons = ["* * * * *"]  # Run every minute
+crons = ["* * * * *"]  # Run every minute (Cloudflare standard format)

@@ -18,7 +18,7 @@ export class QueueManager {
 
   constructor(
     env: Env,
-    maxConcurrentJobs: number = 5,
+    maxConcurrentJobs: number = 10,
     jobTimeoutMs: number = 10 * 60 * 1000
   ) {
     this.env = env;

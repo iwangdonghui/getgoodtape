@@ -298,23 +298,37 @@ async def extract_video_metadata(url: str) -> Dict[str, Any]:
             try:
                 print(f"🔄 Trying extraction method {i+1}/{len(extraction_methods)}")
 
-                # Try to add proxy configuration for YouTube URLs
+                # Try to add proxy configuration for YouTube URLs with rotation
                 if 'youtube.com' in url or 'youtu.be' in url:
                     try:
-                        import os
-                        user = os.getenv('RESIDENTIAL_PROXY_USER')
-                        password = os.getenv('RESIDENTIAL_PROXY_PASS')
-                        endpoint = os.getenv('RESIDENTIAL_PROXY_ENDPOINT')
+                        from proxy_config import proxy_manager, get_yt_dlp_proxy_options
+                        import random
 
-                        if user and password and endpoint:
-                            # Use simple proxy format that worked in our test
-                            simple_proxy = f"http://{user}:{password}@{endpoint}"
-                            opts['proxy'] = simple_proxy
-                            opts['socket_timeout'] = 30
-                            opts['retries'] = 3
-                            print(f"🔄 Using simple proxy for metadata extraction: {endpoint}")
+                        # Get available proxies and use random selection
+                        proxies = proxy_manager.get_proxy_list(include_no_proxy=False)
+                        if proxies:
+                            # Use random proxy for better distribution
+                            selected_proxy = random.choice(proxies)
+                            # Add session rotation for residential proxies
+                            if selected_proxy and any(x in selected_proxy for x in ['smartproxy', 'brightdata', 'oxylabs', 'decodo']):
+                                selected_proxy = proxy_manager.get_proxy_with_session(selected_proxy)
+
+                            proxy_opts = get_yt_dlp_proxy_options(selected_proxy)
+                            opts.update(proxy_opts)
+                            print(f"🔄 Using rotated proxy for metadata: {selected_proxy is not None}")
                         else:
-                            print("⚠️ Proxy credentials not found, proceeding without proxy")
+                            # Fallback to environment variables
+                            import os
+                            user = os.getenv('RESIDENTIAL_PROXY_USER')
+                            password = os.getenv('RESIDENTIAL_PROXY_PASS')
+                            endpoint = os.getenv('RESIDENTIAL_PROXY_ENDPOINT')
+                            if user and password and endpoint:
+                                opts['proxy'] = f"http://{user}:{password}@{endpoint}"
+                                opts['socket_timeout'] = 30
+                                opts['retries'] = 3
+                                print(f"🔄 Using fallback proxy for metadata: {endpoint}")
+                            else:
+                                print("⚠️ No proxy available for YouTube metadata extraction")
                     except Exception as e:
                         print(f"⚠️ Could not configure proxy for metadata: {e}")
 
@@ -560,16 +574,29 @@ async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: b
                     },
                 })
 
-                # Add proxy for YouTube (always use for reliability)
+                # Add proxy for YouTube with rotation (always use for reliability)
                 try:
-                    import os
-                    user = os.getenv('RESIDENTIAL_PROXY_USER')
-                    password = os.getenv('RESIDENTIAL_PROXY_PASS')
-                    endpoint = os.getenv('RESIDENTIAL_PROXY_ENDPOINT')
+                    from proxy_config import proxy_manager, get_yt_dlp_proxy_options
+                    import random
 
-                    if user and password and endpoint:
-                        ydl_opts['proxy'] = f"http://{user}:{password}@{endpoint}"
-                except Exception:
+                    # Get available proxies and rotate them
+                    proxies = proxy_manager.get_proxy_list(include_no_proxy=False)
+                    if proxies:
+                        # Use random proxy for better distribution
+                        selected_proxy = random.choice(proxies)
+                        proxy_opts = get_yt_dlp_proxy_options(selected_proxy)
+                        ydl_opts.update(proxy_opts)
+                        print(f"🔄 Using rotated proxy for YouTube: {selected_proxy is not None}")
+                    else:
+                        # Fallback to environment variables
+                        import os
+                        user = os.getenv('RESIDENTIAL_PROXY_USER')
+                        password = os.getenv('RESIDENTIAL_PROXY_PASS')
+                        endpoint = os.getenv('RESIDENTIAL_PROXY_ENDPOINT')
+                        if user and password and endpoint:
+                            ydl_opts['proxy'] = f"http://{user}:{password}@{endpoint}"
+                except Exception as e:
+                    print(f"⚠️ Proxy configuration failed: {e}")
                     pass  # Continue without proxy if not available
             else:
                 # Fast configuration for other platforms
