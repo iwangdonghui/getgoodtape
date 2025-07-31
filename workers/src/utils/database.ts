@@ -141,6 +141,12 @@ export class DatabaseManager {
     url: string,
     hoursBack: number = 1
   ): Promise<ConversionJob | null> {
+    if (!this.env.DB) {
+      console.warn('Using mock database for development environment');
+      const mockDb = getGlobalMockDatabase();
+      return await mockDb.findRecentConversionByUrl(url, hoursBack);
+    }
+
     const cutoffTime = Math.floor(Date.now() / 1000) - hoursBack * 3600;
     const stmt = this.env.DB.prepare(`
       SELECT * FROM conversion_jobs

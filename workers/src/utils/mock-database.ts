@@ -305,6 +305,25 @@ export class MockDatabase {
     console.log('Mock database returning platforms:', this.platforms.length);
     return this.platforms;
   }
+
+  async findRecentConversionByUrl(
+    url: string,
+    hoursBack: number = 1
+  ): Promise<ConversionJob | null> {
+    const cutoffTime = Date.now() - hoursBack * 3600 * 1000;
+
+    for (const job of this.jobs.values()) {
+      if (
+        job.url === url &&
+        job.status === 'completed' &&
+        new Date(job.created_at).getTime() > cutoffTime
+      ) {
+        return job;
+      }
+    }
+
+    return null;
+  }
 }
 
 // Global instance for persistence across requests
