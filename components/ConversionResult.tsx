@@ -73,22 +73,36 @@ export default function ConversionResult({
       link.href = url;
 
       // Extract filename with multiple fallback strategies
-      let downloadFilename = filename;
+      let downloadFilename: string;
 
-      // Strategy 1: Use filename prop
-      if (!downloadFilename) {
-        // Strategy 2: Use server's Content-Disposition header
-        if (serverFilename) {
-          downloadFilename = serverFilename;
-        }
-        // Strategy 3: Extract from downloadUrl
-        else if (downloadUrl) {
-          const urlParts = downloadUrl.split('/');
-          downloadFilename = urlParts[urlParts.length - 1];
-        }
+      // Strategy 1: Use video title if available (preferred)
+      if (metadata?.title) {
+        // Clean the title for use as filename
+        const cleanTitle = metadata.title
+          .replace(/[<>:"/\\|?*]/g, '') // Remove invalid filename characters
+          .replace(/\s+/g, ' ') // Normalize whitespace
+          .trim();
+        downloadFilename = `${cleanTitle}.${format}`;
+      }
+      // Strategy 2: Use filename prop
+      else if (filename) {
+        downloadFilename = filename;
+      }
+      // Strategy 3: Use server's Content-Disposition header
+      else if (serverFilename) {
+        downloadFilename = serverFilename;
+      }
+      // Strategy 4: Extract from downloadUrl
+      else if (downloadUrl) {
+        const urlParts = downloadUrl.split('/');
+        downloadFilename = urlParts[urlParts.length - 1];
+      }
+      // Strategy 5: Fallback
+      else {
+        downloadFilename = `converted.${format}`;
       }
 
-      link.download = downloadFilename || `converted.${format}`;
+      link.download = downloadFilename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
