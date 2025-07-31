@@ -1563,18 +1563,33 @@ async def get_proxy_stats():
     """Get proxy performance statistics"""
     try:
         from proxy_config import proxy_manager
+        import os
 
         stats = proxy_manager.get_proxy_stats()
         best_proxies = proxy_manager.get_best_proxies(min_attempts=3)
+        proxy_list = proxy_manager.get_proxy_list()
+
+        # Check environment variables
+        env_check = {
+            "RESIDENTIAL_PROXY_USER": bool(os.getenv('RESIDENTIAL_PROXY_USER')),
+            "RESIDENTIAL_PROXY_PASS": bool(os.getenv('RESIDENTIAL_PROXY_PASS')),
+            "RESIDENTIAL_PROXY_ENDPOINT": bool(os.getenv('RESIDENTIAL_PROXY_ENDPOINT')),
+            "SMARTPROXY_USER": bool(os.getenv('SMARTPROXY_USER')),
+            "SMARTPROXY_PASS": bool(os.getenv('SMARTPROXY_PASS')),
+            "BRIGHTDATA_USER": bool(os.getenv('BRIGHTDATA_USER')),
+            "BRIGHTDATA_PASS": bool(os.getenv('BRIGHTDATA_PASS'))
+        }
 
         return {
             "success": True,
             "proxy_stats": stats,
             "best_proxies": best_proxies,
-            "total_proxies_configured": len(proxy_manager.get_proxy_list()),
+            "total_proxies_configured": len(proxy_list),
             "residential_proxies": len(proxy_manager.residential_proxies),
             "datacenter_proxies": len(proxy_manager.datacenter_proxies),
-            "free_proxies": len(proxy_manager.free_proxies)
+            "free_proxies": len(proxy_manager.free_proxies),
+            "proxy_list_sample": proxy_list[:3] if proxy_list else [],
+            "environment_variables": env_check
         }
     except Exception as e:
         return {"success": False, "error": f"Failed to get proxy stats: {str(e)}"}
