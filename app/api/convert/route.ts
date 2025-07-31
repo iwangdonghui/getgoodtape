@@ -1,7 +1,9 @@
 import { NextRequest } from 'next/server';
 
 const WORKERS_URL =
-  'https://getgoodtape-api-production.wangdonghuiibt-cloudflare.workers.dev';
+  process.env.NODE_ENV === 'development'
+    ? 'http://localhost:8789'
+    : 'https://getgoodtape-api-production.wangdonghuiibt-cloudflare.workers.dev';
 
 export async function POST(request: NextRequest) {
   try {

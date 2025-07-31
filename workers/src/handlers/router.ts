@@ -6,7 +6,7 @@ import { ConversionService } from '../utils/conversion-service';
 import { StorageManager } from '../utils/storage';
 import { QueueManager } from '../utils/queue-manager';
 import { FileCleanupService } from '../utils/file-cleanup';
-import { ErrorType, ConvertRequest, PlatformsResponse, Env } from '../types';
+import { ErrorType, ConvertRequest, Env } from '../types';
 
 export const router = new Hono<{ Bindings: Env }>();
 
@@ -155,17 +155,6 @@ router.get('/platforms', async c => {
             },
           },
           {
-            name: 'TikTok',
-            domain: 'tiktok.com',
-            supportedFormats: ['mp3', 'mp4'],
-            maxDuration: 600,
-            icon: '🎵',
-            qualityOptions: {
-              mp3: ['128', '192'],
-              mp4: ['360', '720'],
-            },
-          },
-          {
             name: 'X (Twitter)',
             domain: 'x.com',
             supportedFormats: ['mp3', 'mp4'],
@@ -176,33 +165,11 @@ router.get('/platforms', async c => {
               mp4: ['360', '720'],
             },
           },
-          {
-            name: 'Facebook',
-            domain: 'facebook.com',
-            supportedFormats: ['mp3', 'mp4'],
-            maxDuration: 3600,
-            icon: '📘',
-            qualityOptions: {
-              mp3: ['128', '192'],
-              mp4: ['360', '720'],
-            },
-          },
-          {
-            name: 'Instagram',
-            domain: 'instagram.com',
-            supportedFormats: ['mp3', 'mp4'],
-            maxDuration: 900,
-            icon: '📷',
-            qualityOptions: {
-              mp3: ['128', '192'],
-              mp4: ['360', '720'],
-            },
-          },
         ];
       }
     }
 
-    const response: PlatformsResponse = { platforms };
+    const response = { success: true, platforms };
     return c.json(response);
   } catch (error) {
     console.error('Platforms endpoint error:', error);

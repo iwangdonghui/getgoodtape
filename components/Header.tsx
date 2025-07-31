@@ -39,9 +39,10 @@ export const Header: React.FC<HeaderProps> = ({ variant = 'landing' }) => {
 
   // App variant
   return (
-    <div className="bg-card border-b border-border">
-      <div className="max-w-4xl mx-auto px-4 py-3 sm:py-4">
+    <header className="bg-card border-b border-border sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4">
         <div className="flex items-center justify-between">
+          {/* Left side - Logo */}
           <Link href="/" className="flex items-center space-x-2 sm:space-x-3">
             <Logo size="md" />
             <div>
@@ -53,24 +54,32 @@ export const Header: React.FC<HeaderProps> = ({ variant = 'landing' }) => {
               </p>
             </div>
           </Link>
-          <div className="flex items-center space-x-2 sm:space-x-3">
-            <ThemeToggle />
+
+          {/* Right side - Navigation */}
+          <nav className="flex items-center space-x-4 sm:space-x-6">
             <Link
-              href="/"
+              href="/how-it-works"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline-flex"
             >
-              ← Back
+              How it Works
             </Link>
             <Link
-              href="/"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors sm:hidden"
+              href="/faq"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline-flex"
             >
-              ←
+              FAQ
             </Link>
-          </div>
+            <Link
+              href="/contact"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline-flex"
+            >
+              Contact Us
+            </Link>
+            <ThemeToggle />
+          </nav>
         </div>
       </div>
-    </div>
+    </header>
   );
 };
 

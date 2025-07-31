@@ -1,40 +1,48 @@
 // Mock database for local development when D1 is not available
+import { ConversionJob, PlatformConfig } from '../types';
+
 export class MockDatabase {
-  private jobs: Map<string, any> = new Map();
-  private platforms: any[] = [
+  private jobs: Map<string, ConversionJob> = new Map();
+  private platforms: PlatformConfig[] = [
     {
       id: 1,
       name: 'YouTube',
       domain: 'youtube.com',
       supported_formats: JSON.stringify(['mp3', 'mp4']),
       max_duration: 7200,
-      icon: '🎥',
-      quality_options: JSON.stringify({
-        mp3: ['128', '192', '320'],
-        mp4: ['360', '720', '1080'],
+      is_active: 1,
+      config: JSON.stringify({
+        extractor: 'youtube',
+        quality_options: {
+          mp3: ['128', '192', '320'],
+          mp4: ['360', '720', '1080'],
+        },
       }),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      created_at: Math.floor(Date.now() / 1000),
+      updated_at: Math.floor(Date.now() / 1000),
     },
     {
       id: 2,
-      name: 'TikTok',
-      domain: 'tiktok.com',
+      name: 'X (Twitter)',
+      domain: 'x.com',
       supported_formats: JSON.stringify(['mp3', 'mp4']),
-      max_duration: 600,
-      icon: '🎵',
-      quality_options: JSON.stringify({
-        mp3: ['128', '192'],
-        mp4: ['360', '720'],
+      max_duration: 1200,
+      is_active: 1,
+      config: JSON.stringify({
+        extractor: 'twitter',
+        quality_options: {
+          mp3: ['128', '192'],
+          mp4: ['360', '720'],
+        },
       }),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      created_at: Math.floor(Date.now() / 1000),
+      updated_at: Math.floor(Date.now() / 1000),
     },
   ];
 
   async prepare(query: string) {
     return {
-      bind: (...params: any[]) => ({
+      bind: (...params: unknown[]) => ({
         all: async () => {
           if (query.includes('SELECT * FROM platforms')) {
             return { results: this.platforms };
@@ -131,7 +139,7 @@ export class MockDatabase {
     return job;
   }
 
-  async updateJob(jobId: string, updates: any) {
+  async updateJob(jobId: string, updates: Partial<ConversionJob>) {
     const job = this.jobs.get(jobId);
     if (job) {
       Object.assign(job, updates, { updated_at: new Date().toISOString() });

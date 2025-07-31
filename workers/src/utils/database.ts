@@ -151,10 +151,13 @@ export class DatabaseManager {
       return await mockDb.getPlatforms();
     }
 
+    // Only return YouTube and X (Twitter) platforms
     const stmt = this.env.DB.prepare(
-      'SELECT * FROM platforms WHERE is_active = 1 ORDER BY name'
+      'SELECT * FROM platforms WHERE is_active = 1 AND (name = ? OR name = ?) ORDER BY name'
     );
-    const result = await stmt.all<PlatformConfig>();
+    const result = await stmt
+      .bind('YouTube', 'X (Twitter)')
+      .all<PlatformConfig>();
     return result.results || [];
   }
 

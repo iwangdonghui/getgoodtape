@@ -8,6 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import ConversionProgress from '../../components/ConversionProgress';
 import ConversionResult from '../../components/ConversionResult';
+import SupportedPlatforms from '../../components/SupportedPlatforms';
+import BrandFeatures from '../../components/BrandFeatures';
+import VideoPreview from '../../components/VideoPreview';
 import { apiClient } from '../../lib/api-client';
 
 interface ConversionState {
@@ -23,7 +26,12 @@ interface ConversionState {
   error?: string;
   downloadUrl?: string;
   filename?: string;
-  metadata?: any;
+  metadata?: {
+    title: string;
+    duration: number;
+    thumbnail: string;
+    uploader: string;
+  };
   estimatedTimeRemaining?: number;
   currentStep?: string;
   queuePosition?: number;
@@ -49,13 +57,11 @@ export default function AppPage() {
           icon: string;
           qualityOptions: Record<string, string[]>;
         };
-    error?:
-      | {
-          type: string;
-          message: string;
-          retryable: boolean;
-        }
-      | string;
+    error?: {
+      type: string;
+      message: string;
+      retryable: boolean;
+    };
   }>({ isValid: false });
 
   // URL validation effect
@@ -72,7 +78,11 @@ export default function AppPage() {
       } catch (error) {
         setUrlValidation({
           isValid: false,
-          error: 'Failed to validate URL',
+          error: {
+            type: 'NETWORK_ERROR',
+            message: 'Failed to validate URL',
+            retryable: true,
+          },
         });
       }
     };
@@ -101,7 +111,7 @@ export default function AppPage() {
         quality,
       });
 
-      if (result.success) {
+      if (result.success && result.jobId) {
         setConversionState({
           status: 'queued',
           jobId: result.jobId,
@@ -114,7 +124,10 @@ export default function AppPage() {
         setConversionState({
           status: 'failed',
           progress: 0,
-          error: result.error?.message || 'Failed to start conversion',
+          error:
+            typeof result.error === 'string'
+              ? result.error
+              : result.error?.message || 'Failed to start conversion',
         });
       }
     } catch (error) {
@@ -156,7 +169,10 @@ export default function AppPage() {
           if (result.status === 'failed') {
             setConversionState(prev => ({
               ...prev,
-              error: result.error || 'Conversion failed',
+              error:
+                typeof result.error === 'string'
+                  ? result.error
+                  : result.error?.message || 'Conversion failed',
             }));
             return;
           }
@@ -172,7 +188,10 @@ export default function AppPage() {
           setConversionState(prev => ({
             ...prev,
             status: 'failed',
-            error: result.error?.message || 'Failed to get status',
+            error:
+              typeof result.error === 'string'
+                ? result.error
+                : result.error?.message || 'Failed to get status',
           }));
         }
       } catch (error) {
@@ -210,178 +229,272 @@ export default function AppPage() {
   return (
     <>
       <SEOHead {...pageSEO.app} />
-      <div className="min-h-screen bg-background">
-        <Header variant="landing" />
-        <main className="container mx-auto px-4 py-8">
-          <div className="max-w-2xl mx-auto">
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold mb-4">
-                Video to MP3/MP4 Converter
+      <div className="min-h-screen bg-background flex flex-col">
+        <Header variant="app" />
+
+        {/* Hero Section */}
+        <main className="flex-1">
+          <section className="py-12 lg:py-20 bg-gradient-to-b from-background to-muted/30">
+            <div className="max-w-4xl mx-auto px-4 text-center">
+              <h1 className="text-4xl lg:text-6xl font-bold text-foreground mb-4 leading-tight">
+                YouTube to MP3 Converter
               </h1>
-              <p className="text-muted-foreground">
-                Convert your favorite videos to high-quality MP3 and MP4 files
+              <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
+                Clean, fast, and reliable conversions by GetGoodTape
               </p>
-            </div>
 
-            {/* Conversion Form */}
-            {(conversionState.status === 'idle' ||
-              conversionState.status === 'failed') && (
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
-                  <label
-                    htmlFor="url"
-                    className="block text-sm font-medium mb-2"
-                  >
-                    Video URL
-                  </label>
-                  <div className="relative">
-                    <Input
-                      type="url"
-                      id="url"
-                      value={url}
-                      onChange={e => setUrl(e.target.value)}
-                      placeholder="Paste video URL here..."
-                      required
-                      className={`${
-                        url && !urlValidation.isValid
-                          ? 'border-red-300 focus:border-red-500'
-                          : url && urlValidation.isValid
-                            ? 'border-green-300 focus:border-green-500'
-                            : ''
-                      }`}
-                    />
-                    {url && urlValidation.isValid && (
-                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                        <span className="text-green-500">✓</span>
+              {/* Conversion Form */}
+              {(conversionState.status === 'idle' ||
+                conversionState.status === 'failed') && (
+                <div className="max-w-2xl mx-auto">
+                  <form onSubmit={handleSubmit} className="space-y-6">
+                    {/* URL Input */}
+                    <div className="space-y-4">
+                      <div className="relative">
+                        <Input
+                          type="url"
+                          id="url"
+                          value={url}
+                          onChange={e => setUrl(e.target.value)}
+                          placeholder="Paste your video URL here..."
+                          required
+                          className={`h-14 text-lg px-6 ${
+                            url && !urlValidation.isValid
+                              ? 'border-red-300 focus:border-red-500'
+                              : url && urlValidation.isValid
+                                ? 'border-green-300 focus:border-green-500'
+                                : ''
+                          }`}
+                        />
+                        {url && urlValidation.isValid && (
+                          <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+                            <span className="text-green-500 text-xl">✓</span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  {url && urlValidation.platform && (
-                    <p className="text-sm text-green-600 mt-1">
-                      {typeof urlValidation.platform === 'string'
-                        ? urlValidation.platform
-                        : urlValidation.platform.name}{' '}
-                      video detected
-                    </p>
-                  )}
-                  {url && urlValidation.error && (
-                    <p className="text-sm text-red-600 mt-1">
-                      {typeof urlValidation.error === 'string'
-                        ? urlValidation.error
-                        : urlValidation.error.message}
-                    </p>
-                  )}
-                </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Format
-                    </label>
-                    <div className="space-y-2">
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          value="mp3"
-                          checked={format === 'mp3'}
-                          onChange={e =>
-                            setFormat(e.target.value as 'mp3' | 'mp4')
-                          }
-                          className="mr-2"
-                        />
-                        MP3 (Audio only)
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          value="mp4"
-                          checked={format === 'mp4'}
-                          onChange={e =>
-                            setFormat(e.target.value as 'mp3' | 'mp4')
-                          }
-                          className="mr-2"
-                        />
-                        MP4 (Video + Audio)
-                      </label>
+                      {/* Validation Messages */}
+                      {url &&
+                        urlValidation.isValid &&
+                        urlValidation.platform &&
+                        (() => {
+                          const platform = urlValidation.platform;
+                          const platformName =
+                            typeof platform === 'string'
+                              ? platform
+                              : platform &&
+                                  typeof platform === 'object' &&
+                                  'name' in platform
+                                ? platform.name
+                                : 'Unknown platform';
+
+                          return (
+                            <p className="text-sm text-green-600 flex items-center gap-2">
+                              <span className="text-green-500">✓</span>
+                              {platformName} video detected
+                            </p>
+                          );
+                        })()}
+                      {url && urlValidation.error && (
+                        <p className="text-sm text-red-600 flex items-center gap-2">
+                          <span className="text-red-500">✗</span>
+                          {urlValidation.error.message}
+                        </p>
+                      )}
+
+                      {/* Video Preview */}
+                      {url &&
+                        urlValidation.isValid &&
+                        conversionState.metadata && (
+                          <VideoPreview
+                            title={conversionState.metadata.title}
+                            thumbnail={conversionState.metadata.thumbnail}
+                            duration={conversionState.metadata.duration}
+                            uploader={conversionState.metadata.uploader}
+                            platform={
+                              typeof urlValidation.platform === 'string'
+                                ? urlValidation.platform
+                                : urlValidation.platform?.name
+                            }
+                          />
+                        )}
                     </div>
-                  </div>
 
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Quality
-                    </label>
-                    <select
-                      value={quality}
-                      onChange={e => setQuality(e.target.value)}
-                      className="w-full p-2 border rounded bg-background text-foreground"
+                    {/* Format and Quality Selection */}
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      {/* Format Selection */}
+                      <div className="flex-1">
+                        <label className="block text-sm font-medium mb-3">
+                          Format
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <label
+                            className={`flex items-center justify-center p-3 border rounded-lg cursor-pointer transition-all ${
+                              format === 'mp3'
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-border hover:border-primary/50'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              value="mp3"
+                              checked={format === 'mp3'}
+                              onChange={e =>
+                                setFormat(e.target.value as 'mp3' | 'mp4')
+                              }
+                              className="sr-only"
+                            />
+                            <div className="text-center">
+                              <div className="text-lg mb-1">🎵</div>
+                              <div className="font-medium">MP3</div>
+                              <div className="text-xs text-muted-foreground">
+                                Audio Only
+                              </div>
+                            </div>
+                          </label>
+                          <label
+                            className={`flex items-center justify-center p-3 border rounded-lg cursor-pointer transition-all ${
+                              format === 'mp4'
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-border hover:border-primary/50'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              value="mp4"
+                              checked={format === 'mp4'}
+                              onChange={e =>
+                                setFormat(e.target.value as 'mp3' | 'mp4')
+                              }
+                              className="sr-only"
+                            />
+                            <div className="text-center">
+                              <div className="text-lg mb-1">🎥</div>
+                              <div className="font-medium">MP4</div>
+                              <div className="text-xs text-muted-foreground">
+                                Video + Audio
+                              </div>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Quality Selection */}
+                      <div className="flex-1">
+                        <label className="block text-sm font-medium mb-3">
+                          Quality
+                        </label>
+                        <select
+                          value={quality}
+                          onChange={e => setQuality(e.target.value)}
+                          className="w-full p-3 border rounded-lg bg-background text-foreground focus:border-primary focus:ring-1 focus:ring-primary"
+                        >
+                          {format === 'mp3' ? (
+                            <>
+                              <option value="320">320 kbps (High)</option>
+                              <option value="192">192 kbps (Medium)</option>
+                              <option value="128">128 kbps (Low)</option>
+                            </>
+                          ) : (
+                            <>
+                              <option value="1080">1080p (High)</option>
+                              <option value="720">720p (Medium)</option>
+                              <option value="360">360p (Low)</option>
+                            </>
+                          )}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Submit Button */}
+                    <Button
+                      type="submit"
+                      size="lg"
+                      className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all duration-200 shadow-lg hover:shadow-xl"
+                      disabled={
+                        !urlValidation.isValid || !url.trim() || isConverting
+                      }
                     >
-                      <option value="high">High Quality</option>
-                      <option value="medium">Medium Quality</option>
-                      <option value="low">Low Quality</option>
-                    </select>
+                      {isConverting ? (
+                        <div className="flex items-center gap-2">
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                          Converting...
+                        </div>
+                      ) : (
+                        'Start Conversion'
+                      )}
+                    </Button>
+                  </form>
+                </div>
+              )}
+
+              {/* Conversion Progress */}
+              {(conversionState.status === 'validating' ||
+                conversionState.status === 'queued' ||
+                conversionState.status === 'processing') && (
+                <div className="max-w-2xl mx-auto">
+                  <ConversionProgress
+                    status={conversionState.status}
+                    progress={conversionState.progress}
+                    jobId={conversionState.jobId}
+                    estimatedTimeRemaining={
+                      conversionState.estimatedTimeRemaining
+                    }
+                    currentStep={conversionState.currentStep}
+                    queuePosition={conversionState.queuePosition}
+                  />
+                </div>
+              )}
+
+              {/* Conversion Result */}
+              {conversionState.status === 'completed' && (
+                <div className="max-w-2xl mx-auto">
+                  <ConversionResult
+                    downloadUrl={conversionState.downloadUrl}
+                    filename={conversionState.filename}
+                    metadata={conversionState.metadata}
+                    format={format}
+                    quality={quality}
+                    onReset={resetConversion}
+                    onNewConversion={startNewConversion}
+                  />
+                </div>
+              )}
+
+              {/* Error State */}
+              {conversionState.status === 'failed' && (
+                <div className="max-w-2xl mx-auto">
+                  <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <span className="text-red-500">❌</span>
+                      <h3 className="font-semibold text-red-800">
+                        Conversion Failed
+                      </h3>
+                    </div>
+                    <p className="text-red-700 mb-4">
+                      {conversionState.error || 'An unknown error occurred'}
+                    </p>
+                    <Button
+                      onClick={resetConversion}
+                      variant="outline"
+                      className="border-red-300 text-red-700 hover:bg-red-50"
+                    >
+                      Try Again
+                    </Button>
                   </div>
                 </div>
+              )}
+            </div>
+          </section>
 
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={!urlValidation.isValid || !url.trim()}
-                >
-                  Start Conversion
-                </Button>
-              </form>
-            )}
+          {/* Supported Platforms Section */}
+          <SupportedPlatforms />
 
-            {/* Conversion Progress */}
-            {(conversionState.status === 'validating' ||
-              conversionState.status === 'queued' ||
-              conversionState.status === 'processing') && (
-              <ConversionProgress
-                status={conversionState.status}
-                progress={conversionState.progress}
-                jobId={conversionState.jobId}
-                estimatedTimeRemaining={conversionState.estimatedTimeRemaining}
-                currentStep={conversionState.currentStep}
-                queuePosition={conversionState.queuePosition}
-              />
-            )}
-
-            {/* Conversion Result */}
-            {conversionState.status === 'completed' && (
-              <ConversionResult
-                downloadUrl={conversionState.downloadUrl}
-                filename={conversionState.filename}
-                metadata={conversionState.metadata}
-                format={format}
-                quality={quality}
-                onReset={resetConversion}
-                onNewConversion={startNewConversion}
-              />
-            )}
-
-            {/* Error State */}
-            {conversionState.status === 'failed' && (
-              <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <div className="flex items-center space-x-2 mb-2">
-                  <span className="text-red-500">❌</span>
-                  <h3 className="font-semibold text-red-800">
-                    Conversion Failed
-                  </h3>
-                </div>
-                <p className="text-red-700 mb-4">
-                  {conversionState.error || 'An unknown error occurred'}
-                </p>
-                <Button
-                  onClick={resetConversion}
-                  variant="outline"
-                  className="border-red-300 text-red-700 hover:bg-red-50"
-                >
-                  Try Again
-                </Button>
-              </div>
-            )}
-          </div>
+          {/* Brand Features Section */}
+          <BrandFeatures />
         </main>
+
+        {/* Footer */}
         <Footer />
       </div>
     </>

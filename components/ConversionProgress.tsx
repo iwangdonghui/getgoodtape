@@ -1,7 +1,13 @@
 import { useState, useEffect } from 'react';
 
 interface ConversionProgressProps {
-  status: 'idle' | 'queued' | 'processing' | 'completed' | 'failed';
+  status:
+    | 'idle'
+    | 'validating'
+    | 'queued'
+    | 'processing'
+    | 'completed'
+    | 'failed';
   progress: number;
   jobId?: string | null;
   estimatedTimeRemaining?: number;
@@ -37,6 +43,16 @@ export default function ConversionProgress({
 
   const getStatusInfo = () => {
     switch (status) {
+      case 'validating':
+        return {
+          label: 'Validating',
+          color: 'text-blue-600',
+          bgColor: 'bg-blue-50',
+          borderColor: 'border-blue-200',
+          icon: '🔍',
+          description:
+            'Validating your video URL and preparing for conversion...',
+        };
       case 'queued':
         return {
           label: 'Queued',

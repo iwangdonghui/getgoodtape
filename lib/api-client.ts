@@ -66,9 +66,14 @@ export interface StatusResponse {
 
 export interface PlatformInfo {
   name: string;
-  supported: boolean;
-  formats: string[];
-  maxDuration?: number;
+  domain: string;
+  supportedFormats: string[];
+  maxDuration: number;
+  icon: string;
+  qualityOptions: {
+    mp3?: string[];
+    mp4?: string[];
+  };
 }
 
 export interface PlatformsResponse {

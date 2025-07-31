@@ -28,7 +28,7 @@ cd ..
 
 echo "✅ Development servers started!"
 echo "Frontend: http://localhost:3000"
-echo "Workers API: http://localhost:8787"
+echo "Workers API: http://localhost:8789"
 echo "Press Ctrl+C to stop all servers"
 
 # Wait for background processes
