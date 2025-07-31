@@ -161,8 +161,8 @@ router.get('/platforms', async c => {
             maxDuration: 1200,
             icon: '🐦',
             qualityOptions: {
-              mp3: ['128', '192'],
-              mp4: ['360', '720'],
+              mp3: ['128', '192', '320'],
+              mp4: ['360', '720', '1080'],
             },
           },
         ];
