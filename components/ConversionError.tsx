@@ -206,7 +206,7 @@ export default function ConversionError({
 
         <button
           onClick={() => (window.location.href = '/')}
-          className="px-6 py-3 text-deep-brown border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center space-x-2"
+          className="px-6 py-3 text-neutral-text bg-white border border-neutral-border rounded-lg hover:bg-neutral-panel transition-colors flex items-center justify-center space-x-2 dark:text-dark-text dark:bg-dark-panel dark:border-dark-border dark:hover:bg-dark-panel-hover"
         >
           <span>🏠</span>
           <span>Back to Home</span>

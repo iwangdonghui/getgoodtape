@@ -29,6 +29,10 @@ module.exports = {
         'dark-text': '#F9F9F9',
         'dark-text-muted': '#B3B3B3',
         'dark-text-light': '#D1D5DB',
+        'warm-orange': '#FB923C',
+        'warm-orange-hover': '#F97316',
+        'deep-brown': '#1E1E1E',
+        'deep-brown-light': '#374151',
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
         card: {

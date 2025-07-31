@@ -442,6 +442,46 @@
   .dark *:focus {
     outline-color: #fb923c;
   }
+
+  /* 修复亮色主题下的文字可见性问题 */
+  .text-deep-brown {
+    color: #1e1e1e !important;
+  }
+
+  .dark .text-deep-brown {
+    color: #f9f9f9 !important;
+  }
+
+  .bg-warm-orange {
+    background-color: #fb923c !important;
+  }
+
+  .dark .bg-warm-orange {
+    background-color: #f97316 !important;
+  }
+
+  /* 确保按钮文字在所有主题下都清晰可见 */
+  .bg-warm-orange {
+    color: white !important;
+  }
+
+  /* 修复边框颜色 */
+  .border-gray-300 {
+    border-color: #d1d5db !important;
+  }
+
+  .dark .border-gray-300 {
+    border-color: #404040 !important;
+  }
+
+  /* 修复悬停背景色 */
+  .hover\:bg-gray-50:hover {
+    background-color: #f9fafb !important;
+  }
+
+  .dark .hover\:bg-gray-50:hover {
+    background-color: #3a3a3a !important;
+  }
 }
 
 @layer base {

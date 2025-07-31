@@ -241,7 +241,7 @@ export default function ConversionResult({
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
         <button
           onClick={onNewConversion}
-          className="bg-warm-orange text-white px-6 sm:px-8 py-3 rounded-lg font-semibold hover:bg-warm-orange/90 transition-colors flex items-center justify-center space-x-2 min-h-[44px] touch-action-manipulation"
+          className="bg-brand-primary text-white px-6 sm:px-8 py-3 rounded-lg font-semibold hover:bg-brand-primary-hover transition-colors flex items-center justify-center space-x-2 min-h-[44px] touch-action-manipulation dark:bg-brand-primary dark:hover:bg-brand-primary-hover"
         >
           <span>🔄</span>
           <span>Convert New File</span>
@@ -249,7 +249,7 @@ export default function ConversionResult({
 
         <button
           onClick={onReset}
-          className="px-4 sm:px-6 py-3 text-deep-brown border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center space-x-2 min-h-[44px] touch-action-manipulation"
+          className="px-4 sm:px-6 py-3 text-neutral-text bg-white border border-neutral-border rounded-lg hover:bg-neutral-panel transition-colors flex items-center justify-center space-x-2 min-h-[44px] touch-action-manipulation dark:text-dark-text dark:bg-dark-panel dark:border-dark-border dark:hover:bg-dark-panel-hover"
         >
           <span>🏠</span>
           <span>Back to Home</span>
