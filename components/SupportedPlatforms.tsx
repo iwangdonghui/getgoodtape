@@ -123,7 +123,7 @@ const getPlatformIcon = (platformName: string): JSX.Element => {
   return iconMap[platformName] || iconMap.YouTube;
 };
 
-export const SupportedPlatforms: React.FC = () => {
+const SupportedPlatforms: React.FC = () => {
   return (
     <section className="py-16 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       <div className="container mx-auto px-4">
@@ -164,3 +164,5 @@ export const SupportedPlatforms: React.FC = () => {
     </section>
   );
 };
+
+export default SupportedPlatforms;
