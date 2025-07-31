@@ -1,60 +1,5 @@
-'use client';
-
-import React from 'react';
-
-interface PlatformInfo {
-  name: string;
-  domain: string;
-  supportedFormats: string[];
-  maxDuration: number;
-  icon: string;
-}
-
-// 静态平台数据 - 简单直接，无需API调用
-const PLATFORMS: PlatformInfo[] = [
-  {
-    name: 'YouTube',
-    domain: 'youtube.com',
-    supportedFormats: ['mp3', 'mp4'],
-    maxDuration: 7200,
-    icon: '🎥',
-  },
-  {
-    name: 'X (Twitter)',
-    domain: 'x.com',
-    supportedFormats: ['mp3', 'mp4'],
-    maxDuration: 1200,
-    icon: '🐦',
-  },
-  {
-    name: 'TikTok',
-    domain: 'tiktok.com',
-    supportedFormats: ['mp3', 'mp4'],
-    maxDuration: 600,
-    icon: '🎵',
-  },
-  {
-    name: 'Twitter',
-    domain: 'twitter.com',
-    supportedFormats: ['mp3', 'mp4'],
-    maxDuration: 1200,
-    icon: '🐦',
-  },
-  {
-    name: 'Facebook',
-    domain: 'facebook.com',
-    supportedFormats: ['mp3', 'mp4'],
-    maxDuration: 3600,
-    icon: '📘',
-  },
-  {
-    name: 'Instagram',
-    domain: 'instagram.com',
-    supportedFormats: ['mp3', 'mp4'],
-    maxDuration: 900,
-    icon: '📷',
-  },
-];
+import React, { useState, useEffect } from 'react';
+import { apiClient, PlatformInfo } from '../lib/api-client';
 
 const getPlatformIcon = (platformName: string): JSX.Element => {
   const iconMap: Record<string, JSX.Element> = {
@@ -84,12 +29,13 @@ const getPlatformIcon = (platformName: string): JSX.Element => {
             y2="100%"
           >
             <stop offset="0%" stopColor="#FF0050" />
+            <stop offset="50%" stopColor="#FF0050" />
             <stop offset="100%" stopColor="#00F2EA" />
           </linearGradient>
         </defs>
         <path
           fill="url(#tiktok-gradient)"
-          d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-.88-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.1z"
+          d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-.88-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43V7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.43z"
         />
       </svg>
     ),
@@ -104,9 +50,9 @@ const getPlatformIcon = (platformName: string): JSX.Element => {
           <linearGradient
             id="instagram-gradient"
             x1="0%"
-            y1="100%"
+            y1="0%"
             x2="100%"
-            y2="0%"
+            y2="100%"
           >
             <stop offset="0%" stopColor="#833AB4" />
             <stop offset="50%" stopColor="#FD1D1D" />
@@ -124,43 +70,90 @@ const getPlatformIcon = (platformName: string): JSX.Element => {
 };
 
 export const SupportedPlatforms: React.FC = () => {
+  const [platforms, setPlatforms] = useState<PlatformInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPlatforms = async () => {
+      try {
+        const data = await apiClient.getPlatforms();
+        if (data.success && data.platforms && Array.isArray(data.platforms)) {
+          setPlatforms(data.platforms);
+        } else {
+          console.warn('Invalid platforms data received:', data);
+          setPlatforms([]);
+        }
+      } catch (error) {
+        console.error('Failed to fetch platforms:', error);
+        setPlatforms([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPlatforms();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="text-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+        <p className="text-muted-foreground mt-2">Loading platforms...</p>
+      </div>
+    );
+  }
+
   return (
-    <section className="py-16 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-            支持的平台
+    <section className="py-12 bg-muted/30">
+      <div className="max-w-7xl mx-auto px-4">
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-bold text-foreground mb-2">
+            Supported Platforms
           </h2>
-          <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-            我们支持从多个主流视频平台下载和转换内容
+          <p className="text-muted-foreground">
+            Convert videos from your favorite platforms
           </p>
         </div>
 
         <div className="flex justify-center">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-6 w-full max-w-7xl px-4">
-            {PLATFORMS.map(platform => (
-              <div
-                key={platform.name}
-                className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 border border-gray-200 dark:border-gray-700"
-              >
-                <div className="flex flex-col items-center text-center space-y-3">
-                  <div className="flex-shrink-0">
+            {Array.isArray(platforms) && platforms.length > 0 ? (
+              platforms.map((platform, index) => (
+                <div
+                  key={platform.name}
+                  className="bg-card border border-border rounded-xl p-4 text-center hover:shadow-lg hover:border-primary/50 transition-all duration-300 ease-in-out hover:-translate-y-1 cursor-pointer group"
+                >
+                  <div className="mb-3 group-hover:scale-110 transition-transform duration-300 ease-in-out flex justify-center">
                     {getPlatformIcon(platform.name)}
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white text-sm">
-                      {platform.name}
-                    </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      {platform.supportedFormats.join(', ')}
-                    </p>
+                  <h3 className="font-semibold text-foreground text-sm mb-2">
+                    {platform.name}
+                  </h3>
+                  <div className="flex flex-wrap gap-1 justify-center">
+                    {Array.isArray(platform.supportedFormats) &&
+                      platform.supportedFormats.map(format => (
+                        <span
+                          key={format}
+                          className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full font-medium"
+                        >
+                          {format.toUpperCase()}
+                        </span>
+                      ))}
                   </div>
                 </div>
+              ))
+            ) : (
+              <div className="col-span-full text-center py-8">
+                <p className="text-muted-foreground">
+                  No platforms available at the moment.
+                </p>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>
     </section>
   );
 };
+
+export default SupportedPlatforms;
