@@ -61,8 +61,13 @@ const nextConfig = {
     ];
   },
 
-  // API 路由重写到 Cloudflare Workers
+  // API 路由重写到 Cloudflare Workers (仅在生产环境)
   async rewrites() {
+    // 在开发环境中不使用重写，让本地API路由处理请求
+    if (process.env.NODE_ENV === 'development') {
+      return [];
+    }
+
     return [
       {
         source: '/api/convert/:path*',
