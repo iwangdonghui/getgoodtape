@@ -1581,6 +1581,35 @@ async def test_proxy_endpoint(request: dict):
     except Exception as e:
         return {"success": False, "error": f"Proxy test failed: {str(e)}"}
 
+@app.get("/test-all-proxies")
+async def test_all_proxies_endpoint():
+    """Test all configured proxies"""
+    try:
+        from proxy_config import proxy_manager, test_proxy
+
+        proxies = proxy_manager.get_proxy_list(include_no_proxy=False)
+        results = []
+
+        for i, proxy in enumerate(proxies[:5]):  # Test first 5 proxies only
+            if proxy:
+                is_working = test_proxy(proxy, 'https://httpbin.org/ip')
+                # Mask sensitive info in response
+                masked_proxy = proxy.replace(proxy.split(':')[1].split('@')[0], '***')
+                results.append({
+                    "index": i,
+                    "proxy": masked_proxy,
+                    "is_working": is_working
+                })
+
+        return {
+            "success": True,
+            "total_proxies": len(proxies),
+            "tested_proxies": len(results),
+            "results": results
+        }
+    except Exception as e:
+        return {"success": False, "error": f"Proxy test failed: {str(e)}"}
+
 @app.post("/fallback-extract")
 async def fallback_extract_endpoint(request: dict):
     """

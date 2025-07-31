@@ -188,20 +188,36 @@ proxy_manager = ProxyManager()
 def get_yt_dlp_proxy_options(proxy: Optional[str]) -> Dict[str, Any]:
     """Get yt-dlp options for a specific proxy"""
     options = {}
-    
+
     if proxy:
+        # yt-dlp expects proxy in specific format
         options['proxy'] = proxy
-        
+
+        # For HTTPS tunneling issues, add these options
+        options['nocheckcertificate'] = True
+        options['prefer_insecure'] = True
+
         # Add proxy-specific headers and settings
-        if 'residential' in proxy.lower() or 'smartproxy' in proxy or 'brightdata' in proxy:
+        if 'residential' in proxy.lower() or 'smartproxy' in proxy or 'brightdata' in proxy or 'decodo' in proxy:
             # Residential proxy settings
-            options['socket_timeout'] = 30
-            options['retries'] = 3
+            options['socket_timeout'] = 45
+            options['retries'] = 5
+            # Force HTTP for residential proxies to avoid HTTPS tunnel issues
+            options['force_generic_extractor'] = False
         else:
             # Datacenter/free proxy settings
-            options['socket_timeout'] = 15
-            options['retries'] = 2
-    
+            options['socket_timeout'] = 20
+            options['retries'] = 3
+
+        # Add specific headers for proxy authentication
+        options['http_headers'] = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate',
+            'Connection': 'keep-alive',
+        }
+
     return options
 
 def test_proxy(proxy: Optional[str], test_url: str = "https://httpbin.org/ip") -> bool:
