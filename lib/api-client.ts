@@ -244,12 +244,19 @@ class ApiClient {
   /**
    * Get supported platforms (with caching)
    */
-  async getPlatforms(): Promise<PlatformsResponse> {
+  async getPlatforms(
+    forceRefresh: boolean = false
+  ): Promise<PlatformsResponse> {
     const cacheKey = 'platforms';
+
+    // 如果强制刷新，清除缓存
+    if (forceRefresh) {
+      platformCache.delete(cacheKey);
+    }
 
     // 尝试从缓存获取
     const cached = platformCache.get<PlatformsResponse>(cacheKey);
-    if (cached) {
+    if (cached && !forceRefresh) {
       return cached;
     }
 
@@ -274,6 +281,13 @@ class ApiClient {
         },
       };
     }
+  }
+
+  /**
+   * Clear platforms cache
+   */
+  clearPlatformsCache(): void {
+    platformCache.delete('platforms');
   }
 
   /**
