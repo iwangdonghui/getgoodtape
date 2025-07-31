@@ -34,13 +34,6 @@ const PLATFORMS: PlatformInfo[] = [
     icon: '🎵',
   },
   {
-    name: 'Twitter',
-    domain: 'twitter.com',
-    supportedFormats: ['mp3', 'mp4'],
-    maxDuration: 1200,
-    icon: '🐦',
-  },
-  {
     name: 'Facebook',
     domain: 'facebook.com',
     supportedFormats: ['mp3', 'mp4'],
@@ -66,11 +59,6 @@ const getPlatformIcon = (platformName: string): JSX.Element => {
     'X (Twitter)': (
       <svg className="w-10 h-10" viewBox="0 0 24 24" fill="#000000">
         <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-      </svg>
-    ),
-    Twitter: (
-      <svg className="w-10 h-10" viewBox="0 0 24 24" fill="#1DA1F2">
-        <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z" />
       </svg>
     ),
     TikTok: (
@@ -106,7 +94,7 @@ const SupportedPlatforms: React.FC = () => {
         </div>
 
         <div className="flex justify-center">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-6 w-full max-w-7xl px-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 md:gap-6 w-full max-w-5xl px-4">
             {PLATFORMS.map(platform => (
               <div
                 key={platform.name}
