@@ -2,16 +2,19 @@ import { ConvertRequest, VideoMetadata, Env } from '../types';
 import { JobManager } from './job-manager';
 import { QueueManager } from './queue-manager';
 import { StorageManager } from './storage';
+import { DatabaseManager } from './database';
 
 export class ConversionService {
   private env: Env;
   private jobManager: JobManager;
   private storage: StorageManager;
+  private dbManager: DatabaseManager;
 
   constructor(env: Env) {
     this.env = env;
     this.jobManager = new JobManager(env);
     this.storage = new StorageManager(env);
+    this.dbManager = new DatabaseManager(env);
   }
 
   /**
