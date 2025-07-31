@@ -82,14 +82,14 @@ const getPlatformIcon = (platformName: string): JSX.Element => {
 
 const SupportedPlatforms: React.FC = () => {
   return (
-    <section className="py-16 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+    <section className="py-16 bg-background">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-            支持的平台
+          <h2 className="text-3xl font-bold text-foreground mb-4">
+            Supported Platforms
           </h2>
-          <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-            我们支持从多个主流视频平台下载和转换内容
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Download and convert content from multiple popular video platforms
           </p>
         </div>
 
@@ -98,17 +98,17 @@ const SupportedPlatforms: React.FC = () => {
             {PLATFORMS.map(platform => (
               <div
                 key={platform.name}
-                className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 border border-gray-200 dark:border-gray-700"
+                className="bg-card border border-border rounded-xl p-4 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
               >
                 <div className="flex flex-col items-center text-center space-y-3">
                   <div className="flex-shrink-0">
                     {getPlatformIcon(platform.name)}
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white text-sm">
+                    <h3 className="font-semibold text-foreground text-sm">
                       {platform.name}
                     </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       {platform.supportedFormats.join(', ')}
                     </p>
                   </div>
