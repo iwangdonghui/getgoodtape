@@ -4,7 +4,6 @@
 
 import { ConversionJob, PlatformConfig, UsageStats, Env } from '../types';
 import { getGlobalMockDatabase } from './mock-database';
-import { optimizeQuery } from './query-optimizer';
 
 export class DatabaseManager {
   constructor(private env: Env) {}
@@ -71,7 +70,6 @@ export class DatabaseManager {
     };
   }
 
-  @optimizeQuery('getConversionJob')
   async getConversionJob(id: string): Promise<ConversionJob | null> {
     if (!this.env.DB) {
       console.warn('Using mock database for development environment');
@@ -185,13 +183,11 @@ export class DatabaseManager {
       return await mockDb.getPlatforms();
     }
 
-    // Only return YouTube and X (Twitter) platforms
+    // Return all active platforms
     const stmt = this.env.DB.prepare(
-      'SELECT * FROM platforms WHERE is_active = 1 AND (name = ? OR name = ?) ORDER BY name'
+      'SELECT * FROM platforms WHERE is_active = 1 ORDER BY name'
     );
-    const result = await stmt
-      .bind('YouTube', 'X (Twitter)')
-      .all<PlatformConfig>();
+    const result = await stmt.all<PlatformConfig>();
     return result.results || [];
   }
 

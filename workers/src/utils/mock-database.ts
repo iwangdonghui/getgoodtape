@@ -38,6 +38,23 @@ export class MockDatabase {
       created_at: Math.floor(Date.now() / 1000),
       updated_at: Math.floor(Date.now() / 1000),
     },
+    {
+      id: 2,
+      name: 'X (Twitter)',
+      domain: 'x.com',
+      supported_formats: JSON.stringify(['mp3', 'mp4']),
+      max_duration: 1200,
+      is_active: 1,
+      config: JSON.stringify({
+        extractor: 'twitter',
+        quality_options: {
+          mp3: ['128', '192'],
+          mp4: ['360', '720'],
+        },
+      }),
+      created_at: Math.floor(Date.now() / 1000),
+      updated_at: Math.floor(Date.now() / 1000),
+    },
   ];
 
   async prepare(query: string) {
