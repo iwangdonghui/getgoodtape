@@ -1610,6 +1610,42 @@ async def test_all_proxies_endpoint():
     except Exception as e:
         return {"success": False, "error": f"Proxy test failed: {str(e)}"}
 
+@app.get("/check-ip")
+async def check_ip_endpoint():
+    """Check server's outbound IP address"""
+    try:
+        import requests
+
+        # Check without proxy
+        response = requests.get('https://httpbin.org/ip', timeout=10)
+        server_ip = response.json()
+
+        # Try with first proxy
+        from proxy_config import proxy_manager
+        proxies = proxy_manager.get_proxy_list(include_no_proxy=False)
+        proxy_result = None
+
+        if proxies:
+            first_proxy = proxies[0]
+            try:
+                proxy_response = requests.get(
+                    'https://httpbin.org/ip',
+                    proxies={'http': first_proxy, 'https': first_proxy},
+                    timeout=15
+                )
+                proxy_result = proxy_response.json()
+            except Exception as e:
+                proxy_result = {"error": str(e)}
+
+        return {
+            "success": True,
+            "server_ip": server_ip,
+            "proxy_ip": proxy_result,
+            "total_proxies": len(proxies) if proxies else 0
+        }
+    except Exception as e:
+        return {"success": False, "error": f"IP check failed: {str(e)}"}
+
 @app.post("/fallback-extract")
 async def fallback_extract_endpoint(request: dict):
     """
