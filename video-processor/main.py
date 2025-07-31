@@ -297,6 +297,20 @@ async def extract_video_metadata(url: str) -> Dict[str, Any]:
         for i, opts in enumerate(extraction_methods):
             try:
                 print(f"🔄 Trying extraction method {i+1}/{len(extraction_methods)}")
+
+                # Try to add proxy configuration for YouTube URLs
+                if 'youtube.com' in url or 'youtu.be' in url:
+                    try:
+                        from proxy_config import proxy_manager, get_yt_dlp_proxy_options
+                        proxies = proxy_manager.get_proxy_list(include_no_proxy=True)
+                        if proxies and len(proxies) > 1:  # Skip no-proxy option for YouTube
+                            best_proxy = proxies[1] if len(proxies) > 1 else proxies[0]
+                            proxy_opts = get_yt_dlp_proxy_options(best_proxy)
+                            opts = {**opts, **proxy_opts}
+                            print(f"🔄 Using proxy for metadata extraction: {best_proxy is not None}")
+                    except Exception as e:
+                        print(f"⚠️ Could not configure proxy for metadata: {e}")
+
                 with yt_dlp.YoutubeDL(opts) as ydl:
                     info = ydl.extract_info(url, download=False)
                     if info:
