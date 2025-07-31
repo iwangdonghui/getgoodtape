@@ -301,13 +301,20 @@ async def extract_video_metadata(url: str) -> Dict[str, Any]:
                 # Try to add proxy configuration for YouTube URLs
                 if 'youtube.com' in url or 'youtu.be' in url:
                     try:
-                        from proxy_config import proxy_manager, get_yt_dlp_proxy_options
-                        proxies = proxy_manager.get_proxy_list(include_no_proxy=True)
-                        if proxies and len(proxies) > 1:  # Skip no-proxy option for YouTube
-                            best_proxy = proxies[1] if len(proxies) > 1 else proxies[0]
-                            proxy_opts = get_yt_dlp_proxy_options(best_proxy)
-                            opts = {**opts, **proxy_opts}
-                            print(f"🔄 Using proxy for metadata extraction: {best_proxy is not None}")
+                        import os
+                        user = os.getenv('RESIDENTIAL_PROXY_USER')
+                        password = os.getenv('RESIDENTIAL_PROXY_PASS')
+                        endpoint = os.getenv('RESIDENTIAL_PROXY_ENDPOINT')
+
+                        if user and password and endpoint:
+                            # Use simple proxy format that worked in our test
+                            simple_proxy = f"http://{user}:{password}@{endpoint}"
+                            opts['proxy'] = simple_proxy
+                            opts['socket_timeout'] = 30
+                            opts['retries'] = 3
+                            print(f"🔄 Using simple proxy for metadata extraction: {endpoint}")
+                        else:
+                            print("⚠️ Proxy credentials not found, proceeding without proxy")
                     except Exception as e:
                         print(f"⚠️ Could not configure proxy for metadata: {e}")
 
