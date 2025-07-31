@@ -24,6 +24,14 @@ CREATE INDEX IF NOT EXISTS idx_conversion_jobs_status ON conversion_jobs(status)
 CREATE INDEX IF NOT EXISTS idx_conversion_jobs_created_at ON conversion_jobs(created_at);
 CREATE INDEX IF NOT EXISTS idx_conversion_jobs_expires_at ON conversion_jobs(expires_at);
 
+-- 复合索引优化常见查询
+CREATE INDEX IF NOT EXISTS idx_conversion_jobs_status_created ON conversion_jobs(status, created_at);
+CREATE INDEX IF NOT EXISTS idx_conversion_jobs_url_hash ON conversion_jobs(url); -- 用于重复检测
+CREATE INDEX IF NOT EXISTS idx_conversion_jobs_platform_format ON conversion_jobs(platform, format);
+
+-- 优化统计查询的索引
+CREATE INDEX IF NOT EXISTS idx_conversion_jobs_status_updated ON conversion_jobs(status, updated_at);
+
 -- 平台配置表 (platforms)
 CREATE TABLE IF NOT EXISTS platforms (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

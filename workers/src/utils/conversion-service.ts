@@ -88,6 +88,24 @@ export class ConversionService {
       // Mark job as processing
       await this.jobManager.startProcessing(jobId);
 
+      // 检查是否有最近的相同URL转换结果
+      const recentConversion = await this.dbManager.findRecentConversionByUrl(
+        request.url,
+        1
+      );
+      if (recentConversion && recentConversion.download_url) {
+        console.log(`Found recent conversion for URL: ${request.url}`);
+        await this.jobManager.completeJob(
+          jobId,
+          recentConversion.download_url,
+          recentConversion.file_path || '',
+          recentConversion.metadata
+            ? JSON.parse(recentConversion.metadata)
+            : undefined
+        );
+        return;
+      }
+
       // Call video processing service
       const processingServiceUrl =
         this.env.PROCESSING_SERVICE_URL || 'http://localhost:8000';

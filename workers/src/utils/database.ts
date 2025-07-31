@@ -4,6 +4,7 @@
 
 import { ConversionJob, PlatformConfig, UsageStats, Env } from '../types';
 import { getGlobalMockDatabase } from './mock-database';
+import { optimizeQuery } from './query-optimizer';
 
 export class DatabaseManager {
   constructor(private env: Env) {}
@@ -70,6 +71,7 @@ export class DatabaseManager {
     };
   }
 
+  @optimizeQuery('getConversionJob')
   async getConversionJob(id: string): Promise<ConversionJob | null> {
     if (!this.env.DB) {
       console.warn('Using mock database for development environment');
@@ -125,14 +127,46 @@ export class DatabaseManager {
     return result.meta.changes || 0;
   }
 
-  async getActiveConversionJobs(): Promise<ConversionJob[]> {
+  async getActiveConversionJobs(limit: number = 100): Promise<ConversionJob[]> {
     const stmt = this.env.DB.prepare(`
       SELECT * FROM conversion_jobs
       WHERE status IN ('queued', 'processing')
       ORDER BY created_at ASC
+      LIMIT ?
     `);
-    const result = await stmt.all<ConversionJob>();
+    const result = await stmt.bind(limit).all<ConversionJob>();
     return result.results || [];
+  }
+
+  // 新增：检查重复URL的优化查询
+  async findRecentConversionByUrl(
+    url: string,
+    hoursBack: number = 1
+  ): Promise<ConversionJob | null> {
+    const cutoffTime = Math.floor(Date.now() / 1000) - hoursBack * 3600;
+    const stmt = this.env.DB.prepare(`
+      SELECT * FROM conversion_jobs
+      WHERE url = ? AND created_at > ? AND status = 'completed'
+      ORDER BY created_at DESC
+      LIMIT 1
+    `);
+    const result = await stmt.bind(url, cutoffTime).first<ConversionJob>();
+    return result || null;
+  }
+
+  // 新增：批量状态更新
+  async batchUpdateJobStatus(jobIds: string[], status: string): Promise<void> {
+    if (jobIds.length === 0) return;
+
+    const placeholders = jobIds.map(() => '?').join(',');
+    const stmt = this.env.DB.prepare(`
+      UPDATE conversion_jobs
+      SET status = ?, updated_at = ?
+      WHERE id IN (${placeholders})
+    `);
+
+    const now = Math.floor(Date.now() / 1000);
+    await stmt.bind(status, now, ...jobIds).run();
   }
 
   async getJobsByStatus(status: string): Promise<ConversionJob[]> {
@@ -253,30 +287,63 @@ export class DatabaseManager {
     activeJobs: number;
     totalPlatforms: number;
     activePlatforms: number;
+    todayJobs: number;
+    successRate: number;
   }> {
-    const [totalJobs, activeJobs, totalPlatforms, activePlatforms] =
-      await Promise.all([
-        this.env.DB.prepare(
-          'SELECT COUNT(*) as count FROM conversion_jobs'
-        ).first<{ count: number }>(),
-        this.env.DB.prepare(
-          'SELECT COUNT(*) as count FROM conversion_jobs WHERE status IN (?, ?)'
-        )
-          .bind('queued', 'processing')
-          .first<{ count: number }>(),
-        this.env.DB.prepare('SELECT COUNT(*) as count FROM platforms').first<{
-          count: number;
-        }>(),
-        this.env.DB.prepare(
-          'SELECT COUNT(*) as count FROM platforms WHERE is_active = 1'
-        ).first<{ count: number }>(),
-      ]);
+    const today = new Date().toISOString().split('T')[0];
+    const todayStart = Math.floor(new Date(today).getTime() / 1000);
+
+    const [
+      totalJobs,
+      activeJobs,
+      totalPlatforms,
+      activePlatforms,
+      todayJobs,
+      successStats,
+    ] = await Promise.all([
+      this.env.DB.prepare(
+        'SELECT COUNT(*) as count FROM conversion_jobs'
+      ).first<{ count: number }>(),
+      this.env.DB.prepare(
+        'SELECT COUNT(*) as count FROM conversion_jobs WHERE status IN (?, ?)'
+      )
+        .bind('queued', 'processing')
+        .first<{ count: number }>(),
+      this.env.DB.prepare('SELECT COUNT(*) as count FROM platforms').first<{
+        count: number;
+      }>(),
+      this.env.DB.prepare(
+        'SELECT COUNT(*) as count FROM platforms WHERE is_active = 1'
+      ).first<{ count: number }>(),
+      this.env.DB.prepare(
+        'SELECT COUNT(*) as count FROM conversion_jobs WHERE created_at >= ?'
+      )
+        .bind(todayStart)
+        .first<{ count: number }>(),
+      this.env.DB.prepare(
+        `
+          SELECT
+            COUNT(*) as total,
+            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed
+          FROM conversion_jobs
+          WHERE created_at >= ?
+        `
+      )
+        .bind(todayStart)
+        .first<{ total: number; completed: number }>(),
+    ]);
+
+    const successRate = successStats?.total
+      ? (successStats.completed / successStats.total) * 100
+      : 0;
 
     return {
       totalJobs: totalJobs?.count || 0,
       activeJobs: activeJobs?.count || 0,
       totalPlatforms: totalPlatforms?.count || 0,
       activePlatforms: activePlatforms?.count || 0,
+      todayJobs: todayJobs?.count || 0,
+      successRate: Math.round(successRate * 100) / 100,
     };
   }
 }
