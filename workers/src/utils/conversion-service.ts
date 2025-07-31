@@ -32,6 +32,10 @@ export class ConversionService {
     // Start processing asynchronously
     this.processConversion(jobId, request).catch(error => {
       console.error(`Conversion failed for job ${jobId}:`, error);
+      console.error(
+        `Error stack:`,
+        error instanceof Error ? error.stack : 'No stack trace'
+      );
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       this.jobManager.failJob(jobId, errorMessage);
@@ -87,9 +91,13 @@ export class ConversionService {
     jobId: string,
     request: ConvertRequest
   ): Promise<void> {
+    console.log(
+      `Starting processConversion for job ${jobId}, URL: ${request.url}`
+    );
     try {
       // Mark job as processing
       await this.jobManager.startProcessing(jobId);
+      console.log(`Job ${jobId} marked as processing`);
 
       // 检查是否有最近的相同URL转换结果
       const recentConversion = await this.dbManager.findRecentConversionByUrl(
@@ -117,10 +125,38 @@ export class ConversionService {
       await this.jobManager.updateProgress(jobId, 20);
       console.log(`Extracting metadata for URL: ${request.url}`);
 
-      let metadataResponse = await this.callProcessingService(
-        `${processingServiceUrl}/extract-metadata`,
-        { url: request.url }
-      );
+      let metadataResponse;
+
+      // In development environment, use mock data instead of calling external service
+      if (this.env.ENVIRONMENT === 'development') {
+        console.log(`Using mock metadata for development environment`);
+        metadataResponse = {
+          success: true,
+          metadata: {
+            title: 'Mock Video Title',
+            duration: 180,
+            thumbnail: 'https://example.com/thumbnail.jpg',
+            uploader: 'Mock Uploader',
+            upload_date: '20240101',
+            view_count: 1000000,
+            description: 'Mock video description for development',
+            tags: ['mock', 'development', 'test'],
+            webpage_url: request.url,
+            id: 'mock_video_id',
+          },
+        };
+      } else {
+        try {
+          metadataResponse = await this.callProcessingService(
+            `${processingServiceUrl}/extract-metadata`,
+            { url: request.url }
+          );
+          console.log(`Metadata extraction completed successfully`);
+        } catch (error) {
+          console.error(`Metadata extraction failed with error:`, error);
+          throw error;
+        }
+      }
 
       console.log(
         `Metadata extraction result: ${JSON.stringify({ success: metadataResponse.success, hasMetadata: !!metadataResponse.metadata })}`
@@ -180,7 +216,17 @@ export class ConversionService {
         );
       }
 
+      console.log(
+        `Metadata response structure:`,
+        JSON.stringify(metadataResponse.metadata, null, 2)
+      );
+
       const metadataObj = metadataResponse.metadata as Record<string, unknown>;
+      console.log(
+        `Processing metadata object:`,
+        JSON.stringify(metadataObj, null, 2)
+      );
+
       const metadata: VideoMetadata = {
         title: metadataObj.title as string,
         duration: metadataObj.duration as number,
@@ -192,20 +238,39 @@ export class ConversionService {
         tags: metadataObj.tags as string[],
       };
 
+      console.log(`Processed metadata:`, JSON.stringify(metadata, null, 2));
+
       // Step 2: Start conversion
       await this.jobManager.updateProgress(jobId, 40);
       console.log(
         `Starting conversion: ${request.format} quality ${request.quality}`
       );
 
-      let conversionResponse = await this.callProcessingService(
-        `${processingServiceUrl}/convert`,
-        {
-          url: request.url,
-          format: request.format,
-          quality: request.quality,
-        }
-      );
+      let conversionResponse;
+
+      // In development environment, use mock conversion response
+      if (this.env.ENVIRONMENT === 'development') {
+        console.log(`Using mock conversion for development environment`);
+        conversionResponse = {
+          success: true,
+          result: {
+            download_url: `/downloads/mock_file.${request.format}`,
+            file_size: 1024000, // 1MB mock file
+            duration: metadata.duration,
+            format: request.format,
+            quality: request.quality,
+          },
+        };
+      } else {
+        conversionResponse = await this.callProcessingService(
+          `${processingServiceUrl}/convert`,
+          {
+            url: request.url,
+            format: request.format,
+            quality: request.quality,
+          }
+        );
+      }
 
       console.log(
         `Conversion result: ${JSON.stringify({ success: conversionResponse.success, hasResult: !!conversionResponse.result })}`
@@ -279,32 +344,40 @@ export class ConversionService {
       const fileName = this.generateFileName(metadata.title, request.format);
       const resultObj = conversionResponse.result as Record<string, unknown>;
 
-      // Download the file from the processing service
-      const relativeUrl = resultObj.download_url as string;
-      const fileUrl = `${processingServiceUrl}${relativeUrl}`;
-      console.log(`Downloading file from processing service: ${fileUrl}`);
+      let downloadUrl: string;
 
-      const fileResponse = await fetch(fileUrl);
-      if (!fileResponse.ok) {
-        throw new Error(
-          `Failed to download file from processing service: ${fileResponse.status}`
+      // In development environment, use mock download URL
+      if (this.env.ENVIRONMENT === 'development') {
+        console.log(`Using mock download URL for development environment`);
+        downloadUrl = `https://mock-storage.example.com/${fileName}`;
+      } else {
+        // Download the file from the processing service
+        const relativeUrl = resultObj.download_url as string;
+        const fileUrl = `${processingServiceUrl}${relativeUrl}`;
+        console.log(`Downloading file from processing service: ${fileUrl}`);
+
+        const fileResponse = await fetch(fileUrl);
+        if (!fileResponse.ok) {
+          throw new Error(
+            `Failed to download file from processing service: ${fileResponse.status}`
+          );
+        }
+
+        const fileContent = await fileResponse.arrayBuffer();
+        console.log(`Downloaded file content: ${fileContent.byteLength} bytes`);
+
+        // Upload to R2 storage
+        downloadUrl = await this.storage.uploadFileContent(
+          fileName,
+          fileContent,
+          request.format,
+          {
+            originalTitle: metadata.title,
+            platform: request.platform || 'unknown',
+            duration: metadata.duration.toString(),
+          }
         );
       }
-
-      const fileContent = await fileResponse.arrayBuffer();
-      console.log(`Downloaded file content: ${fileContent.byteLength} bytes`);
-
-      // Upload to R2 storage
-      const downloadUrl = await this.storage.uploadFileContent(
-        fileName,
-        fileContent,
-        request.format,
-        {
-          originalTitle: metadata.title,
-          platform: request.platform || 'unknown',
-          duration: metadata.duration.toString(),
-        }
-      );
 
       // Step 4: Complete job
       await this.jobManager.updateProgress(jobId, 100);
@@ -329,11 +402,17 @@ export class ConversionService {
     url: string,
     data: Record<string, unknown>
   ): Promise<Record<string, unknown>> {
+    console.log(
+      `Calling processing service: ${url} with data:`,
+      JSON.stringify(data)
+    );
+
     // Create AbortController for timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes timeout
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds timeout
 
     try {
+      console.log(`Making fetch request to: ${url}`);
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -344,6 +423,9 @@ export class ConversionService {
       });
 
       clearTimeout(timeoutId);
+      console.log(
+        `Received response: ${response.status} ${response.statusText}`
+      );
 
       if (!response.ok) {
         throw new Error(
@@ -351,9 +433,12 @@ export class ConversionService {
         );
       }
 
-      return (await response.json()) as Record<string, unknown>;
+      const result = (await response.json()) as Record<string, unknown>;
+      console.log(`Response parsed successfully, success: ${result.success}`);
+      return result;
     } catch (error) {
       clearTimeout(timeoutId);
+      console.error(`Processing service call failed:`, error);
       if (error instanceof Error && error.name === 'AbortError') {
         throw new Error(
           'Processing service timeout - video conversion took too long'
