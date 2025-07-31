@@ -1351,44 +1351,7 @@ async def test_youtube_api(request: dict):
             "test_url": url
         }
 
-@app.get("/proxy-stats")
-async def proxy_stats_endpoint():
-    """
-    Get proxy usage statistics and cost analysis
-    """
-    if not PROXY_MONITORING_AVAILABLE:
-        return {
-            "success": False,
-            "error": "Proxy monitoring not available"
-        }
 
-    try:
-        # Get today's stats
-        daily_stats = proxy_monitor.get_daily_stats()
-
-        # Get this month's stats
-        monthly_stats = proxy_monitor.get_monthly_stats()
-
-        return {
-            "success": True,
-            "daily_stats": daily_stats,
-            "monthly_stats": monthly_stats,
-            "recommendations": {
-                "current_plan": monthly_stats.get('recommendation', 'Unknown'),
-                "cost_analysis": {
-                    "8gb_plan": "$22/month (推荐)",
-                    "2gb_plan": "$6/month (轻度使用)",
-                    "25gb_plan": "$65/month (重度使用)",
-                    "payg": f"${monthly_stats.get('estimated_cost_payg', 0)}/month (按需付费)"
-                }
-            }
-        }
-    except Exception as e:
-        logger.error(f"Proxy stats error: {str(e)}")
-        return {
-            "success": False,
-            "error": f"Failed to get proxy stats: {str(e)}"
-        }
 
 @app.post("/youtube-bypass")
 async def youtube_bypass_endpoint(request: dict):
