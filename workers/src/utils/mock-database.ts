@@ -302,6 +302,7 @@ export class MockDatabase {
   }
 
   async getPlatforms() {
+    console.log('Mock database returning platforms:', this.platforms.length);
     return this.platforms;
   }
 }
@@ -310,8 +311,7 @@ export class MockDatabase {
 let globalMockDb: MockDatabase | null = null;
 
 export function getGlobalMockDatabase(): MockDatabase {
-  if (!globalMockDb) {
-    globalMockDb = new MockDatabase();
-  }
+  // Always create a new instance to avoid caching issues during development
+  globalMockDb = new MockDatabase();
   return globalMockDb;
 }

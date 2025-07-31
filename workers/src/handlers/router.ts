@@ -165,6 +165,50 @@ router.get('/platforms', async c => {
               mp4: ['360', '720', '1080'],
             },
           },
+          {
+            name: 'TikTok',
+            domain: 'tiktok.com',
+            supportedFormats: ['mp3', 'mp4'],
+            maxDuration: 600,
+            icon: '🎵',
+            qualityOptions: {
+              mp3: ['128', '192'],
+              mp4: ['360', '720'],
+            },
+          },
+          {
+            name: 'Twitter',
+            domain: 'twitter.com',
+            supportedFormats: ['mp3', 'mp4'],
+            maxDuration: 1200,
+            icon: '🐦',
+            qualityOptions: {
+              mp3: ['128', '192'],
+              mp4: ['360', '720'],
+            },
+          },
+          {
+            name: 'Facebook',
+            domain: 'facebook.com',
+            supportedFormats: ['mp3', 'mp4'],
+            maxDuration: 3600,
+            icon: '📘',
+            qualityOptions: {
+              mp3: ['128', '192'],
+              mp4: ['360', '720'],
+            },
+          },
+          {
+            name: 'Instagram',
+            domain: 'instagram.com',
+            supportedFormats: ['mp3', 'mp4'],
+            maxDuration: 900,
+            icon: '📷',
+            qualityOptions: {
+              mp3: ['128', '192'],
+              mp4: ['360', '720'],
+            },
+          },
         ];
       }
     }
