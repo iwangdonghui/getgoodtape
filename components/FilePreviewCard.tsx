@@ -56,12 +56,12 @@ export default function FilePreviewCard({
 
   return (
     <div className="bg-white rounded-xl shadow-lg overflow-hidden max-w-sm mx-auto">
-      {/* 缩略图区域 */}
+      {/* Thumbnail Area */}
       <div className="relative h-36 sm:h-48 bg-gradient-to-br from-gray-100 to-gray-200">
         {metadata?.thumbnail ? (
           <img
             src={metadata.thumbnail}
-            alt={metadata.title || '视频缩略图'}
+            alt={metadata.title || 'Video thumbnail'}
             className="w-full h-full object-cover"
             onError={e => {
               const target = e.target as HTMLImageElement;
@@ -82,12 +82,12 @@ export default function FilePreviewCard({
           </div>
         )}
 
-        {/* 格式标签 */}
+        {/* Format Label */}
         <div className="absolute top-2 sm:top-3 right-2 sm:right-3 bg-black/70 text-white px-2 py-1 rounded text-xs sm:text-sm font-medium">
           {format.toUpperCase()}
         </div>
 
-        {/* 时长标签 */}
+        {/* Duration Label */}
         {metadata?.duration && (
           <div className="absolute bottom-2 sm:bottom-3 right-2 sm:right-3 bg-black/70 text-white px-2 py-1 rounded text-xs sm:text-sm font-medium">
             {formatDuration(metadata.duration)}
@@ -95,10 +95,12 @@ export default function FilePreviewCard({
         )}
       </div>
 
-      {/* 文件信息区域 */}
+      {/* File Information Area */}
       <div className="p-3 sm:p-4">
         <h3 className="font-semibold text-gray-900 text-base sm:text-lg mb-2 line-clamp-2 break-words">
-          {metadata?.title || filename || `转换后的${format.toUpperCase()}文件`}
+          {metadata?.title ||
+            filename ||
+            `Converted ${format.toUpperCase()} file`}
         </h3>
 
         <div className="flex items-center justify-between text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
@@ -117,7 +119,7 @@ export default function FilePreviewCard({
           )}
         </div>
 
-        {/* 下载按钮 */}
+        {/* Download Button */}
         <button
           onClick={onDownload}
           disabled={isDownloading}
@@ -126,12 +128,12 @@ export default function FilePreviewCard({
           {isDownloading ? (
             <>
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              <span className="text-sm sm:text-base">下载中...</span>
+              <span className="text-sm sm:text-base">Downloading...</span>
             </>
           ) : (
             <>
               <span>📥</span>
-              <span className="text-sm sm:text-base">下载文件</span>
+              <span className="text-sm sm:text-base">Download File</span>
             </>
           )}
         </button>

@@ -100,7 +100,7 @@ export default function ConversionResult({
       console.log('Download completed:', filename);
     } catch (error) {
       console.error('Download failed:', error);
-      alert('下载失败，请稍后重试或联系客服。');
+      alert('Download failed, please try again later or contact support.');
     } finally {
       setTimeout(() => setIsDownloading(false), 2000);
     }
@@ -145,15 +145,15 @@ export default function ConversionResult({
         </div>
         <div className="min-w-0 flex-1">
           <h3 className="text-lg sm:text-xl font-bold text-deep-brown">
-            转换完成！
+            Conversion Complete!
           </h3>
           <p className="text-sm sm:text-base text-green-700">
-            您的{format.toUpperCase()}文件已准备好下载
+            Your {format.toUpperCase()} file is ready for download
           </p>
         </div>
       </div>
 
-      {/* 文件预览卡片 */}
+      {/* File Preview Card */}
       <div className="mb-6">
         <FilePreviewCard
           metadata={metadata}
@@ -173,41 +173,41 @@ export default function ConversionResult({
             className="flex items-center space-x-2 text-sm text-deep-brown hover:text-warm-orange transition-colors min-h-[44px]"
           >
             <span>{showDetails ? '▼' : '▶'}</span>
-            <span>视频详细信息</span>
+            <span>Video Details</span>
           </button>
 
           {showDetails && (
             <div className="mt-3 p-3 sm:p-4 bg-gray-50 rounded-lg">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
                 <div className="sm:col-span-2">
-                  <span className="font-medium text-gray-700">标题:</span>
+                  <span className="font-medium text-gray-700">Title:</span>
                   <p className="mt-1 text-gray-600 break-words">
                     {metadata.title}
                   </p>
                 </div>
                 <div>
-                  <span className="font-medium text-gray-700">上传者:</span>
+                  <span className="font-medium text-gray-700">Uploader:</span>
                   <p className="mt-1 text-gray-600 break-words">
                     {metadata.uploader}
                   </p>
                 </div>
                 <div>
-                  <span className="font-medium text-gray-700">时长:</span>
+                  <span className="font-medium text-gray-700">Duration:</span>
                   <p className="mt-1 text-gray-600">
                     {formatDuration(metadata.duration)}
                   </p>
                 </div>
                 <div>
-                  <span className="font-medium text-gray-700">转换格式:</span>
+                  <span className="font-medium text-gray-700">Format:</span>
                   <p className="mt-1 text-gray-600">
-                    {format.toUpperCase()} ({quality} 质量)
+                    {format.toUpperCase()} ({quality} quality)
                   </p>
                 </div>
               </div>
 
               {metadata.thumbnail && (
                 <div className="mt-4">
-                  <span className="font-medium text-gray-700">缩略图:</span>
+                  <span className="font-medium text-gray-700">Thumbnail:</span>
                   <img
                     src={metadata.thumbnail}
                     alt="Video thumbnail"
@@ -230,7 +230,7 @@ export default function ConversionResult({
           className="bg-warm-orange text-white px-6 sm:px-8 py-3 rounded-lg font-semibold hover:bg-warm-orange/90 transition-colors flex items-center justify-center space-x-2 min-h-[44px] touch-action-manipulation"
         >
           <span>🔄</span>
-          <span>转换新文件</span>
+          <span>Convert New File</span>
         </button>
 
         <button
@@ -238,20 +238,28 @@ export default function ConversionResult({
           className="px-4 sm:px-6 py-3 text-deep-brown border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center space-x-2 min-h-[44px] touch-action-manipulation"
         >
           <span>🏠</span>
-          <span>返回首页</span>
+          <span>Back to Home</span>
         </button>
       </div>
 
       {/* Download Tips */}
       <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
         <h5 className="font-medium text-blue-800 mb-2 text-sm sm:text-base">
-          💡 下载提示
+          💡 Download Tips
         </h5>
         <ul className="text-xs sm:text-sm text-blue-700 space-y-1">
-          <li>• 文件将自动开始下载到您的默认下载文件夹</li>
-          <li>• 如果下载没有开始，请检查浏览器的下载设置</li>
-          <li>• 文件链接将在24小时后过期</li>
-          <li>• 建议立即下载以避免链接失效</li>
+          <li>
+            • File will automatically start downloading to your default download
+            folder
+          </li>
+          <li>
+            • If download doesn't start, please check your browser's download
+            settings
+          </li>
+          <li>• File link will expire after 24 hours</li>
+          <li>
+            • We recommend downloading immediately to avoid link expiration
+          </li>
         </ul>
       </div>
     </div>

@@ -44,7 +44,7 @@ export default function BrowserCompatibilityTester() {
       let version = 'Unknown';
       let engine = 'Unknown';
 
-      // 检测浏览器
+      // Detect browser
       if (ua.includes('Chrome') && !ua.includes('Edg')) {
         name = 'Chrome';
         const match = ua.match(/Chrome\/(\d+)/);
@@ -67,7 +67,7 @@ export default function BrowserCompatibilityTester() {
         engine = 'Blink';
       }
 
-      // 检测平台
+      // Detect platform
       let platform = 'Unknown';
       if (ua.includes('iPhone')) platform = 'iPhone';
       else if (ua.includes('iPad')) platform = 'iPad';
@@ -76,7 +76,7 @@ export default function BrowserCompatibilityTester() {
       else if (ua.includes('Windows')) platform = 'Windows';
       else if (ua.includes('Linux')) platform = 'Linux';
 
-      // 检测设备类型
+      // Detect device type
       const isMobile = /iPhone|Android.*Mobile/i.test(ua);
       const isTablet = /iPad|Android(?!.*Mobile)/i.test(ua);
 
@@ -237,7 +237,7 @@ export default function BrowserCompatibilityTester() {
       {showTester && (
         <div className="fixed bottom-28 left-4 z-50 bg-white border border-gray-300 rounded-lg shadow-xl p-4 max-w-sm max-h-96 overflow-y-auto text-xs">
           <div className="flex justify-between items-center mb-3">
-            <h3 className="font-bold text-deep-brown">浏览器兼容性</h3>
+            <h3 className="font-bold text-deep-brown">Browser Compatibility</h3>
             <button
               onClick={() => setShowTester(false)}
               className="text-gray-500 hover:text-gray-700"
@@ -248,21 +248,21 @@ export default function BrowserCompatibilityTester() {
 
           <div className="space-y-2 mb-4">
             <div>
-              <strong>浏览器:</strong> {browserInfo.name} {browserInfo.version}
+              <strong>Browser:</strong> {browserInfo.name} {browserInfo.version}
             </div>
             <div>
-              <strong>引擎:</strong> {browserInfo.engine}
+              <strong>Engine:</strong> {browserInfo.engine}
             </div>
             <div>
-              <strong>平台:</strong> {browserInfo.platform}
+              <strong>Platform:</strong> {browserInfo.platform}
             </div>
             <div>
-              <strong>设备:</strong>{' '}
+              <strong>Device:</strong>{' '}
               {browserInfo.isMobile
-                ? '手机'
+                ? 'Mobile'
                 : browserInfo.isTablet
-                  ? '平板'
-                  : '桌面'}
+                  ? 'Tablet'
+                  : 'Desktop'}
             </div>
           </div>
 
@@ -270,7 +270,7 @@ export default function BrowserCompatibilityTester() {
             onClick={runCompatibilityTests}
             className="w-full bg-blue-600 text-white py-2 rounded mb-3 hover:bg-blue-700 transition-colors"
           >
-            运行兼容性测试
+            Run Compatibility Test
           </button>
 
           {testResults.length > 0 && (

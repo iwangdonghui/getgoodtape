@@ -28,12 +28,13 @@ export default function ConversionError({
       return {
         type: 'network',
         icon: '🌐',
-        title: '网络连接错误',
-        description: '无法连接到服务器，请检查您的网络连接',
+        title: 'Network Connection Error',
+        description:
+          'Unable to connect to server, please check your network connection',
         suggestions: [
-          '检查您的网络连接是否正常',
-          '尝试刷新页面',
-          '如果问题持续，请稍后重试',
+          'Check if your network connection is working',
+          'Try refreshing the page',
+          'If the problem persists, please try again later',
         ],
       };
     }
@@ -46,13 +47,13 @@ export default function ConversionError({
       return {
         type: 'url',
         icon: '🔗',
-        title: 'URL链接错误',
-        description: '提供的视频链接无效或无法访问',
+        title: 'URL Link Error',
+        description: 'The provided video link is invalid or inaccessible',
         suggestions: [
-          '确认视频链接是否正确',
-          '检查视频是否为公开可访问',
-          '尝试使用其他视频链接',
-          '确保链接来自支持的平台',
+          'Confirm the video link is correct',
+          'Check if the video is publicly accessible',
+          'Try using a different video link',
+          'Make sure the link is from a supported platform',
         ],
       };
     }
@@ -61,13 +62,14 @@ export default function ConversionError({
       return {
         type: 'timeout',
         icon: '⏰',
-        title: '处理超时',
-        description: '转换过程耗时过长，已自动停止',
+        title: 'Processing Timeout',
+        description:
+          'Conversion process took too long and was automatically stopped',
         suggestions: [
-          '视频可能过长或过大',
-          '尝试转换较短的视频',
-          '选择较低的质量设置',
-          '稍后重试，服务器可能正忙',
+          'Video might be too long or too large',
+          'Try converting a shorter video',
+          'Select lower quality settings',
+          'Try again later, server might be busy',
         ],
       };
     }
@@ -76,12 +78,12 @@ export default function ConversionError({
       return {
         type: 'format',
         icon: '📁',
-        title: '格式不支持',
-        description: '视频格式不受支持或转换失败',
+        title: 'Format Not Supported',
+        description: 'Video format is not supported or conversion failed',
         suggestions: [
-          '尝试使用不同的视频源',
-          '检查视频是否损坏',
-          '尝试不同的输出格式',
+          'Try using a different video source',
+          'Check if the video is corrupted',
+          'Try a different output format',
         ],
       };
     }
@@ -94,12 +96,12 @@ export default function ConversionError({
       return {
         type: 'quota',
         icon: '🚫',
-        title: '服务限制',
-        description: '已达到服务使用限制',
+        title: 'Service Limit',
+        description: 'Service usage limit has been reached',
         suggestions: [
-          '请稍后重试',
-          '服务器可能正在维护',
-          '联系支持团队获取帮助',
+          'Please try again later',
+          'Server might be under maintenance',
+          'Contact support team for assistance',
         ],
       };
     }
@@ -108,12 +110,12 @@ export default function ConversionError({
     return {
       type: 'unknown',
       icon: '❌',
-      title: '转换失败',
-      description: '转换过程中发生未知错误',
+      title: 'Conversion Failed',
+      description: 'An unknown error occurred during conversion',
       suggestions: [
-        '请重试转换',
-        '如果问题持续，请联系支持',
-        '尝试使用不同的视频链接',
+        'Please retry the conversion',
+        'If the problem persists, contact support',
+        'Try using a different video link',
       ],
     };
   };
@@ -122,9 +124,9 @@ export default function ConversionError({
 
   const getRetryButtonText = () => {
     if (retryCount >= maxRetries) {
-      return '已达到最大重试次数';
+      return 'Max retries reached';
     }
-    return `重试 (${retryCount}/${maxRetries})`;
+    return `Retry (${retryCount}/${maxRetries})`;
   };
 
   return (
@@ -143,12 +145,12 @@ export default function ConversionError({
       {/* Error Message */}
       <div className="mb-4 p-4 bg-red-100 rounded-lg">
         <div className="flex items-center justify-between">
-          <span className="font-medium text-red-800">错误详情:</span>
+          <span className="font-medium text-red-800">Error Details:</span>
           <button
             onClick={() => setShowDetails(!showDetails)}
             className="text-sm text-red-600 hover:text-red-800 transition-colors"
           >
-            {showDetails ? '隐藏详情' : '显示详情'}
+            {showDetails ? 'Hide Details' : 'Show Details'}
           </button>
         </div>
 
@@ -157,9 +159,9 @@ export default function ConversionError({
             <p className="text-sm text-red-700 font-mono bg-red-50 p-2 rounded">
               {error}
             </p>
-            {jobId && <p className="text-xs text-red-600">任务ID: {jobId}</p>}
+            {jobId && <p className="text-xs text-red-600">Job ID: {jobId}</p>}
             <p className="text-xs text-red-600">
-              时间: {new Date().toLocaleString()}
+              Time: {new Date().toLocaleString()}
             </p>
           </div>
         ) : (
@@ -199,7 +201,7 @@ export default function ConversionError({
           className="flex-1 bg-gray-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-600 transition-colors flex items-center justify-center space-x-2"
         >
           <span>🔄</span>
-          <span>重新开始</span>
+          <span>Start Over</span>
         </button>
 
         <button
@@ -207,20 +209,20 @@ export default function ConversionError({
           className="px-6 py-3 text-deep-brown border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center space-x-2"
         >
           <span>🏠</span>
-          <span>返回首页</span>
+          <span>Back to Home</span>
         </button>
       </div>
 
       {/* Support Info */}
       <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-        <h5 className="font-medium text-blue-800 mb-2">🆘 需要帮助？</h5>
+        <h5 className="font-medium text-blue-800 mb-2">🆘 Need Help?</h5>
         <div className="text-sm text-blue-700 space-y-1">
-          <p>如果问题持续存在，您可以：</p>
+          <p>If the problem persists, you can:</p>
           <ul className="ml-4 space-y-1">
-            <li>• 尝试使用不同的浏览器</li>
-            <li>• 清除浏览器缓存和Cookie</li>
-            <li>• 检查是否有浏览器扩展阻止了请求</li>
-            <li>• 联系我们的技术支持团队</li>
+            <li>• Try using a different browser</li>
+            <li>• Clear browser cache and cookies</li>
+            <li>• Check if browser extensions are blocking requests</li>
+            <li>• Contact our technical support team</li>
           </ul>
         </div>
       </div>
@@ -229,7 +231,7 @@ export default function ConversionError({
       {retryCount > 0 && (
         <div className="mt-4 p-3 bg-gray-50 rounded-lg">
           <div className="flex items-center justify-between text-sm text-gray-600">
-            <span>重试进度</span>
+            <span>Retry Progress</span>
             <span>
               {retryCount}/{maxRetries}
             </span>

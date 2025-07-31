@@ -39,48 +39,51 @@ export default function ConversionProgress({
     switch (status) {
       case 'queued':
         return {
-          label: '排队中',
+          label: 'Queued',
           color: 'text-yellow-600',
           bgColor: 'bg-yellow-50',
           borderColor: 'border-yellow-200',
           icon: '⏳',
-          description: '您的转换任务已加入队列，请稍候...',
+          description:
+            'Your conversion task has been added to the queue, please wait...',
         };
       case 'processing':
         return {
-          label: '处理中',
+          label: 'Processing',
           color: 'text-blue-600',
           bgColor: 'bg-blue-50',
           borderColor: 'border-blue-200',
           icon: '⚡',
-          description: currentStep || '正在转换您的视频...',
+          description: currentStep || 'Converting your video...',
         };
       case 'completed':
         return {
-          label: '转换完成',
+          label: 'Conversion Complete',
           color: 'text-green-600',
           bgColor: 'bg-green-50',
           borderColor: 'border-green-200',
           icon: '✅',
-          description: '转换成功完成！您可以下载文件了。',
+          description:
+            'Conversion completed successfully! You can download the file now.',
         };
       case 'failed':
         return {
-          label: '转换失败',
+          label: 'Conversion Failed',
           color: 'text-red-600',
           bgColor: 'bg-red-50',
           borderColor: 'border-red-200',
           icon: '❌',
-          description: error || '转换过程中出现错误，请重试。',
+          description:
+            error || 'An error occurred during conversion, please try again.',
         };
       default:
         return {
-          label: '准备中',
+          label: 'Preparing',
           color: 'text-gray-600',
           bgColor: 'bg-gray-50',
           borderColor: 'border-gray-200',
           icon: '⚪',
-          description: '准备开始转换...',
+          description: 'Preparing to start conversion...',
         };
     }
   };
@@ -88,19 +91,19 @@ export default function ConversionProgress({
   const statusInfo = getStatusInfo();
 
   const formatTime = (seconds: number): string => {
-    if (seconds < 60) return `${Math.round(seconds)}秒`;
+    if (seconds < 60) return `${Math.round(seconds)}s`;
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = Math.round(seconds % 60);
-    return `${minutes}分${remainingSeconds}秒`;
+    return `${minutes}m ${remainingSeconds}s`;
   };
 
   const getProgressSteps = () => {
     const steps = [
-      { label: '验证链接', threshold: 10 },
-      { label: '提取信息', threshold: 30 },
-      { label: '开始转换', threshold: 50 },
-      { label: '处理中', threshold: 80 },
-      { label: '完成', threshold: 100 },
+      { label: 'Validating', threshold: 10 },
+      { label: 'Extracting', threshold: 30 },
+      { label: 'Converting', threshold: 50 },
+      { label: 'Processing', threshold: 80 },
+      { label: 'Complete', threshold: 100 },
     ];
 
     return steps.map((step, index) => ({
@@ -209,7 +212,9 @@ export default function ConversionProgress({
             status === 'processing' && (
               <span className="flex items-center space-x-1">
                 <span>⏱️</span>
-                <span>预计剩余: {formatTime(estimatedTimeRemaining)}</span>
+                <span>
+                  Estimated remaining: {formatTime(estimatedTimeRemaining)}
+                </span>
               </span>
             )}
         </div>
@@ -218,7 +223,7 @@ export default function ConversionProgress({
         {status === 'processing' && (
           <div className="flex items-center space-x-2">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-xs">实时更新</span>
+            <span className="text-xs">Live updates</span>
           </div>
         )}
       </div>
@@ -227,17 +232,19 @@ export default function ConversionProgress({
       {status === 'queued' && (
         <div className="mt-3 p-3 bg-yellow-100 rounded-lg">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-yellow-800">您在队列中的位置</span>
+            <span className="text-sm text-yellow-800">
+              Your position in queue
+            </span>
             <span className="font-semibold text-yellow-800">
-              #{queuePosition || '计算中...'}
+              #{queuePosition || 'Calculating...'}
             </span>
           </div>
           <div className="mt-2 text-xs text-yellow-700">
             {queuePosition && queuePosition <= 3
-              ? '即将开始处理'
+              ? 'Starting soon'
               : queuePosition && queuePosition <= 10
-                ? '预计等待时间: 2-5分钟'
-                : '预计等待时间: 5-10分钟'}
+                ? 'Estimated wait time: 2-5 minutes'
+                : 'Estimated wait time: 5-10 minutes'}
           </div>
         </div>
       )}

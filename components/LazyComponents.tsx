@@ -3,24 +3,24 @@
 import dynamic from 'next/dynamic';
 import { ComponentType } from 'react';
 
-// 懒加载组件的加载指示器
+// Loading indicator for lazy-loaded components
 const LoadingSpinner = () => (
   <div className="flex items-center justify-center p-8">
     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-warm-orange"></div>
-    <span className="ml-3 text-deep-brown/70">加载中...</span>
+    <span className="ml-3 text-deep-brown/70">Loading...</span>
   </div>
 );
 
-// 懒加载转换进度组件
+// Lazy-loaded conversion progress component
 export const LazyConversionProgress = dynamic(
   () => import('./ConversionProgress'),
   {
     loading: () => <LoadingSpinner />,
-    ssr: false, // 客户端渲染，避免服务端渲染开销
+    ssr: false, // Client-side rendering to avoid server-side rendering overhead
   }
 );
 
-// 懒加载转换结果组件
+// Lazy-loaded conversion result component
 export const LazyConversionResult = dynamic(
   () => import('./ConversionResult'),
   {
@@ -29,13 +29,13 @@ export const LazyConversionResult = dynamic(
   }
 );
 
-// 懒加载转换错误组件
+// Lazy-loaded conversion error component
 export const LazyConversionError = dynamic(() => import('./ConversionError'), {
   loading: () => <LoadingSpinner />,
   ssr: false,
 });
 
-// 懒加载平台图标组件
+// Lazy-loaded platform icons component
 export const LazyPlatformIcons = dynamic(
   () => import('./PlatformIcons').then(mod => ({ default: mod.PlatformIcons })),
   {
@@ -46,7 +46,7 @@ export const LazyPlatformIcons = dynamic(
   }
 );
 
-// 高阶组件：为任何组件添加懒加载功能
+// Higher-order component: add lazy loading functionality to any component
 export function withLazyLoading<T extends object>(
   Component: ComponentType<T>,
   options?: {
@@ -60,7 +60,7 @@ export function withLazyLoading<T extends object>(
   });
 }
 
-// 预加载函数：在用户交互前预加载组件
+// Preload functions: preload components before user interaction
 export const preloadComponents = {
   conversionProgress: () => import('./ConversionProgress'),
   conversionResult: () => import('./ConversionResult'),
@@ -68,21 +68,21 @@ export const preloadComponents = {
   platformIcons: () => import('./PlatformIcons'),
 };
 
-// 智能预加载：根据用户行为预加载相关组件
+// Smart preloading: preload related components based on user behavior
 export const smartPreload = {
-  // 当用户开始输入URL时预加载转换相关组件
+  // Preload conversion-related components when user starts typing URL
   onUrlInput: () => {
     preloadComponents.conversionProgress();
     preloadComponents.conversionResult();
     preloadComponents.conversionError();
   },
 
-  // 当检测到平台时预加载图标组件
+  // Preload icon components when platform is detected
   onPlatformDetected: () => {
     preloadComponents.platformIcons();
   },
 
-  // 当开始转换时预加载结果组件
+  // Preload result components when conversion starts
   onConversionStart: () => {
     preloadComponents.conversionResult();
     preloadComponents.conversionError();
