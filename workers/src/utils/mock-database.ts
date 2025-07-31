@@ -330,7 +330,9 @@ export class MockDatabase {
 let globalMockDb: MockDatabase | null = null;
 
 export function getGlobalMockDatabase(): MockDatabase {
-  // Always create a new instance to avoid caching issues during development
-  globalMockDb = new MockDatabase();
+  // Use singleton pattern to persist data across requests
+  if (!globalMockDb) {
+    globalMockDb = new MockDatabase();
+  }
   return globalMockDb;
 }
