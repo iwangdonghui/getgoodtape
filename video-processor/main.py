@@ -1646,6 +1646,60 @@ async def check_ip_endpoint():
     except Exception as e:
         return {"success": False, "error": f"IP check failed: {str(e)}"}
 
+@app.post("/test-proxy-formats")
+async def test_proxy_formats_endpoint(request: dict):
+    """Test different proxy authentication formats"""
+    try:
+        import requests
+        import os
+
+        user = os.getenv('RESIDENTIAL_PROXY_USER')
+        password = os.getenv('RESIDENTIAL_PROXY_PASS')
+        endpoint = os.getenv('RESIDENTIAL_PROXY_ENDPOINT')
+
+        if not all([user, password, endpoint]):
+            return {"success": False, "error": "Proxy credentials not configured"}
+
+        # Test different formats
+        formats_to_test = [
+            f"http://{user}:{password}@{endpoint}",
+            f"http://{user}-session-12345:{password}@{endpoint}",
+            f"http://{user}-country-US:{password}@{endpoint}",
+            f"http://{user}-session-12345-country-US:{password}@{endpoint}",
+        ]
+
+        results = []
+        for i, proxy_url in enumerate(formats_to_test):
+            try:
+                response = requests.get(
+                    'https://httpbin.org/ip',
+                    proxies={'http': proxy_url, 'https': proxy_url},
+                    timeout=10
+                )
+                result = {
+                    "format": i + 1,
+                    "proxy": proxy_url.replace(password, "***"),
+                    "success": True,
+                    "ip": response.json()
+                }
+            except Exception as e:
+                result = {
+                    "format": i + 1,
+                    "proxy": proxy_url.replace(password, "***"),
+                    "success": False,
+                    "error": str(e)
+                }
+            results.append(result)
+
+        return {
+            "success": True,
+            "server_ip": "208.77.246.56",
+            "formats_tested": len(results),
+            "results": results
+        }
+    except Exception as e:
+        return {"success": False, "error": f"Proxy format test failed: {str(e)}"}
+
 @app.post("/fallback-extract")
 async def fallback_extract_endpoint(request: dict):
     """
