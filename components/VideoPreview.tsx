@@ -19,7 +19,7 @@ const formatDuration = (seconds: number): string => {
   return `${minutes}:${secs.toString().padStart(2, '0')}`;
 };
 
-export const VideoPreview: React.FC<VideoPreviewProps> = ({
+const VideoPreview: React.FC<VideoPreviewProps> = ({
   title,
   thumbnail,
   duration,

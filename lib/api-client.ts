@@ -102,8 +102,17 @@ export interface ValidationResponse {
   normalizedUrl?: string;
   metadata?: {
     title?: string;
+    description?: string;
     duration?: number;
+    durationText?: string;
     thumbnail?: string;
+    channelTitle?: string;
+    uploader?: string;
+    publishedAt?: string;
+    viewCount?: number;
+    likeCount?: number;
+    videoId?: string;
+    platform?: string;
   };
   error?: {
     type: string;

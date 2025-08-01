@@ -305,12 +305,15 @@ export default function AppPage() {
                       {/* Video Preview */}
                       {url &&
                         urlValidation.isValid &&
-                        conversionState.metadata && (
+                        urlValidation.metadata && (
                           <VideoPreview
-                            title={conversionState.metadata.title}
-                            thumbnail={conversionState.metadata.thumbnail}
-                            duration={conversionState.metadata.duration}
-                            uploader={conversionState.metadata.uploader}
+                            title={urlValidation.metadata.title}
+                            thumbnail={urlValidation.metadata.thumbnail}
+                            duration={urlValidation.metadata.duration}
+                            uploader={
+                              urlValidation.metadata.channelTitle ||
+                              urlValidation.metadata.uploader
+                            }
                             platform={
                               typeof urlValidation.platform === 'string'
                                 ? urlValidation.platform
