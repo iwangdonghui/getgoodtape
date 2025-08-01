@@ -607,6 +607,7 @@ async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: b
         import tempfile
         import os
         import asyncio
+        import subprocess
 
         # Get quality settings
         quality_settings = get_quality_settings('mp3', quality)
@@ -839,64 +840,64 @@ async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: b
                     # Re-raise the original error if it's not a proxy issue
                     raise
 
-                # Find the converted file
-                all_files = os.listdir(temp_dir)
-                logger.info(f"Files in temp directory: {all_files}")
+            # Find the converted file
+            all_files = os.listdir(temp_dir)
+            logger.info(f"Files in temp directory: {all_files}")
 
-                converted_files = [f for f in all_files if f.endswith('.mp3')]
-                if not converted_files:
-                    # Try to find any audio file that might have been created
-                    audio_files = [f for f in all_files if any(f.endswith(ext) for ext in ['.m4a', '.webm', '.ogg', '.wav'])]
-                    if audio_files:
-                        logger.info(f"Found audio file to convert: {audio_files[0]}")
-                        # Use FFmpeg to convert to MP3
-                        input_file = os.path.join(temp_dir, audio_files[0])
-                        # Generate unique temp filename based on output path
-                        temp_filename = os.path.basename(output_path)
-                        output_file = os.path.join(temp_dir, temp_filename)
+            converted_files = [f for f in all_files if f.endswith('.mp3')]
+            if not converted_files:
+                # Try to find any audio file that might have been created
+                audio_files = [f for f in all_files if any(f.endswith(ext) for ext in ['.m4a', '.webm', '.ogg', '.wav'])]
+                if audio_files:
+                    logger.info(f"Found audio file to convert: {audio_files[0]}")
+                    # Use FFmpeg to convert to MP3
+                    input_file = os.path.join(temp_dir, audio_files[0])
+                    # Generate unique temp filename based on output path
+                    temp_filename = os.path.basename(output_path)
+                    output_file = os.path.join(temp_dir, temp_filename)
 
-                        ffmpeg_cmd = [
-                            'ffmpeg', '-i', input_file,
-                            '-codec:a', 'libmp3lame',
-                            '-b:a', bitrate,
-                            '-y',  # Overwrite output file
-                            output_file
-                        ]
+                    ffmpeg_cmd = [
+                        'ffmpeg', '-i', input_file,
+                        '-codec:a', 'libmp3lame',
+                        '-b:a', bitrate,
+                        '-y',  # Overwrite output file
+                        output_file
+                    ]
 
-                        result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
-                        if result.returncode == 0:
-                            temp_file = output_file
-                        else:
-                            logger.error(f"FFmpeg conversion failed: {result.stderr}")
-                            raise ValueError(f"Failed to convert audio to MP3: {result.stderr}")
+                    result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+                    if result.returncode == 0:
+                        temp_file = output_file
                     else:
-                        raise ValueError("No audio file was created")
+                        logger.error(f"FFmpeg conversion failed: {result.stderr}")
+                        raise ValueError(f"Failed to convert audio to MP3: {result.stderr}")
                 else:
-                    temp_file = os.path.join(temp_dir, converted_files[0])
+                    raise ValueError("No audio file was created")
+            else:
+                temp_file = os.path.join(temp_dir, converted_files[0])
 
-                # Move to final output path
-                os.makedirs(os.path.dirname(output_path), exist_ok=True)
-                os.rename(temp_file, output_path)
+            # Move to final output path
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            os.rename(temp_file, output_path)
 
-                # Get file size
-                file_size = os.path.getsize(output_path)
+            # Get file size
+            file_size = os.path.getsize(output_path)
 
-                logger.info(f"Successfully converted to MP3: {title} ({format_duration(duration)}) - {file_size} bytes")
+            logger.info(f"Successfully converted to MP3: {title} ({format_duration(duration)}) - {file_size} bytes")
 
-                # Generate download URL for the file
-                filename = os.path.basename(output_path)
-                download_url = f"/download/{filename}"
+            # Generate download URL for the file
+            filename = os.path.basename(output_path)
+            download_url = f"/download/{filename}"
 
-                return ConversionResult(
-                    success=True,
-                    file_path=output_path,
-                    file_size=file_size,
-                    duration=duration,
-                    format='mp3',
-                    quality=quality,
-                    download_url=download_url,
-                    filename=filename
-                )
+            return ConversionResult(
+                success=True,
+                file_path=output_path,
+                file_size=file_size,
+                duration=duration,
+                format='mp3',
+                quality=quality,
+                download_url=download_url,
+                filename=filename
+            )
 
     except Exception as e:
         error_msg = str(e)
