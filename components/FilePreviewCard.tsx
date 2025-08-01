@@ -70,14 +70,14 @@ export default function FilePreviewCard({
               if (parent) {
                 const fallback = document.createElement('div');
                 fallback.className =
-                  'w-full h-full bg-gradient-to-br from-warm-orange to-tape-gold flex items-center justify-center text-4xl sm:text-6xl';
+                  'w-full h-full bg-gradient-to-br from-warm-orange to-tape-gold flex items-center justify-center text-4xl sm:text-6xl text-white';
                 fallback.innerHTML = getFileIcon();
                 parent.appendChild(fallback);
               }
             }}
           />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-warm-orange to-tape-gold flex items-center justify-center text-4xl sm:text-6xl">
+          <div className="w-full h-full bg-gradient-to-br from-warm-orange to-tape-gold flex items-center justify-center text-4xl sm:text-6xl text-white">
             {getFileIcon()}
           </div>
         )}
@@ -97,15 +97,15 @@ export default function FilePreviewCard({
 
       {/* File Information Area */}
       <div className="p-3 sm:p-4">
-        <h3 className="font-semibold text-gray-900 text-base sm:text-lg mb-2 line-clamp-2 break-words">
+        <h3 className="font-semibold text-deep-brown text-base sm:text-lg mb-2 line-clamp-2 break-words">
           {metadata?.title ||
             filename ||
             `Converted ${format.toUpperCase()} file`}
         </h3>
 
-        <div className="flex items-center justify-between text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
+        <div className="flex items-center justify-between text-xs sm:text-sm text-deep-brown/70 mb-3 sm:mb-4">
           <span className="flex items-center space-x-1">
-            <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+            <span className="w-2 h-2 bg-warm-orange rounded-full"></span>
             <span>{getQualityLabel()}</span>
           </span>
 
@@ -123,18 +123,15 @@ export default function FilePreviewCard({
         <button
           onClick={onDownload}
           disabled={isDownloading}
-          className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-3 rounded-lg font-semibold hover:from-green-600 hover:to-green-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 min-h-[44px] touch-action-manipulation"
+          className="w-full bg-mint-green hover:bg-mint-green-hover text-deep-brown py-3 rounded-lg font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-h-[44px] touch-action-manipulation"
         >
           {isDownloading ? (
             <>
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-4 h-4 border-2 border-deep-brown border-t-transparent rounded-full animate-spin mr-2"></div>
               <span className="text-sm sm:text-base">Downloading...</span>
             </>
           ) : (
-            <>
-              <span>📥</span>
-              <span className="text-sm sm:text-base">Download File</span>
-            </>
+            <span className="text-sm sm:text-base">Download File</span>
           )}
         </button>
       </div>

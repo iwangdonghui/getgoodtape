@@ -151,17 +151,17 @@ export default function ConversionResult({
   };
 
   return (
-    <div className="mt-4 sm:mt-6 bg-gradient-to-br from-green-50 to-mint-green/20 border border-green-200 rounded-xl p-4 sm:p-6">
+    <div className="mt-4 sm:mt-6 bg-gradient-to-br from-cream to-mint-green/20 border border-mint-green/30 rounded-xl p-4 sm:p-6">
       {/* Success Header */}
       <div className="flex items-center space-x-3 mb-4 sm:mb-6">
-        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-          <span className="text-lg sm:text-2xl text-white">✓</span>
+        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-mint-green rounded-full flex items-center justify-center flex-shrink-0">
+          <span className="text-lg sm:text-2xl text-deep-brown">✓</span>
         </div>
         <div className="min-w-0 flex-1">
           <h3 className="text-lg sm:text-xl font-bold text-deep-brown">
             Conversion Complete!
           </h3>
-          <p className="text-sm sm:text-base text-green-700">
+          <p className="text-sm sm:text-base text-deep-brown/70">
             Your {format.toUpperCase()} file is ready for download
           </p>
         </div>
@@ -184,36 +184,35 @@ export default function ConversionResult({
         <div className="mb-4 sm:mb-6">
           <button
             onClick={() => setShowDetails(!showDetails)}
-            className="flex items-center space-x-2 text-sm text-deep-brown hover:text-warm-orange transition-colors min-h-[44px]"
+            className="flex items-center text-sm text-deep-brown hover:text-warm-orange transition-colors min-h-[44px] font-medium"
           >
-            <span>{showDetails ? '▼' : '▶'}</span>
-            <span>Video Details</span>
+            <span>Video Details {showDetails ? '(Hide)' : '(Show)'}</span>
           </button>
 
           {showDetails && (
-            <div className="mt-3 p-3 sm:p-4 bg-gray-50 rounded-lg">
+            <div className="mt-3 p-3 sm:p-4 bg-cream rounded-lg">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
                 <div className="sm:col-span-2">
-                  <span className="font-medium text-gray-700">Title:</span>
-                  <p className="mt-1 text-gray-600 break-words">
+                  <span className="font-medium text-deep-brown">Title:</span>
+                  <p className="mt-1 text-deep-brown/70 break-words">
                     {metadata.title}
                   </p>
                 </div>
                 <div>
-                  <span className="font-medium text-gray-700">Uploader:</span>
-                  <p className="mt-1 text-gray-600 break-words">
+                  <span className="font-medium text-deep-brown">Uploader:</span>
+                  <p className="mt-1 text-deep-brown/70 break-words">
                     {metadata.uploader}
                   </p>
                 </div>
                 <div>
-                  <span className="font-medium text-gray-700">Duration:</span>
-                  <p className="mt-1 text-gray-600">
+                  <span className="font-medium text-deep-brown">Duration:</span>
+                  <p className="mt-1 text-deep-brown/70">
                     {formatDuration(metadata.duration)}
                   </p>
                 </div>
                 <div>
-                  <span className="font-medium text-gray-700">Format:</span>
-                  <p className="mt-1 text-gray-600">
+                  <span className="font-medium text-deep-brown">Format:</span>
+                  <p className="mt-1 text-deep-brown/70">
                     {format.toUpperCase()} ({quality} quality)
                   </p>
                 </div>
@@ -221,11 +220,13 @@ export default function ConversionResult({
 
               {metadata.thumbnail && (
                 <div className="mt-4">
-                  <span className="font-medium text-gray-700">Thumbnail:</span>
+                  <span className="font-medium text-deep-brown">
+                    Thumbnail:
+                  </span>
                   <img
                     src={metadata.thumbnail}
                     alt="Video thumbnail"
-                    className="mt-2 w-24 h-14 sm:w-32 sm:h-18 object-cover rounded border"
+                    className="mt-2 w-24 h-14 sm:w-32 sm:h-18 object-cover rounded border border-warm-orange/30"
                     onError={e => {
                       (e.target as HTMLImageElement).style.display = 'none';
                     }}
@@ -241,27 +242,25 @@ export default function ConversionResult({
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
         <button
           onClick={onNewConversion}
-          className="bg-brand-primary text-white px-6 sm:px-8 py-3 rounded-lg font-semibold hover:bg-brand-primary-hover transition-colors flex items-center justify-center space-x-2 min-h-[44px] touch-action-manipulation dark:bg-brand-primary dark:hover:bg-brand-primary-hover"
+          className="bg-warm-orange text-white px-6 sm:px-8 py-3 rounded-lg font-semibold hover:bg-warm-orange-hover transition-colors flex items-center justify-center min-h-[44px] touch-action-manipulation"
         >
-          <span>🔄</span>
           <span>Convert New File</span>
         </button>
 
         <button
           onClick={onReset}
-          className="px-4 sm:px-6 py-3 text-neutral-text bg-white border border-neutral-border rounded-lg hover:bg-neutral-panel transition-colors flex items-center justify-center space-x-2 min-h-[44px] touch-action-manipulation dark:text-dark-text dark:bg-dark-panel dark:border-dark-border dark:hover:bg-dark-panel-hover"
+          className="px-4 sm:px-6 py-3 text-deep-brown bg-cream border border-warm-orange/30 rounded-lg hover:bg-warm-orange/10 transition-colors flex items-center justify-center min-h-[44px] touch-action-manipulation"
         >
-          <span>🏠</span>
           <span>Back to Home</span>
         </button>
       </div>
 
       {/* Download Tips */}
-      <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-        <h5 className="font-medium text-blue-800 mb-2 text-sm sm:text-base">
-          💡 Download Tips
+      <div className="mt-4 p-3 bg-cream border border-warm-orange/30 rounded-lg">
+        <h5 className="font-medium text-deep-brown mb-2 text-sm sm:text-base">
+          Download Tips
         </h5>
-        <ul className="text-xs sm:text-sm text-blue-700 space-y-1">
+        <ul className="text-xs sm:text-sm text-deep-brown/70 space-y-1">
           <li>
             • File will automatically start downloading to your default download
             folder

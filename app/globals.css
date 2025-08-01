@@ -443,9 +443,9 @@
     outline-color: #fb923c;
   }
 
-  /* 修复亮色主题下的文字可见性问题 */
+  /* Brand color fixes for consistent theming */
   .text-deep-brown {
-    color: #1e1e1e !important;
+    color: #8b4513 !important;
   }
 
   .dark .text-deep-brown {
@@ -453,16 +453,48 @@
   }
 
   .bg-warm-orange {
-    background-color: #fb923c !important;
+    background-color: #ff8c42 !important;
   }
 
   .dark .bg-warm-orange {
-    background-color: #f97316 !important;
+    background-color: #e67a35 !important;
   }
 
-  /* 确保按钮文字在所有主题下都清晰可见 */
+  .bg-mint-green {
+    background-color: #98fb98 !important;
+  }
+
+  .dark .bg-mint-green {
+    background-color: #7fe87f !important;
+  }
+
+  .bg-cream {
+    background-color: #fdf6e3 !important;
+  }
+
+  .dark .bg-cream {
+    background-color: #2d2d2d !important;
+  }
+
+  .bg-tape-gold {
+    background-color: #daa520 !important;
+  }
+
+  .dark .bg-tape-gold {
+    background-color: #b8941c !important;
+  }
+
+  /* Ensure button text is always visible */
   .bg-warm-orange {
     color: white !important;
+  }
+
+  .bg-mint-green {
+    color: #8b4513 !important;
+  }
+
+  .dark .bg-mint-green {
+    color: #1e1e1e !important;
   }
 
   /* 修复边框颜色 */

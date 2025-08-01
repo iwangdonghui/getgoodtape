@@ -9,19 +9,35 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // Brand Colors (from brand guide)
+        cream: '#FDF6E3',
+        'deep-brown': '#8B4513',
+        'warm-orange': '#FF8C42',
+        'warm-orange-hover': '#E67A35',
+        'tape-gold': '#DAA520',
+        'mint-green': '#98FB98',
+        'mint-green-hover': '#7FE87F',
+
+        // Neutral Colors
         'neutral-bg': '#F9F9F9',
         'neutral-panel': '#F0F0F0',
         'neutral-border': '#EAEAEA',
+        'neutral-text': '#1E1E1E',
+        'neutral-text-light': '#4B5563',
+        'neutral-text-muted': '#6B7280',
+
+        // Brand Primary (keeping for compatibility)
         'brand-primary': '#4F46E5',
         'brand-primary-hover': '#4338CA',
         'brand-primary-light': '#6366F1',
         'brand-primary-dark': '#3730A3',
-        'neutral-text': '#1E1E1E',
-        'neutral-text-light': '#4B5563',
-        'neutral-text-muted': '#6B7280',
+
+        // Success Colors
         'success-green': '#16A34A',
         'success-green-light': '#22C55E',
         'success-green-dark': '#15803D',
+
+        // Dark Mode Colors
         'dark-bg': '#1E1E1E',
         'dark-panel': '#2D2D2D',
         'dark-panel-hover': '#3A3A3A',
@@ -29,9 +45,6 @@ module.exports = {
         'dark-text': '#F9F9F9',
         'dark-text-muted': '#B3B3B3',
         'dark-text-light': '#D1D5DB',
-        'warm-orange': '#FB923C',
-        'warm-orange-hover': '#F97316',
-        'deep-brown': '#1E1E1E',
         'deep-brown-light': '#374151',
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
