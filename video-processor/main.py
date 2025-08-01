@@ -123,6 +123,37 @@ class ConvertResponse(BaseModel):
     progress: Optional[ConversionProgress] = None
     error: Optional[str] = None
 
+@app.get("/server-ip")
+async def get_server_ip():
+    """
+    Get the server's public IP address for proxy whitelist configuration
+    """
+    try:
+        import requests
+        # Get public IP from multiple sources for reliability
+        ip_services = [
+            "https://api.ipify.org",
+            "https://ipinfo.io/ip",
+            "https://icanhazip.com"
+        ]
+
+        for service in ip_services:
+            try:
+                response = requests.get(service, timeout=10)
+                if response.status_code == 200:
+                    ip = response.text.strip()
+                    return {
+                        "public_ip": ip,
+                        "service_used": service,
+                        "railway_internal_ip": "198.18.0.23"
+                    }
+            except Exception as e:
+                continue
+
+        return {"error": "Could not determine public IP", "railway_internal_ip": "198.18.0.23"}
+    except Exception as e:
+        return {"error": str(e)}
+
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """
