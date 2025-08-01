@@ -1051,10 +1051,31 @@ async def extract_metadata_endpoint(request: VideoMetadataRequest):
         error_msg = str(e)
         logger.error(f"Failed to extract metadata for {request.url}: {error_msg}")
 
+        # Provide user-friendly error messages for common issues
+        if "tiktok" in request.url.lower():
+            if "Unable to extract webpage video data" in error_msg:
+                user_friendly_error = (
+                    "TikTok video extraction failed due to anti-bot protection. "
+                    "This is a common issue with TikTok. Please try:\n"
+                    "• A different TikTok video\n"
+                    "• Trying again in a few minutes\n"
+                    "• Using videos from other platforms (YouTube, Twitter, etc.)\n"
+                    "• Checking if the video is still available and public"
+                )
+            else:
+                user_friendly_error = f"TikTok extraction failed: {error_msg}"
+        elif "youtube" in request.url.lower():
+            user_friendly_error = (
+                "YouTube access is currently restricted from this server location. "
+                "Please try a different video or try again later."
+            )
+        else:
+            user_friendly_error = f"Failed to extract video metadata: {error_msg}"
+
         # Return error response
         return MetadataResponse(
             success=False,
-            error=f"Failed to extract video metadata: {error_msg}"
+            error=user_friendly_error
         )
 
 @app.post("/convert-fast", response_model=ConvertResponse)
