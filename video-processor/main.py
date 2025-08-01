@@ -771,9 +771,10 @@ async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: b
                     duration = info.get('duration', 0)
             except Exception as e:
                 error_str = str(e)
-                # Check if it's a proxy authentication error (HTTP 407)
-                if ('407' in error_str or 'Proxy Authentication Required' in error_str or
-                    'proxy' in error_str.lower()) and ('youtube.com' in url or 'youtu.be' in url):
+                # Check if it's a proxy authentication error (HTTP 407) or tunnel connection failed
+                if (('407' in error_str or 'Proxy Authentication Required' in error_str or
+                     'Tunnel connection failed' in error_str or 'ProxyError' in error_str or
+                     'proxy' in error_str.lower()) and ('youtube.com' in url or 'youtu.be' in url)):
                     print(f"🔄 Proxy authentication failed ({error_str[:100]}...), trying direct connection")
 
                     # Create a new configuration without proxy for YouTube
