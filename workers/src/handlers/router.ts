@@ -153,14 +153,14 @@ router.post('/validate', async c => {
       );
     }
 
-    // For YouTube URLs, try to get metadata immediately using YouTube API
+    // Try to get metadata immediately for all platforms
     let videoMetadata = null;
-    console.log('🔍 Checking YouTube API conditions:', {
+    console.log('🔍 Attempting to fetch metadata for platform:', {
       platformName: validation.platform?.name,
-      hasApiKey: !!c.env.YOUTUBE_API_KEY,
-      apiKeyLength: c.env.YOUTUBE_API_KEY ? c.env.YOUTUBE_API_KEY.length : 0,
+      url: body.url,
     });
 
+    // For YouTube URLs, try YouTube API first (faster and more reliable)
     if (validation.platform?.name === 'YouTube' && c.env.YOUTUBE_API_KEY) {
       try {
         console.log(
@@ -170,22 +170,88 @@ router.post('/validate', async c => {
           body.url,
           c.env.YOUTUBE_API_KEY
         );
-        console.log('✅ YouTube metadata fetched successfully:', {
+        console.log('✅ YouTube metadata fetched successfully via API:', {
           title: videoMetadata?.title,
           duration: videoMetadata?.duration,
         });
       } catch (error) {
         console.error(
-          '❌ YouTube API failed, will fallback to yt-dlp during conversion:',
+          '❌ YouTube API failed, will try video-processor:',
           error
         );
-        console.error('Error details:', {
-          message: error instanceof Error ? error.message : String(error),
-          stack: error instanceof Error ? error.stack : undefined,
-        });
       }
-    } else {
-      console.log('⚠️ YouTube API conditions not met');
+    }
+
+    // If YouTube API failed or it's not YouTube, try video-processor for all platforms
+    if (!videoMetadata && c.env.PROCESSING_SERVICE_URL) {
+      try {
+        console.log(
+          '🎯 Fetching metadata via video-processor for:',
+          validation.platform?.name
+        );
+        const metadataResponse = await fetch(
+          `${c.env.PROCESSING_SERVICE_URL}/extract-metadata`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ url: body.url }),
+          }
+        );
+
+        if (metadataResponse.ok) {
+          const metadataResult = (await metadataResponse.json()) as {
+            success: boolean;
+            metadata?: {
+              title: string;
+              description?: string;
+              duration: number;
+              duration_text?: string;
+              thumbnail?: string;
+              uploader?: string;
+              upload_date?: string;
+              view_count?: number;
+              like_count?: number;
+              id?: string;
+            };
+          };
+          if (metadataResult.success && metadataResult.metadata) {
+            videoMetadata = {
+              title: metadataResult.metadata.title,
+              description: metadataResult.metadata.description,
+              duration: metadataResult.metadata.duration,
+              durationText: metadataResult.metadata.duration_text,
+              thumbnail: metadataResult.metadata.thumbnail,
+              channelTitle: metadataResult.metadata.uploader,
+              uploader: metadataResult.metadata.uploader,
+              publishedAt: metadataResult.metadata.upload_date,
+              viewCount: metadataResult.metadata.view_count,
+              likeCount: metadataResult.metadata.like_count,
+              videoId: metadataResult.metadata.id,
+              platform: validation.platform?.name,
+            };
+            console.log(
+              '✅ Metadata fetched successfully via video-processor:',
+              {
+                title: videoMetadata?.title,
+                duration: videoMetadata?.duration,
+              }
+            );
+          }
+        } else {
+          console.error(
+            '❌ Video-processor metadata extraction failed:',
+            metadataResponse.status
+          );
+        }
+      } catch (error) {
+        console.error('❌ Video-processor request failed:', error);
+      }
+    }
+
+    if (!videoMetadata) {
+      console.log('⚠️ No metadata could be fetched for this URL');
     }
 
     // Cache the result (only if CACHE is available)
