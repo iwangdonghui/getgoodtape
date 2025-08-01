@@ -247,6 +247,25 @@ async def extract_video_metadata(url: str) -> Dict[str, Any]:
                 'twitter': {
                     # Twitter/X specific settings
                     'api': ['syndication', 'legacy'],
+                },
+                'tiktok': {
+                    # TikTok specific settings for 2025
+                    'api_hostname': 'api16-normal-c-useast1a.tiktokv.com',
+                    'app_version': '34.1.2',
+                    'manifest_app_version': '2023405020',
+                    'aid': '1988',
+                    'app_name': 'musical_ly',
+                    'app_id': '1233',
+                    'carrier_region': 'US',
+                    'region': 'US',
+                    'device_id': '7318518857994389254',
+                    'iid': '7318518857994389254',
+                    'device_type': 'SM-G973F',
+                    'device_brand': 'samsung',
+                    'language': 'en',
+                    'os_api': '25',
+                    'os_version': '7.1.2',
+                    'openudid': 'b4e4fae5d8e1b4e4',
                 }
             },
             # Additional bypass options
@@ -684,12 +703,35 @@ async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: b
                     print(f"⚠️ Enhanced proxy setup failed: {e}")
                     print("⚠️ Proceeding with basic configuration")
             else:
-                # Fast configuration for other platforms
-                ydl_opts.update({
-                    'http_headers': {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                    },
-                })
+                # Platform-specific configuration for other platforms
+                if 'tiktok.com' in url:
+                    # TikTok-specific configuration
+                    ydl_opts.update({
+                        'http_headers': {
+                            'User-Agent': 'com.zhiliaoapp.musically/2023405020 (Linux; U; Android 7.1.2; en_US; SM-G973F; Build/N2G48H;tt-ok/3.12.13.1)',
+                            'Accept': 'application/json, text/plain, */*',
+                            'Accept-Language': 'en-US,en;q=0.9',
+                            'Accept-Encoding': 'gzip, deflate, br',
+                            'Referer': 'https://www.tiktok.com/',
+                            'Origin': 'https://www.tiktok.com',
+                            'X-Requested-With': 'com.zhiliaoapp.musically',
+                        },
+                        'extractor_args': {
+                            'tiktok': {
+                                'api_hostname': 'api16-normal-c-useast1a.tiktokv.com',
+                                'app_version': '34.1.2',
+                                'manifest_app_version': '2023405020',
+                                'aid': '1988',
+                            }
+                        }
+                    })
+                else:
+                    # Default configuration for other platforms
+                    ydl_opts.update({
+                        'http_headers': {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        },
+                    })
 
             # Fast download and convert in one step
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
