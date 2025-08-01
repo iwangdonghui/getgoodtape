@@ -140,27 +140,65 @@ class ProxyManager:
 
         return proxy_list
     
-    def get_proxy_with_session(self, base_proxy: str) -> str:
-        """Add session rotation to proxy URL for better success rates"""
+    def get_proxy_with_session(self, base_proxy: str, session_id: int = None, country: str = None) -> str:
+        """Add enhanced session rotation to proxy URL for better success rates"""
         if not base_proxy:
             return base_proxy
-            
-        session_id = random.randint(10000, 99999)
-        
-        # Handle different proxy formats
+
+        if not session_id:
+            session_id = random.randint(10000, 99999)
+
+        # Handle different proxy formats with enhanced parameters
         if 'smartproxy.com' in base_proxy:
-            # Smartproxy session format
-            return base_proxy.replace('@gate.smartproxy.com:', f'-session-{session_id}@gate.smartproxy.com:')
+            # Smartproxy enhanced session format
+            enhanced_session = f'-session-{session_id}'
+            if country:
+                enhanced_session += f'-country-{country}'
+            return base_proxy.replace('@gate.smartproxy.com:', f'{enhanced_session}@gate.smartproxy.com:')
+
         elif 'lum-superproxy.io' in base_proxy:
-            # Bright Data session format (already handled in _load_residential_proxies)
+            # Bright Data enhanced session format
+            enhanced_session = f'-session-{session_id}'
+            if country:
+                enhanced_session += f'-country-{country}'
+            # Find the username part and enhance it
+            if '@' in base_proxy:
+                protocol_auth, endpoint = base_proxy.split('@', 1)
+                if ':' in protocol_auth:
+                    protocol_user, password = protocol_auth.rsplit(':', 1)
+                    return f"{protocol_user}{enhanced_session}:{password}@{endpoint}"
             return base_proxy
+
         elif 'oxylabs.io' in base_proxy:
-            # Oxylabs session format
-            return base_proxy.replace('@pr.oxylabs.io:', f'-session-{session_id}@pr.oxylabs.io:')
+            # Oxylabs enhanced session format
+            enhanced_session = f'-session-{session_id}'
+            if country:
+                enhanced_session += f'-country-{country}'
+            return base_proxy.replace('@pr.oxylabs.io:', f'{enhanced_session}@pr.oxylabs.io:')
+
+        elif 'decodo.com' in base_proxy:
+            # Decodo enhanced session format
+            enhanced_session = f'-session-{session_id}'
+            if country:
+                enhanced_session += f'-country-{country}'
+            # Add sticky session for better consistency
+            sticky_id = random.randint(100, 999)
+            enhanced_session += f'-sticky-{sticky_id}'
+
+            if '@' in base_proxy:
+                protocol_auth, endpoint = base_proxy.split('@', 1)
+                if ':' in protocol_auth:
+                    protocol_user, password = protocol_auth.rsplit(':', 1)
+                    return f"{protocol_user}{enhanced_session}:{password}@{endpoint}"
+            return base_proxy
+
         else:
-            # Generic session parameter
+            # Generic enhanced session parameter
             separator = '&' if '?' in base_proxy else '?'
-            return f"{base_proxy}{separator}session={session_id}"
+            session_params = f"session={session_id}"
+            if country:
+                session_params += f"&country={country}"
+            return f"{base_proxy}{separator}{session_params}"
     
     def record_proxy_result(self, proxy: Optional[str], success: bool):
         """Record proxy success/failure for statistics"""

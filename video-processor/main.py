@@ -298,52 +298,68 @@ async def extract_video_metadata(url: str) -> Dict[str, Any]:
             try:
                 print(f"🔄 Trying extraction method {i+1}/{len(extraction_methods)}")
 
-                # Try to add proxy configuration for YouTube URLs with YouTube-optimized rotation
+                # Try to add proxy configuration for YouTube URLs with better error handling
                 if 'youtube.com' in url or 'youtu.be' in url:
+                    proxy_configured = False
                     try:
+                        # First try: Use proxy manager with multiple fallbacks
                         from proxy_config import proxy_manager, get_yt_dlp_proxy_options
                         import random
 
-                        # Get YouTube-optimized proxy list (prioritizes Bright Data)
+                        # Get YouTube-optimized proxy list
                         proxies = proxy_manager.get_proxy_list(include_no_proxy=False, prioritize_youtube=True)
-                        if proxies:
-                            # Try top 3 proxies for better success rate
-                            selected_proxy = proxies[0] if proxies else None
-                            if selected_proxy:
-                                # Add session rotation for residential proxies
-                                if any(x in selected_proxy for x in ['smartproxy', 'brightdata', 'oxylabs', 'decodo', 'lum-superproxy']):
-                                    selected_proxy = proxy_manager.get_proxy_with_session(selected_proxy)
 
-                                proxy_opts = get_yt_dlp_proxy_options(selected_proxy)
-                                opts.update(proxy_opts)
+                        # Try multiple proxies in case of 407 errors
+                        for i, proxy in enumerate(proxies[:3]):  # Try top 3 proxies
+                            if proxy:
+                                try:
+                                    # Add session rotation
+                                    if any(x in proxy for x in ['smartproxy', 'brightdata', 'oxylabs', 'decodo', 'lum-superproxy']):
+                                        proxy = proxy_manager.get_proxy_with_session(proxy)
 
-                                # Identify proxy type for logging
-                                proxy_type = "Unknown"
-                                if 'lum-superproxy.io' in selected_proxy:
-                                    proxy_type = "Bright Data"
-                                elif 'decodo.com' in selected_proxy:
-                                    proxy_type = "Decodo"
-                                elif 'smartproxy.com' in selected_proxy:
-                                    proxy_type = "Smartproxy"
+                                    proxy_opts = get_yt_dlp_proxy_options(proxy)
+                                    opts.update(proxy_opts)
 
-                                print(f"🔄 Using {proxy_type} proxy for YouTube metadata extraction")
-                            else:
-                                print("⚠️ No proxy available for YouTube metadata extraction")
-                        else:
-                            # Fallback to environment variables
+                                    # Identify proxy type
+                                    proxy_type = "Unknown"
+                                    if 'lum-superproxy.io' in proxy:
+                                        proxy_type = "Bright Data"
+                                    elif 'decodo.com' in proxy:
+                                        proxy_type = "Decodo"
+                                    elif 'smartproxy.com' in proxy:
+                                        proxy_type = "Smartproxy"
+
+                                    print(f"🔄 Using {proxy_type} proxy #{i+1} for YouTube metadata")
+                                    proxy_configured = True
+                                    break
+                                except Exception as proxy_error:
+                                    print(f"⚠️ Proxy #{i+1} failed: {proxy_error}")
+                                    continue
+
+                        # Fallback: Try environment variables with validation
+                        if not proxy_configured:
                             import os
                             user = os.getenv('RESIDENTIAL_PROXY_USER')
                             password = os.getenv('RESIDENTIAL_PROXY_PASS')
                             endpoint = os.getenv('RESIDENTIAL_PROXY_ENDPOINT')
+
                             if user and password and endpoint:
-                                opts['proxy'] = f"http://{user}:{password}@{endpoint}"
-                                opts['socket_timeout'] = 30
-                                opts['retries'] = 3
-                                print(f"🔄 Using fallback proxy for metadata: {endpoint}")
-                            else:
-                                print("⚠️ No proxy available for YouTube metadata extraction")
+                                # Validate credentials format
+                                if len(user) > 5 and len(password) > 5:
+                                    opts['proxy'] = f"http://{user}:{password}@{endpoint}"
+                                    opts['socket_timeout'] = 30
+                                    opts['retries'] = 3
+                                    print(f"🔄 Using fallback proxy: {endpoint}")
+                                    proxy_configured = True
+                                else:
+                                    print("⚠️ Invalid proxy credentials format")
+
+                        if not proxy_configured:
+                            print("⚠️ No working proxy available - proceeding without proxy (may fail)")
+
                     except Exception as e:
-                        print(f"⚠️ Could not configure proxy for metadata: {e}")
+                        print(f"⚠️ Proxy configuration failed: {e}")
+                        print("⚠️ Proceeding without proxy")
 
                 with yt_dlp.YoutubeDL(opts) as ydl:
                     info = ydl.extract_info(url, download=False)
@@ -587,30 +603,86 @@ async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: b
                     },
                 })
 
-                # Add proxy for YouTube with rotation (always use for reliability)
+                # Enhanced proxy configuration with anti-detection measures
+                proxy_configured = False
                 try:
                     from proxy_config import proxy_manager, get_yt_dlp_proxy_options
                     import random
+                    import time
 
-                    # Get available proxies and rotate them
-                    proxies = proxy_manager.get_proxy_list(include_no_proxy=False)
-                    if proxies:
-                        # Use random proxy for better distribution
-                        selected_proxy = random.choice(proxies)
-                        proxy_opts = get_yt_dlp_proxy_options(selected_proxy)
-                        ydl_opts.update(proxy_opts)
-                        print(f"🔄 Using rotated proxy for YouTube: {selected_proxy is not None}")
-                    else:
-                        # Fallback to environment variables
+                    # Get available proxies with YouTube optimization
+                    proxies = proxy_manager.get_proxy_list(include_no_proxy=False, prioritize_youtube=True)
+
+                    # Try multiple proxies with enhanced session rotation
+                    for i, proxy in enumerate(proxies[:3]):  # Try top 3 proxies
+                        if proxy:
+                            try:
+                                # Enhanced session rotation with random elements
+                                if any(x in proxy for x in ['smartproxy', 'brightdata', 'oxylabs', 'decodo', 'lum-superproxy']):
+                                    # Add random session ID and country rotation
+                                    session_id = random.randint(10000, 99999)
+                                    countries = ['US', 'CA', 'GB', 'AU', 'DE']
+                                    country = random.choice(countries)
+                                    proxy = proxy_manager.get_proxy_with_session(proxy, session_id=session_id, country=country)
+
+                                proxy_opts = get_yt_dlp_proxy_options(proxy)
+                                ydl_opts.update(proxy_opts)
+
+                                # Enhanced anti-detection options
+                                ydl_opts['socket_timeout'] = 60
+                                ydl_opts['retries'] = 8
+                                ydl_opts['fragment_retries'] = 10
+                                ydl_opts['retry_sleep_functions'] = {
+                                    'http': lambda n: random.uniform(1, 3) * n,
+                                    'fragment': lambda n: random.uniform(0.5, 2) * n,
+                                }
+
+                                # Add random user agent rotation
+                                user_agents = [
+                                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                                    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0'
+                                ]
+                                ydl_opts['http_headers'] = {'User-Agent': random.choice(user_agents)}
+
+                                proxy_type = "Unknown"
+                                if 'lum-superproxy.io' in proxy:
+                                    proxy_type = "Bright Data"
+                                elif 'decodo.com' in proxy:
+                                    proxy_type = "Decodo"
+                                elif 'smartproxy.com' in proxy:
+                                    proxy_type = "Smartproxy"
+
+                                print(f"🔄 Using {proxy_type} proxy #{i+1} with enhanced anti-detection")
+                                proxy_configured = True
+                                break
+                            except Exception as proxy_error:
+                                print(f"⚠️ Proxy #{i+1} configuration failed: {proxy_error}")
+                                continue
+
+                    # Enhanced fallback with session rotation
+                    if not proxy_configured:
                         import os
                         user = os.getenv('RESIDENTIAL_PROXY_USER')
                         password = os.getenv('RESIDENTIAL_PROXY_PASS')
                         endpoint = os.getenv('RESIDENTIAL_PROXY_ENDPOINT')
-                        if user and password and endpoint:
-                            ydl_opts['proxy'] = f"http://{user}:{password}@{endpoint}"
+
+                        if user and password and endpoint and len(user) > 5 and len(password) > 5:
+                            # Add session rotation to environment proxy
+                            session_id = random.randint(10000, 99999)
+                            enhanced_user = f"{user}-session-{session_id}"
+                            ydl_opts['proxy'] = f"http://{enhanced_user}:{password}@{endpoint}"
+                            ydl_opts['socket_timeout'] = 60
+                            ydl_opts['retries'] = 8
+                            print(f"🔄 Using enhanced fallback proxy with session {session_id}")
+                            proxy_configured = True
+
+                    if not proxy_configured:
+                        print("⚠️ No working proxy available - conversion will likely fail")
+
                 except Exception as e:
-                    print(f"⚠️ Proxy configuration failed: {e}")
-                    pass  # Continue without proxy if not available
+                    print(f"⚠️ Enhanced proxy setup failed: {e}")
+                    print("⚠️ Proceeding with basic configuration")
             else:
                 # Fast configuration for other platforms
                 ydl_opts.update({
