@@ -115,10 +115,11 @@ export default function ConversionProgress({
 
   const getProgressSteps = () => {
     const steps = [
-      { label: 'Validating', threshold: 10 },
-      { label: 'Extracting', threshold: 30 },
+      { label: 'Validating', threshold: 5 },
+      { label: 'Extracting', threshold: 25 },
       { label: 'Converting', threshold: 50 },
-      { label: 'Processing', threshold: 80 },
+      { label: 'Processing', threshold: 75 },
+      { label: 'Finalizing', threshold: 90 },
       { label: 'Complete', threshold: 100 },
     ];
 

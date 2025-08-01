@@ -75,11 +75,15 @@ const INITIAL_STATE: ConversionState = {
 
 const MAX_RETRIES = 3;
 const POLLING_INTERVAL = 2000; // 2 seconds
+const STUCK_PROGRESS_TIMEOUT = 30000; // 30 seconds
+const STUCK_PROGRESS_THRESHOLD = 75; // If progress > 75% and stuck, check for completion
 
 export function useConversion(): ConversionState & ConversionActions {
   const [state, setState] = useState<ConversionState>(INITIAL_STATE);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const validationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastProgressUpdateRef = useRef<number>(Date.now());
+  const stuckProgressCheckRef = useRef<NodeJS.Timeout | null>(null);
 
   // Cleanup polling on unmount
   useEffect(() => {
@@ -89,6 +93,9 @@ export function useConversion(): ConversionState & ConversionActions {
       }
       if (validationTimeoutRef.current) {
         clearTimeout(validationTimeoutRef.current);
+      }
+      if (stuckProgressCheckRef.current) {
+        clearTimeout(stuckProgressCheckRef.current);
       }
     };
   }, []);
@@ -206,6 +213,7 @@ export function useConversion(): ConversionState & ConversionActions {
           console.log('pollingRef.current:', pollingRef.current);
           console.log('📁 Job status filename:', jobStatus.filename);
           console.log('📁 Job status downloadUrl:', jobStatus.downloadUrl);
+          console.log('📊 Final progress value:', jobStatus.progress);
 
           // Stop polling FIRST
           if (pollingRef.current) {
@@ -217,10 +225,17 @@ export function useConversion(): ConversionState & ConversionActions {
             console.warn('⚠️ pollingRef.current is null, cannot stop polling');
           }
 
+          // Clear stuck progress timer if it exists
+          if (stuckProgressCheckRef.current) {
+            console.log('🛑 Clearing stuck progress timer');
+            clearTimeout(stuckProgressCheckRef.current);
+            stuckProgressCheckRef.current = null;
+          }
+
           // Update state with final completion data
           setState(prev => ({
             ...prev,
-            progress: 100, // Ensure 100% for completed jobs
+            progress: 100, // Force 100% for completed jobs regardless of reported progress
             status: 'completed',
             isConverting: false,
             result: {
@@ -269,6 +284,35 @@ export function useConversion(): ConversionState & ConversionActions {
             const progressValue =
               typeof jobStatus.progress === 'number' ? jobStatus.progress : 0;
             console.log('🔍 Calculated progress value:', progressValue);
+
+            // Update last progress update time if progress actually changed
+            if (progressValue !== prev.progress) {
+              lastProgressUpdateRef.current = Date.now();
+              console.log('⏰ Progress updated, resetting stuck timer');
+
+              // Clear any existing stuck progress check
+              if (stuckProgressCheckRef.current) {
+                clearTimeout(stuckProgressCheckRef.current);
+                stuckProgressCheckRef.current = null;
+              }
+            }
+
+            // Set up stuck progress detection for high progress values
+            if (
+              progressValue > STUCK_PROGRESS_THRESHOLD &&
+              progressValue < 100 &&
+              !stuckProgressCheckRef.current
+            ) {
+              console.log(
+                `⚠️ Setting up stuck progress detection for ${progressValue}%`
+              );
+              stuckProgressCheckRef.current = setTimeout(() => {
+                console.log(
+                  '🚨 Progress appears stuck, forcing completion check...'
+                );
+                pollJobStatus(jobId);
+              }, STUCK_PROGRESS_TIMEOUT);
+            }
 
             const newState = {
               ...prev,

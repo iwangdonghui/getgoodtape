@@ -392,11 +392,16 @@ export class ConversionService {
       if (this.env.ENVIRONMENT === 'development') {
         console.log(`Using mock download URL for development environment`);
         downloadUrl = `https://mock-storage.example.com/${fileName}`;
+        // Simulate progress updates for development
+        await this.jobManager.updateProgress(jobId, 85);
+        await this.jobManager.updateProgress(jobId, 95);
       } else {
         // Download the file from the processing service
         const relativeUrl = resultObj.download_url as string;
         const fileUrl = `${processingServiceUrl}${relativeUrl}`;
         console.log(`Downloading file from processing service: ${fileUrl}`);
+
+        await this.jobManager.updateProgress(jobId, 85); // File download started
 
         const fileResponse = await fetch(fileUrl);
         if (!fileResponse.ok) {
@@ -407,6 +412,8 @@ export class ConversionService {
 
         const fileContent = await fileResponse.arrayBuffer();
         console.log(`Downloaded file content: ${fileContent.byteLength} bytes`);
+
+        await this.jobManager.updateProgress(jobId, 90); // File downloaded, starting upload
 
         // Upload to R2 storage
         downloadUrl = await this.storage.uploadFileContent(
@@ -419,16 +426,22 @@ export class ConversionService {
             duration: metadata.duration.toString(),
           }
         );
+
+        await this.jobManager.updateProgress(jobId, 95); // File uploaded successfully
       }
 
-      // Step 4: Complete job
+      // Step 4: Complete job with final progress update
       await this.jobManager.updateProgress(jobId, 100);
+      console.log(`Job ${jobId} progress set to 100% before completion`);
+
       await this.jobManager.completeJob(
         jobId,
         downloadUrl,
         fileName, // Use the generated filename instead of the temporary file path
         metadata
       );
+
+      console.log(`Job ${jobId} marked as completed successfully`);
     } catch (error) {
       console.error(`Processing failed for job ${jobId}:`, error);
       const errorMessage =
