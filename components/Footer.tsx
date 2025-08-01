@@ -116,7 +116,7 @@ export const Footer: React.FC = () => {
                 </li>
                 <li>
                   <a
-                    href="https://github.com/getgoodtape"
+                    href="https://github.com/iwangdonghui/getgoodtape"
                     className="text-muted-foreground hover:text-foreground transition-colors"
                   >
                     GitHub
@@ -129,7 +129,7 @@ export const Footer: React.FC = () => {
           {/* Bottom Bar */}
           <div className="mt-8 pt-6 border-t border-border flex flex-col sm:flex-row justify-between items-center gap-4">
             <p className="text-sm text-muted-foreground">
-              © 2024 GetGoodTape. All rights reserved.
+              © 2025 GetGoodTape. All rights reserved.
             </p>
             <div className="flex items-center space-x-4 text-sm text-muted-foreground">
               <span>Made with ❤️ for creators</span>

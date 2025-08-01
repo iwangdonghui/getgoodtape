@@ -8,6 +8,98 @@ import { QueueManager } from '../utils/queue-manager';
 import { FileCleanupService } from '../utils/file-cleanup';
 import { ErrorType, ConvertRequest, Env } from '../types';
 
+/**
+ * Extract YouTube video ID from URL
+ */
+function extractYouTubeVideoId(url: string): string | null {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+    /youtube\.com\/v\/([^&\n?#]+)/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) {
+      return match[1];
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Get YouTube video metadata using YouTube Data API
+ */
+async function getYouTubeMetadata(url: string, apiKey: string) {
+  const videoId = extractYouTubeVideoId(url);
+  if (!videoId) {
+    throw new Error('Invalid YouTube URL');
+  }
+
+  const apiUrl = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&key=${apiKey}&part=snippet,contentDetails,statistics`;
+
+  const response = await fetch(apiUrl);
+  if (!response.ok) {
+    throw new Error(`YouTube API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  if (!data.items || data.items.length === 0) {
+    throw new Error('Video not found or private');
+  }
+
+  const video = data.items[0];
+  const snippet = video.snippet;
+  const contentDetails = video.contentDetails;
+  const statistics = video.statistics;
+
+  // Parse duration from ISO 8601 format (PT4M13S) to seconds
+  const duration = parseDuration(contentDetails.duration);
+
+  return {
+    title: snippet.title,
+    description: snippet.description,
+    duration: duration,
+    durationText: formatDuration(duration),
+    thumbnail: snippet.thumbnails.high?.url || snippet.thumbnails.default?.url,
+    channelTitle: snippet.channelTitle,
+    publishedAt: snippet.publishedAt,
+    viewCount: statistics.viewCount ? parseInt(statistics.viewCount) : 0,
+    likeCount: statistics.likeCount ? parseInt(statistics.likeCount) : 0,
+    videoId: videoId,
+    platform: 'YouTube',
+  };
+}
+
+/**
+ * Parse ISO 8601 duration to seconds
+ */
+function parseDuration(duration: string): number {
+  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return 0;
+
+  const hours = parseInt(match[1] || '0');
+  const minutes = parseInt(match[2] || '0');
+  const seconds = parseInt(match[3] || '0');
+
+  return hours * 3600 + minutes * 60 + seconds;
+}
+
+/**
+ * Format duration in seconds to readable format
+ */
+function formatDuration(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  } else {
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+  }
+}
+
 export const router = new Hono<{ Bindings: Env }>();
 
 // URL validation endpoint
@@ -51,6 +143,36 @@ router.post('/validate', async c => {
     // Validate URL
     const validation = UrlValidator.validateUrl(body.url);
 
+    if (!validation.isValid) {
+      return c.json(
+        {
+          isValid: false,
+          error: validation.error,
+        },
+        400
+      );
+    }
+
+    // For YouTube URLs, try to get metadata immediately using YouTube API
+    let videoMetadata = null;
+    if (validation.platform?.name === 'YouTube' && c.env.YOUTUBE_API_KEY) {
+      try {
+        console.log(
+          '🎯 YouTube URL detected - fetching metadata via YouTube API'
+        );
+        videoMetadata = await getYouTubeMetadata(
+          body.url,
+          c.env.YOUTUBE_API_KEY
+        );
+        console.log('✅ YouTube metadata fetched successfully');
+      } catch (error) {
+        console.warn(
+          '⚠️ YouTube API failed, will fallback to yt-dlp during conversion:',
+          error
+        );
+      }
+    }
+
     // Cache the result (only if CACHE is available)
     if (c.env.CACHE) {
       try {
@@ -65,19 +187,10 @@ router.post('/validate', async c => {
       }
     }
 
-    if (!validation.isValid) {
-      return c.json(
-        {
-          isValid: false,
-          error: validation.error,
-        },
-        400
-      );
-    }
-
     return c.json({
       isValid: true,
       platform: validation.platform,
+      metadata: videoMetadata, // Include metadata if available
       videoId: validation.videoId,
       normalizedUrl: validation.normalizedUrl,
     });

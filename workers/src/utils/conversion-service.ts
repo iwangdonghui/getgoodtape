@@ -94,6 +94,48 @@ export class ConversionService {
     console.log(
       `Starting processConversion for job ${jobId}, URL: ${request.url}`
     );
+
+    // Set up timeout for the entire conversion process (5 minutes)
+    const CONVERSION_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(
+          new Error('Conversion timeout: Process took longer than 5 minutes')
+        );
+      }, CONVERSION_TIMEOUT);
+    });
+
+    try {
+      // Race between conversion process and timeout
+      await Promise.race([
+        this.performActualConversion(jobId, request),
+        timeoutPromise,
+      ]);
+    } catch (error) {
+      console.error(`Conversion failed for job ${jobId}:`, error);
+
+      // Handle timeout specifically
+      if (error instanceof Error && error.message.includes('timeout')) {
+        await this.jobManager.failJob(
+          jobId,
+          'Conversion timed out after 5 minutes. This may be due to network issues or video processing complexity. Please try again with a shorter video or different format.'
+        );
+      } else {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        await this.jobManager.failJob(jobId, errorMessage);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Perform the actual conversion process
+   */
+  private async performActualConversion(
+    jobId: string,
+    request: ConvertRequest
+  ): Promise<void> {
     try {
       // Mark job as processing
       await this.jobManager.startProcessing(jobId);
@@ -392,6 +434,7 @@ export class ConversionService {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       await this.jobManager.failJob(jobId, errorMessage);
+      throw error;
     }
   }
 
