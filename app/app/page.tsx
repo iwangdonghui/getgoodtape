@@ -11,7 +11,7 @@ import ConversionResult from '../../components/ConversionResult';
 import SupportedPlatforms from '../../components/SupportedPlatforms';
 import BrandFeatures from '../../components/BrandFeatures';
 import VideoPreview from '../../components/VideoPreview';
-import { apiClient } from '../../lib/api-client';
+import { apiClient, ValidationResponse } from '../../lib/api-client';
 
 interface ConversionState {
   status:
@@ -45,24 +45,9 @@ export default function AppPage() {
     status: 'idle',
     progress: 0,
   });
-  const [urlValidation, setUrlValidation] = useState<{
-    isValid: boolean;
-    platform?:
-      | string
-      | {
-          name: string;
-          domain: string;
-          supportedFormats: string[];
-          maxDuration: number;
-          icon: string;
-          qualityOptions: Record<string, string[]>;
-        };
-    error?: {
-      type: string;
-      message: string;
-      retryable: boolean;
-    };
-  }>({ isValid: false });
+  const [urlValidation, setUrlValidation] = useState<ValidationResponse>({
+    isValid: false,
+  });
 
   // URL validation effect
   useEffect(() => {
