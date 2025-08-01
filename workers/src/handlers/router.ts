@@ -43,7 +43,7 @@ async function getYouTubeMetadata(url: string, apiKey: string) {
     throw new Error(`YouTube API error: ${response.status}`);
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as any;
   if (!data.items || data.items.length === 0) {
     throw new Error('Video not found or private');
   }
@@ -155,6 +155,12 @@ router.post('/validate', async c => {
 
     // For YouTube URLs, try to get metadata immediately using YouTube API
     let videoMetadata = null;
+    console.log('🔍 Checking YouTube API conditions:', {
+      platformName: validation.platform?.name,
+      hasApiKey: !!c.env.YOUTUBE_API_KEY,
+      apiKeyLength: c.env.YOUTUBE_API_KEY ? c.env.YOUTUBE_API_KEY.length : 0,
+    });
+
     if (validation.platform?.name === 'YouTube' && c.env.YOUTUBE_API_KEY) {
       try {
         console.log(
@@ -164,13 +170,22 @@ router.post('/validate', async c => {
           body.url,
           c.env.YOUTUBE_API_KEY
         );
-        console.log('✅ YouTube metadata fetched successfully');
+        console.log('✅ YouTube metadata fetched successfully:', {
+          title: videoMetadata?.title,
+          duration: videoMetadata?.duration,
+        });
       } catch (error) {
-        console.warn(
-          '⚠️ YouTube API failed, will fallback to yt-dlp during conversion:',
+        console.error(
+          '❌ YouTube API failed, will fallback to yt-dlp during conversion:',
           error
         );
+        console.error('Error details:', {
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        });
       }
+    } else {
+      console.log('⚠️ YouTube API conditions not met');
     }
 
     // Cache the result (only if CACHE is available)

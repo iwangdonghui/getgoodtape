@@ -141,4 +141,5 @@ export interface Env {
   // Environment variables
   ENVIRONMENT: 'development' | 'production';
   PROCESSING_SERVICE_URL?: string;
+  YOUTUBE_API_KEY?: string;
 }
