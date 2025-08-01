@@ -1921,6 +1921,70 @@ async def test_proxy_endpoint(request: dict):
     except Exception as e:
         return {"success": False, "error": f"Proxy test failed: {str(e)}"}
 
+@app.get("/test-proxy-detailed")
+async def test_proxy_detailed():
+    """Test proxy with detailed error information"""
+    try:
+        from proxy_config import proxy_manager
+        import requests
+
+        proxies = proxy_manager.get_proxy_list(include_no_proxy=False)
+        if not proxies:
+            return {"error": "No proxies configured"}
+
+        proxy = proxies[0]  # Test first proxy
+
+        # Test different endpoints
+        test_results = []
+        test_urls = [
+            'https://httpbin.org/ip',
+            'https://api.ipify.org',
+            'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+        ]
+
+        for test_url in test_urls:
+            try:
+                response = requests.get(
+                    test_url,
+                    proxies={'http': proxy, 'https': proxy},
+                    timeout=10,
+                    headers={
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    }
+                )
+                test_results.append({
+                    "url": test_url,
+                    "status_code": response.status_code,
+                    "success": response.status_code == 200,
+                    "response_size": len(response.text),
+                    "error": None
+                })
+            except Exception as e:
+                test_results.append({
+                    "url": test_url,
+                    "status_code": None,
+                    "success": False,
+                    "response_size": 0,
+                    "error": str(e)
+                })
+
+        # Mask sensitive info
+        masked_proxy = proxy.replace(proxy.split(':')[1].split('@')[0], '***')
+
+        return {
+            "proxy": masked_proxy,
+            "server_ip": "208.77.246.74",
+            "test_results": test_results,
+            "summary": {
+                "total_tests": len(test_results),
+                "successful": sum(1 for r in test_results if r["success"]),
+                "failed": sum(1 for r in test_results if not r["success"])
+            }
+        }
+
+    except Exception as e:
+        return {"error": f"Detailed proxy test failed: {str(e)}"}
+
 @app.get("/test-all-proxies")
 async def test_all_proxies_endpoint():
     """Test all configured proxies"""
