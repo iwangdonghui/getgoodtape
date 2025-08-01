@@ -48,6 +48,12 @@ export default function AppPage() {
   const [urlValidation, setUrlValidation] = useState<ValidationResponse>({
     isValid: false,
   });
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Client-side mounting effect
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // URL validation effect
   useEffect(() => {
@@ -288,7 +294,8 @@ export default function AppPage() {
                       )}
 
                       {/* Video Preview */}
-                      {url &&
+                      {isMounted &&
+                        url &&
                         urlValidation.isValid &&
                         urlValidation.metadata && (
                           <VideoPreview
