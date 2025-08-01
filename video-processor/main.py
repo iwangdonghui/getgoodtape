@@ -374,7 +374,21 @@ async def extract_video_metadata(url: str) -> Dict[str, Any]:
                                     print("⚠️ Invalid proxy credentials format")
 
                         if not proxy_configured:
-                            print("⚠️ No working proxy available - proceeding without proxy (may fail)")
+                            print("⚠️ No working proxy available - trying direct connection")
+                            # For YouTube, try direct connection without proxy as fallback
+                            opts.update({
+                                'proxy': None,  # Explicitly disable proxy
+                                'socket_timeout': 30,
+                                'retries': 5,
+                                'http_headers': {
+                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                                    'Accept-Language': 'en-US,en;q=0.5',
+                                    'Accept-Encoding': 'gzip, deflate',
+                                    'Connection': 'keep-alive',
+                                },
+                            })
+                            print("🔄 Using direct connection (no proxy) for YouTube metadata")
 
                     except Exception as e:
                         print(f"⚠️ Proxy configuration failed: {e}")
@@ -697,7 +711,22 @@ async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: b
                             proxy_configured = True
 
                     if not proxy_configured:
-                        print("⚠️ No working proxy available - conversion will likely fail")
+                        print("⚠️ No working proxy available - trying direct connection")
+                        # For YouTube, try direct connection without proxy as fallback
+                        # This often works for many regions and is better than failing
+                        ydl_opts.update({
+                            'proxy': None,  # Explicitly disable proxy
+                            'socket_timeout': 30,
+                            'retries': 5,
+                            'http_headers': {
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                                'Accept-Language': 'en-US,en;q=0.5',
+                                'Accept-Encoding': 'gzip, deflate',
+                                'Connection': 'keep-alive',
+                            },
+                        })
+                        print("🔄 Using direct connection (no proxy) for YouTube")
 
                 except Exception as e:
                     print(f"⚠️ Enhanced proxy setup failed: {e}")
@@ -733,12 +762,50 @@ async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: b
                         },
                     })
 
-            # Fast download and convert in one step
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                # Download and convert in one operation (faster than separate steps)
-                info = ydl.extract_info(url, download=True)
-                title = info.get('title', 'audio')
-                duration = info.get('duration', 0)
+            # Fast download and convert in one step with proxy fallback
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    # Download and convert in one operation (faster than separate steps)
+                    info = ydl.extract_info(url, download=True)
+                    title = info.get('title', 'audio')
+                    duration = info.get('duration', 0)
+            except Exception as e:
+                error_str = str(e)
+                # Check if it's a proxy authentication error (HTTP 407)
+                if ('407' in error_str or 'Proxy Authentication Required' in error_str or
+                    'proxy' in error_str.lower()) and ('youtube.com' in url or 'youtu.be' in url):
+                    print(f"🔄 Proxy authentication failed ({error_str[:100]}...), trying direct connection")
+
+                    # Create a new configuration without proxy for YouTube
+                    no_proxy_opts = ydl_opts.copy()
+                    no_proxy_opts.update({
+                        'proxy': None,  # Explicitly disable proxy
+                        'socket_timeout': 30,
+                        'retries': 3,
+                        'http_headers': {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                            'Accept-Language': 'en-US,en;q=0.5',
+                            'Accept-Encoding': 'gzip, deflate',
+                            'Connection': 'keep-alive',
+                        },
+                        'extractor_args': {
+                            'youtube': {
+                                'player_client': ['ios'],  # iOS client often works without proxy
+                                'skip': ['dash'],
+                            }
+                        },
+                    })
+
+                    print("🔄 Attempting YouTube conversion without proxy...")
+                    with yt_dlp.YoutubeDL(no_proxy_opts) as ydl:
+                        info = ydl.extract_info(url, download=True)
+                        title = info.get('title', 'audio')
+                        duration = info.get('duration', 0)
+                    print("✅ Direct connection successful!")
+                else:
+                    # Re-raise the original error if it's not a proxy issue
+                    raise
 
                 # Find the converted file
                 all_files = os.listdir(temp_dir)
