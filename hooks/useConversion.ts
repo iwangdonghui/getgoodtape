@@ -7,6 +7,7 @@ import {
   isRetryableError,
   getErrorMessage,
 } from '../lib/api-client';
+import { queryClient } from '../lib/query-client';
 
 export interface ConversionState {
   // URL validation
@@ -187,21 +188,33 @@ export function useConversion(): ConversionState & ConversionActions {
       }
 
       console.log(`📡 Polling status for job: ${jobId}`);
-      const response = await apiClient.getStatus(jobId);
-      console.log(`📊 Status response:`, response);
 
-      if (response.success) {
+      // Add cache-busting parameter to prevent stale responses
+      const timestamp = Date.now();
+      const response = await fetch(`/api/status/${jobId}?t=${timestamp}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          Pragma: 'no-cache',
+        },
+      });
+
+      const data = await response.json();
+      console.log(`📊 Status response (cache-busted):`, data);
+
+      if (data.success) {
         // API returns flat structure, not nested under 'status'
         const jobStatus = {
-          jobId: response.jobId,
-          status: response.status,
-          progress: response.progress,
-          downloadUrl: response.downloadUrl,
-          filename: response.filename,
-          queuePosition: response.queuePosition,
-          estimatedTimeRemaining: response.estimatedTimeRemaining,
-          metadata: response.metadata,
-          error: response.error,
+          jobId: data.jobId,
+          status: data.status,
+          progress: data.progress,
+          downloadUrl: data.downloadUrl,
+          filename: data.filename,
+          queuePosition: data.queuePosition,
+          estimatedTimeRemaining: data.estimatedTimeRemaining,
+          metadata: data.metadata,
+          error: data.error,
         };
 
         console.log(
@@ -210,6 +223,12 @@ export function useConversion(): ConversionState & ConversionActions {
 
         if (jobStatus.status === 'completed') {
           console.log('🎉 Job completed! Stopping polling...');
+          console.log(
+            '🎯 Format:',
+            state.format,
+            'Platform:',
+            state.detectedPlatform
+          );
           console.log('pollingRef.current:', pollingRef.current);
           console.log('📁 Job status filename:', jobStatus.filename);
           console.log('📁 Job status downloadUrl:', jobStatus.downloadUrl);
@@ -225,6 +244,16 @@ export function useConversion(): ConversionState & ConversionActions {
             console.warn('⚠️ pollingRef.current is null, cannot stop polling');
           }
 
+          // Invalidate React Query cache to prevent conflicts
+          try {
+            queryClient.invalidateQueries({
+              queryKey: ['conversionStatus', jobId],
+            });
+            console.log('🗑️ Invalidated React Query cache for job:', jobId);
+          } catch (error) {
+            console.warn('Failed to invalidate React Query cache:', error);
+          }
+
           // Clear stuck progress timer if it exists
           if (stuckProgressCheckRef.current) {
             console.log('🛑 Clearing stuck progress timer');
@@ -233,17 +262,25 @@ export function useConversion(): ConversionState & ConversionActions {
           }
 
           // Update state with final completion data
-          setState(prev => ({
-            ...prev,
-            progress: 100, // Force 100% for completed jobs regardless of reported progress
-            status: 'completed',
-            isConverting: false,
-            result: {
-              downloadUrl: jobStatus.downloadUrl,
-              filename: jobStatus.filename, // Don't set fallback here, let ConversionResult handle it
-              metadata: jobStatus.metadata,
-            },
-          }));
+          setState(prev => {
+            console.log(
+              '🔄 Setting completion state from:',
+              prev.status,
+              'to: completed'
+            );
+            console.log('🔄 Setting progress from:', prev.progress, 'to: 100');
+            return {
+              ...prev,
+              progress: 100, // Force 100% for completed jobs regardless of reported progress
+              status: 'completed',
+              isConverting: false,
+              result: {
+                downloadUrl: jobStatus.downloadUrl,
+                filename: jobStatus.filename, // Don't set fallback here, let ConversionResult handle it
+                metadata: jobStatus.metadata,
+              },
+            };
+          });
         } else if (jobStatus.status === 'failed') {
           console.log('❌ Job failed! Stopping polling...');
 
@@ -314,6 +351,21 @@ export function useConversion(): ConversionState & ConversionActions {
               }, STUCK_PROGRESS_TIMEOUT);
             }
 
+            // Special handling for MP4 conversions at high progress
+            if (
+              state.format === 'mp4' &&
+              progressValue >= 95 &&
+              progressValue < 100
+            ) {
+              console.log(
+                `🎬 MP4 conversion at ${progressValue}%, setting up completion check...`
+              );
+              setTimeout(() => {
+                console.log('🔍 MP4 completion double-check...');
+                pollJobStatus(jobId);
+              }, 2000); // Check again in 2 seconds
+            }
+
             const newState = {
               ...prev,
               progress: progressValue,
@@ -330,10 +382,9 @@ export function useConversion(): ConversionState & ConversionActions {
         }
       } else {
         // API error - check if it's a permanent error
-        console.warn('Failed to get job status:', response.error);
+        console.warn('Failed to get job status:', data.error);
 
-        const errorObj =
-          typeof response.error === 'object' ? response.error : null;
+        const errorObj = typeof data.error === 'object' ? data.error : null;
         if (
           errorObj?.type === 'VIDEO_NOT_FOUND' ||
           errorObj?.retryable === false
@@ -349,9 +400,7 @@ export function useConversion(): ConversionState & ConversionActions {
             isConverting: false,
             error:
               errorObj?.message ||
-              (typeof response.error === 'string'
-                ? response.error
-                : 'Job not found'),
+              (typeof data.error === 'string' ? data.error : 'Job not found'),
             canRetry: false,
           }));
         }
