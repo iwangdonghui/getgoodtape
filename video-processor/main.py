@@ -98,6 +98,7 @@ class ConvertRequest(BaseModel):
     quality: str = Field(..., description="Quality setting")
     platform: Optional[str] = None
     useBypass: Optional[bool] = Field(False, description="Use YouTube bypass methods if available")
+    noProxy: Optional[bool] = Field(False, description="Disable proxy usage for direct connection")
 
 class ConversionProgress(BaseModel):
     percentage: float
@@ -598,7 +599,7 @@ def get_quality_settings(format_type: str, quality: str) -> Dict[str, Any]:
 
     return {}
 
-async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: bool = False) -> ConversionResult:
+async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: bool = False, no_proxy: bool = False) -> ConversionResult:
     """
     Convert video to MP3 using yt-dlp and FFmpeg with speed optimizations
     """
@@ -670,10 +671,16 @@ async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: b
 
                 # Enhanced proxy configuration with anti-detection measures
                 proxy_configured = False
-                try:
-                    from proxy_config import proxy_manager, get_yt_dlp_proxy_options
-                    import random
-                    import time
+
+                # Skip proxy configuration if no_proxy is True
+                if no_proxy:
+                    print("🚫 Proxy disabled - using direct connection")
+                    proxy_configured = True  # Skip proxy setup
+                else:
+                    try:
+                        from proxy_config import proxy_manager, get_yt_dlp_proxy_options
+                        import random
+                        import time
 
                     # Get available proxies with YouTube optimization
                     proxies = proxy_manager.get_proxy_list(include_no_proxy=False, prioritize_youtube=True)
@@ -908,7 +915,7 @@ async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: b
             error=f"MP3 conversion failed: {error_msg}"
         )
 
-async def convert_to_mp4(url: str, quality: str, output_path: str, use_bypass: bool = False) -> ConversionResult:
+async def convert_to_mp4(url: str, quality: str, output_path: str, use_bypass: bool = False, no_proxy: bool = False) -> ConversionResult:
     """
     Convert video to MP4 using yt-dlp and FFmpeg
     """
@@ -1203,9 +1210,9 @@ async def convert_video_fast_endpoint(request: ConvertRequest):
 
         # Direct conversion without metadata pre-check (saves time)
         if request.format.lower() == 'mp3':
-            result = await convert_to_mp3(request.url, request.quality, output_path, use_bypass=True)
+            result = await convert_to_mp3(request.url, request.quality, output_path, use_bypass=True, no_proxy=request.noProxy)
         else:
-            result = await convert_to_mp4(request.url, request.quality, output_path, use_bypass=True)
+            result = await convert_to_mp4(request.url, request.quality, output_path, use_bypass=True, no_proxy=request.noProxy)
 
         if result.success:
             logger.info(f"FAST conversion completed: {result.file_path}")
@@ -1223,6 +1230,110 @@ async def convert_video_fast_endpoint(request: ConvertRequest):
     except Exception as e:
         error_msg = str(e)
         logger.error(f"FAST conversion error: {error_msg}")
+        return ConvertResponse(
+            success=False,
+            error=f"Conversion failed: {error_msg}"
+        )
+
+@app.post("/convert-no-proxy", response_model=ConvertResponse)
+async def convert_video_no_proxy_endpoint(request: ConvertRequest):
+    """
+    Convert video without using any proxy (direct connection only)
+    Faster and more reliable for regions where direct access works
+    """
+    try:
+        logger.info(f"Starting NO-PROXY conversion: {request.url} -> {request.format} ({request.quality})")
+
+        # Force no proxy mode
+        request.noProxy = True
+
+        # Quick metadata extraction with timeout
+        try:
+            import asyncio
+            raw_info = await asyncio.wait_for(extract_video_metadata(request.url), timeout=30.0)
+            metadata = process_metadata(raw_info)
+        except asyncio.TimeoutError:
+            return ConvertResponse(
+                success=False,
+                error="Metadata extraction timed out. The video may be too large or the source is slow."
+            )
+        except Exception as e:
+            return ConvertResponse(
+                success=False,
+                error=f"Failed to extract video metadata: {str(e)}"
+            )
+
+        # Validate format and quality
+        supported_formats = ['mp3', 'mp4']
+        if request.format.lower() not in supported_formats:
+            return ConvertResponse(
+                success=False,
+                error=f"Unsupported format: {request.format}. Supported formats: {', '.join(supported_formats)}"
+            )
+
+        # Check video duration - reject very long videos
+        if metadata.duration and metadata.duration > 3600:  # 1 hour limit
+            return ConvertResponse(
+                success=False,
+                error=f"Video too long ({metadata.duration/60:.1f} minutes). Maximum duration is 60 minutes."
+            )
+
+        # Generate unique output filename
+        import time
+        import hashlib
+
+        # Clean title for filename
+        safe_title = "".join(c for c in metadata.title if c.isalnum() or c in (' ', '-', '_')).rstrip()
+        safe_title = safe_title[:50] if len(safe_title) > 50 else safe_title
+
+        # Create hash for uniqueness
+        url_hash = hashlib.md5(request.url.encode()).hexdigest()[:8]
+        timestamp = int(time.time())
+
+        output_filename = f"{safe_title}_{url_hash}_{timestamp}.{request.format.lower()}"
+        output_path = f"/tmp/{output_filename}"
+
+        # Set conversion timeout based on video duration
+        conversion_timeout = min(300, max(60, metadata.duration * 2)) if metadata.duration else 120
+
+        try:
+            print(f"🚫 NO-PROXY Conversion parameters: format={request.format}, quality={request.quality}")
+            if request.format.lower() == 'mp3':
+                result = await asyncio.wait_for(
+                    convert_to_mp3(request.url, request.quality, output_path, use_bypass=False, no_proxy=True),
+                    timeout=conversion_timeout
+                )
+            elif request.format.lower() == 'mp4':
+                result = await asyncio.wait_for(
+                    convert_to_mp4(request.url, request.quality, output_path, use_bypass=False, no_proxy=True),
+                    timeout=conversion_timeout
+                )
+            else:
+                return ConvertResponse(
+                    success=False,
+                    error=f"Unsupported format: {request.format}"
+                )
+        except asyncio.TimeoutError:
+            return ConvertResponse(
+                success=False,
+                error=f"Conversion timed out after {conversion_timeout} seconds. Try a shorter video or lower quality."
+            )
+
+        if result.success:
+            logger.info(f"NO-PROXY conversion completed: {output_filename} ({format_file_size(result.file_size)})")
+            return ConvertResponse(
+                success=True,
+                result=result
+            )
+        else:
+            return ConvertResponse(
+                success=False,
+                error=result.error
+            )
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"NO-PROXY conversion endpoint error: {error_msg}")
         return ConvertResponse(
             success=False,
             error=f"Conversion failed: {error_msg}"
@@ -1293,15 +1404,15 @@ async def convert_video_endpoint(request: ConvertRequest):
         conversion_timeout = min(300, max(60, metadata.duration * 2)) if metadata.duration else 120
 
         try:
-            print(f"🔧 Conversion parameters: format={request.format}, quality={request.quality}, useBypass={request.useBypass}")
+            print(f"🔧 Conversion parameters: format={request.format}, quality={request.quality}, useBypass={request.useBypass}, noProxy={request.noProxy}")
             if request.format.lower() == 'mp3':
                 result = await asyncio.wait_for(
-                    convert_to_mp3(request.url, request.quality, output_path, request.useBypass),
+                    convert_to_mp3(request.url, request.quality, output_path, request.useBypass, request.noProxy),
                     timeout=conversion_timeout
                 )
             elif request.format.lower() == 'mp4':
                 result = await asyncio.wait_for(
-                    convert_to_mp4(request.url, request.quality, output_path, request.useBypass),
+                    convert_to_mp4(request.url, request.quality, output_path, request.useBypass, request.noProxy),
                     timeout=conversion_timeout
                 )
             else:
