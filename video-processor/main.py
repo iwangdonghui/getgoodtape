@@ -682,94 +682,94 @@ async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: b
                         import random
                         import time
 
-                    # Get available proxies with YouTube optimization
-                    proxies = proxy_manager.get_proxy_list(include_no_proxy=False, prioritize_youtube=True)
+                        # Get available proxies with YouTube optimization
+                        proxies = proxy_manager.get_proxy_list(include_no_proxy=False, prioritize_youtube=True)
 
-                    # Try multiple proxies with enhanced session rotation
-                    for i, proxy in enumerate(proxies[:3]):  # Try top 3 proxies
-                        if proxy:
-                            try:
-                                # Enhanced session rotation with random elements
-                                if any(x in proxy for x in ['smartproxy', 'brightdata', 'oxylabs', 'decodo', 'lum-superproxy']):
-                                    # Add random session ID and country rotation
-                                    session_id = random.randint(10000, 99999)
-                                    countries = ['US', 'CA', 'GB', 'AU', 'DE']
-                                    country = random.choice(countries)
-                                    proxy = proxy_manager.get_proxy_with_session(proxy, session_id=session_id, country=country)
+                        # Try multiple proxies with enhanced session rotation
+                        for i, proxy in enumerate(proxies[:3]):  # Try top 3 proxies
+                            if proxy:
+                                try:
+                                    # Enhanced session rotation with random elements
+                                    if any(x in proxy for x in ['smartproxy', 'brightdata', 'oxylabs', 'decodo', 'lum-superproxy']):
+                                        # Add random session ID and country rotation
+                                        session_id = random.randint(10000, 99999)
+                                        countries = ['US', 'CA', 'GB', 'AU', 'DE']
+                                        country = random.choice(countries)
+                                        proxy = proxy_manager.get_proxy_with_session(proxy, session_id=session_id, country=country)
 
-                                proxy_opts = get_yt_dlp_proxy_options(proxy)
-                                ydl_opts.update(proxy_opts)
+                                    proxy_opts = get_yt_dlp_proxy_options(proxy)
+                                    ydl_opts.update(proxy_opts)
 
-                                # Enhanced anti-detection options
+                                    # Enhanced anti-detection options
+                                    ydl_opts['socket_timeout'] = 60
+                                    ydl_opts['retries'] = 8
+                                    ydl_opts['fragment_retries'] = 10
+                                    ydl_opts['retry_sleep_functions'] = {
+                                        'http': lambda n: random.uniform(1, 3) * n,
+                                        'fragment': lambda n: random.uniform(0.5, 2) * n,
+                                    }
+
+                                    # Add random user agent rotation
+                                    user_agents = [
+                                        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                                        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                                        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0'
+                                    ]
+                                    ydl_opts['http_headers'] = {'User-Agent': random.choice(user_agents)}
+
+                                    proxy_type = "Unknown"
+                                    if 'lum-superproxy.io' in proxy:
+                                        proxy_type = "Bright Data"
+                                    elif 'decodo.com' in proxy:
+                                        proxy_type = "Decodo"
+                                    elif 'smartproxy.com' in proxy:
+                                        proxy_type = "Smartproxy"
+
+                                    print(f"🔄 Using {proxy_type} proxy #{i+1} with enhanced anti-detection")
+                                    proxy_configured = True
+                                    break
+                                except Exception as proxy_error:
+                                    print(f"⚠️ Proxy #{i+1} configuration failed: {proxy_error}")
+                                    continue
+
+                        # Enhanced fallback with session rotation
+                        if not proxy_configured:
+                            import os
+                            user = os.getenv('RESIDENTIAL_PROXY_USER')
+                            password = os.getenv('RESIDENTIAL_PROXY_PASS')
+                            endpoint = os.getenv('RESIDENTIAL_PROXY_ENDPOINT')
+
+                            if user and password and endpoint and len(user) > 5 and len(password) > 5:
+                                # Add session rotation to environment proxy
+                                session_id = random.randint(10000, 99999)
+                                enhanced_user = f"{user}-session-{session_id}"
+                                ydl_opts['proxy'] = f"http://{enhanced_user}:{password}@{endpoint}"
                                 ydl_opts['socket_timeout'] = 60
                                 ydl_opts['retries'] = 8
-                                ydl_opts['fragment_retries'] = 10
-                                ydl_opts['retry_sleep_functions'] = {
-                                    'http': lambda n: random.uniform(1, 3) * n,
-                                    'fragment': lambda n: random.uniform(0.5, 2) * n,
-                                }
-
-                                # Add random user agent rotation
-                                user_agents = [
-                                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                                    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0'
-                                ]
-                                ydl_opts['http_headers'] = {'User-Agent': random.choice(user_agents)}
-
-                                proxy_type = "Unknown"
-                                if 'lum-superproxy.io' in proxy:
-                                    proxy_type = "Bright Data"
-                                elif 'decodo.com' in proxy:
-                                    proxy_type = "Decodo"
-                                elif 'smartproxy.com' in proxy:
-                                    proxy_type = "Smartproxy"
-
-                                print(f"🔄 Using {proxy_type} proxy #{i+1} with enhanced anti-detection")
+                                print(f"🔄 Using enhanced fallback proxy with session {session_id}")
                                 proxy_configured = True
-                                break
-                            except Exception as proxy_error:
-                                print(f"⚠️ Proxy #{i+1} configuration failed: {proxy_error}")
-                                continue
 
-                    # Enhanced fallback with session rotation
-                    if not proxy_configured:
-                        import os
-                        user = os.getenv('RESIDENTIAL_PROXY_USER')
-                        password = os.getenv('RESIDENTIAL_PROXY_PASS')
-                        endpoint = os.getenv('RESIDENTIAL_PROXY_ENDPOINT')
+                        if not proxy_configured:
+                            print("⚠️ No working proxy available - trying direct connection")
+                            # For YouTube, try direct connection without proxy as fallback
+                            # This often works for many regions and is better than failing
+                            ydl_opts.update({
+                                'proxy': None,  # Explicitly disable proxy
+                                'socket_timeout': 30,
+                                'retries': 5,
+                                'http_headers': {
+                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                                    'Accept-Language': 'en-US,en;q=0.5',
+                                    'Accept-Encoding': 'gzip, deflate',
+                                    'Connection': 'keep-alive',
+                                },
+                            })
+                            print("🔄 Using direct connection (no proxy) for YouTube")
 
-                        if user and password and endpoint and len(user) > 5 and len(password) > 5:
-                            # Add session rotation to environment proxy
-                            session_id = random.randint(10000, 99999)
-                            enhanced_user = f"{user}-session-{session_id}"
-                            ydl_opts['proxy'] = f"http://{enhanced_user}:{password}@{endpoint}"
-                            ydl_opts['socket_timeout'] = 60
-                            ydl_opts['retries'] = 8
-                            print(f"🔄 Using enhanced fallback proxy with session {session_id}")
-                            proxy_configured = True
-
-                    if not proxy_configured:
-                        print("⚠️ No working proxy available - trying direct connection")
-                        # For YouTube, try direct connection without proxy as fallback
-                        # This often works for many regions and is better than failing
-                        ydl_opts.update({
-                            'proxy': None,  # Explicitly disable proxy
-                            'socket_timeout': 30,
-                            'retries': 5,
-                            'http_headers': {
-                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                                'Accept-Language': 'en-US,en;q=0.5',
-                                'Accept-Encoding': 'gzip, deflate',
-                                'Connection': 'keep-alive',
-                            },
-                        })
-                        print("🔄 Using direct connection (no proxy) for YouTube")
-
-                except Exception as e:
-                    print(f"⚠️ Enhanced proxy setup failed: {e}")
-                    print("⚠️ Proceeding with basic configuration")
+                    except Exception as e:
+                        print(f"⚠️ Enhanced proxy setup failed: {e}")
+                        print("⚠️ Proceeding with basic configuration")
             else:
                 # Platform-specific configuration for other platforms
                 if 'tiktok.com' in url:
