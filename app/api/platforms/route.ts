@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 
 const WORKERS_URL =
   process.env.NODE_ENV === 'development'
-    ? 'http://localhost:8789'
+    ? 'https://getgoodtape-video-proc.fly.dev'
     : 'https://getgoodtape-api-production.wangdonghuiibt-cloudflare.workers.dev';
 
 export async function GET(request: NextRequest) {
