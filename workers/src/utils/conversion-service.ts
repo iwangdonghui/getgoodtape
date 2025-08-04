@@ -403,15 +403,38 @@ export class ConversionService {
 
         await this.jobManager.updateProgress(jobId, 85); // File download started
 
-        const fileResponse = await fetch(fileUrl);
-        if (!fileResponse.ok) {
-          throw new Error(
-            `Failed to download file from processing service: ${fileResponse.status}`
-          );
-        }
+        // Create AbortController for file download with reasonable timeout (60 seconds)
+        const downloadController = new AbortController();
+        const downloadTimeoutId = setTimeout(
+          () => downloadController.abort(),
+          60000
+        ); // 60 seconds - if it takes longer, there's a performance issue
 
-        const fileContent = await fileResponse.arrayBuffer();
-        console.log(`Downloaded file content: ${fileContent.byteLength} bytes`);
+        try {
+          const fileResponse = await fetch(fileUrl, {
+            signal: downloadController.signal,
+          });
+          clearTimeout(downloadTimeoutId);
+
+          if (!fileResponse.ok) {
+            throw new Error(
+              `Failed to download file from processing service: ${fileResponse.status}`
+            );
+          }
+
+          const fileContent = await fileResponse.arrayBuffer();
+          console.log(
+            `Downloaded file content: ${fileContent.byteLength} bytes`
+          );
+        } catch (error) {
+          clearTimeout(downloadTimeoutId);
+          if (error instanceof Error && error.name === 'AbortError') {
+            throw new Error(
+              'File download timeout - large file took too long to download from processing service'
+            );
+          }
+          throw error;
+        }
 
         await this.jobManager.updateProgress(jobId, 90); // File downloaded, starting upload
 

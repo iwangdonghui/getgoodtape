@@ -177,18 +177,47 @@ export class StorageManager {
   }
 
   /**
-   * Generate a signed download URL
+   * Generate a signed download URL for direct R2 access (fast CDN delivery)
    */
   async generateDownloadUrl(
     fileName: string,
     expiresIn: number = 3600
   ): Promise<string> {
-    // Use the API download endpoint instead of direct storage URL
-    console.log(
-      `Generated download URL for ${fileName}, expires in ${expiresIn}s`
-    );
-    // Return relative path - the frontend will handle the full URL construction
-    return `/api/download/${fileName}`;
+    try {
+      if (!this.env.STORAGE) {
+        console.warn(
+          'R2 storage not available, using fallback download endpoint'
+        );
+        return `/api/download/${fileName}`;
+      }
+
+      const key = `conversions/${fileName}`;
+
+      // First check if file exists to avoid generating URLs for non-existent files
+      const exists = await this.env.STORAGE.head(key);
+      if (!exists) {
+        throw new Error(`File ${fileName} not found in R2 storage`);
+      }
+
+      // Generate a presigned URL for direct R2 access (bypasses Workers proxy)
+      const signedUrl = await this.env.STORAGE.sign(key, {
+        method: 'GET',
+        expiresIn,
+      });
+
+      console.log(
+        `Generated direct R2 signed URL for ${fileName} (${exists.size} bytes), expires in ${expiresIn}s`
+      );
+
+      return signedUrl;
+    } catch (error) {
+      console.error(
+        'Failed to generate signed URL, falling back to proxy:',
+        error
+      );
+      // Fallback to proxy endpoint if signing fails
+      return `/api/download/${fileName}`;
+    }
   }
 
   /**

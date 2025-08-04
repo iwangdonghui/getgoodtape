@@ -582,7 +582,64 @@ router.get('/status/:jobId', async c => {
   }
 });
 
-// Download proxy endpoint
+// Get direct download URL (fast, bypasses proxy)
+router.get('/download-url/:fileName', async c => {
+  try {
+    const fileName = c.req.param('fileName');
+
+    if (!fileName) {
+      return c.json(
+        {
+          error: {
+            type: ErrorType.INVALID_URL,
+            message: 'File name is required',
+            retryable: false,
+          },
+        },
+        400
+      );
+    }
+
+    const storage = new StorageManager(c.env);
+
+    try {
+      const downloadUrl = await storage.generateDownloadUrl(fileName, 3600); // 1 hour expiry
+
+      return c.json({
+        success: true,
+        downloadUrl,
+        expiresIn: 3600,
+        message: 'Direct download URL generated successfully',
+      });
+    } catch (error) {
+      console.error('Failed to generate download URL:', error);
+      return c.json(
+        {
+          error: {
+            type: ErrorType.VIDEO_NOT_FOUND,
+            message: 'File not found or unable to generate download URL',
+            retryable: false,
+          },
+        },
+        404
+      );
+    }
+  } catch (error) {
+    console.error('Download URL endpoint error:', error);
+    return c.json(
+      {
+        error: {
+          type: ErrorType.SERVER_ERROR,
+          message: 'Internal server error during URL generation',
+          retryable: true,
+        },
+      },
+      500
+    );
+  }
+});
+
+// Download proxy endpoint (fallback for compatibility)
 router.get('/download/:fileName', async c => {
   try {
     const fileName = c.req.param('fileName');

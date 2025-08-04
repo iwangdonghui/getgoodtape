@@ -29,12 +29,17 @@ export default function ConversionResult({
   onNewConversion,
 }: ConversionResultProps) {
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
 
   const handleDownload = async () => {
     if (!downloadUrl) return;
 
     setIsDownloading(true);
+    setDownloadProgress(0);
+    setDownloadError(null);
+
     try {
       // Ensure we use the correct URL - if it's relative, it will go through Next.js API routes
       const fullDownloadUrl = downloadUrl.startsWith('http')
@@ -45,6 +50,9 @@ export default function ConversionResult({
       console.log('Download filename:', filename);
       console.log('Download format:', format);
 
+      // Simulate progress for user feedback
+      setDownloadProgress(10);
+
       // Fetch the file as blob to handle CORS and ensure proper download
       const response = await fetch(fullDownloadUrl);
 
@@ -53,6 +61,8 @@ export default function ConversionResult({
           `Download failed: ${response.status} ${response.statusText}`
         );
       }
+
+      setDownloadProgress(50);
 
       // Try to get filename from Content-Disposition header as backup
       const contentDisposition = response.headers.get('Content-Disposition');
@@ -65,8 +75,12 @@ export default function ConversionResult({
         }
       }
 
+      setDownloadProgress(80);
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
+
+      setDownloadProgress(95);
 
       // Create a temporary link to trigger download
       const link = document.createElement('a');
@@ -110,13 +124,21 @@ export default function ConversionResult({
       // Clean up the blob URL
       window.URL.revokeObjectURL(url);
 
+      setDownloadProgress(100);
+
       // Track download
       console.log('Download completed:', filename);
     } catch (error) {
       console.error('Download failed:', error);
-      alert('Download failed, please try again later or contact support.');
+      setDownloadError(
+        error instanceof Error ? error.message : 'Download failed'
+      );
     } finally {
-      setTimeout(() => setIsDownloading(false), 2000);
+      setTimeout(() => {
+        setIsDownloading(false);
+        setDownloadProgress(0);
+        setDownloadError(null);
+      }, 2000);
     }
   };
 
@@ -176,6 +198,8 @@ export default function ConversionResult({
           quality={quality}
           onDownload={handleDownload}
           isDownloading={isDownloading}
+          downloadProgress={downloadProgress}
+          downloadError={downloadError}
         />
       </div>
 

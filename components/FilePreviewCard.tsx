@@ -14,6 +14,8 @@ interface FilePreviewCardProps {
   quality: string;
   onDownload: () => void;
   isDownloading: boolean;
+  downloadProgress?: number;
+  downloadError?: string | null;
 }
 
 export default function FilePreviewCard({
@@ -23,6 +25,8 @@ export default function FilePreviewCard({
   quality,
   onDownload,
   isDownloading,
+  downloadProgress = 0,
+  downloadError,
 }: FilePreviewCardProps) {
   const getQualityLabel = () => {
     if (format === 'mp3') {
@@ -119,6 +123,29 @@ export default function FilePreviewCard({
           )}
         </div>
 
+        {/* Download Progress Bar */}
+        {isDownloading && downloadProgress > 0 && (
+          <div className="mb-3">
+            <div className="flex justify-between text-xs text-deep-brown/70 mb-1">
+              <span>Downloading...</span>
+              <span>{Math.round(downloadProgress)}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-mint-green h-2 rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${downloadProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Download Error */}
+        {downloadError && (
+          <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-600">
+            {downloadError}
+          </div>
+        )}
+
         {/* Download Button */}
         <button
           onClick={onDownload}
@@ -128,7 +155,11 @@ export default function FilePreviewCard({
           {isDownloading ? (
             <>
               <div className="w-4 h-4 border-2 border-deep-brown border-t-transparent rounded-full animate-spin mr-2"></div>
-              <span className="text-sm sm:text-base">Downloading...</span>
+              <span className="text-sm sm:text-base">
+                {downloadProgress > 0
+                  ? `${Math.round(downloadProgress)}%`
+                  : 'Preparing...'}
+              </span>
             </>
           ) : (
             <span className="text-sm sm:text-base">Download File</span>

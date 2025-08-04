@@ -10,6 +10,24 @@ export async function GET(
   try {
     const { fileName } = params;
 
+    // First try to get a direct download URL (fast)
+    const urlResponse = await fetch(
+      `${WORKERS_URL}/api/download-url/${fileName}`,
+      {
+        method: 'GET',
+      }
+    );
+
+    if (urlResponse.ok) {
+      const urlData = await urlResponse.json();
+      if (urlData.success && urlData.downloadUrl) {
+        // Redirect to direct R2 URL for fast download
+        return Response.redirect(urlData.downloadUrl, 302);
+      }
+    }
+
+    // Fallback to proxy method if direct URL fails
+    console.log('Direct URL failed, falling back to proxy method');
     const response = await fetch(`${WORKERS_URL}/api/download/${fileName}`, {
       method: 'GET',
     });
