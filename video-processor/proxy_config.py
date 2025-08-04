@@ -6,6 +6,7 @@ Supports residential proxies, datacenter proxies, and free proxies
 import os
 import random
 import time
+import hashlib
 from typing import List, Optional, Dict, Any
 import logging
 from dotenv import load_dotenv
@@ -15,14 +16,32 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+def get_machine_id():
+    """Get a unique machine identifier for session isolation"""
+    try:
+        # Try to get Fly.io machine ID from environment
+        fly_machine_id = os.getenv('FLY_MACHINE_ID')
+        if fly_machine_id:
+            return fly_machine_id[-8:]  # Use last 8 chars for brevity
+
+        # Fallback to hostname-based ID
+        import socket
+        hostname = socket.gethostname()
+        return hashlib.md5(hostname.encode()).hexdigest()[:8]
+    except:
+        # Final fallback to random ID (but consistent per process)
+        return str(random.randint(10000000, 99999999))
+
 class ProxyManager:
     """Manages proxy rotation and configuration for YouTube downloads"""
-    
+
     def __init__(self):
+        self.machine_id = get_machine_id()
         self.residential_proxies = self._load_residential_proxies()
         self.datacenter_proxies = self._load_datacenter_proxies()
         self.free_proxies = self._load_free_proxies()
         self.proxy_stats = {}  # Track success rates
+        logger.info(f"ProxyManager initialized for machine: {self.machine_id}")
         
     def _load_residential_proxies(self) -> List[str]:
         """Load residential proxy configurations from environment"""
@@ -46,10 +65,11 @@ class ProxyManager:
                 'gate.decodo.com:10008'
             ]
 
-            # 为每个端口创建多个session
+            # 为每个端口创建机器特定的session (避免多机器冲突)
             for port in decodo_ports:
                 for i in range(2):  # 每个端口2个session
-                    session_id = random.randint(10000, 99999)
+                    # Use machine ID to create unique sessions per machine
+                    session_id = f"{self.machine_id}{i:02d}"
                     proxy_url = f'http://{primary_user}-session-{session_id}:{primary_pass}@{port}'
                     proxies.append(proxy_url)
 
@@ -76,8 +96,9 @@ class ProxyManager:
             countries = ['US', 'GB', 'CA', 'AU', 'DE', 'FR', 'NL', 'SE', 'JP', 'KR']
 
             for port in brightdata_ports:
-                for _ in range(3):  # 每个端口3个session
-                    session_id = random.randint(100000, 999999)
+                for i in range(3):  # 每个端口3个session
+                    # Use machine ID to create unique sessions per machine
+                    session_id = f"{self.machine_id}{i:02d}"
                     country = random.choice(countries)
                     # Bright Data 支持国家和会话轮换
                     proxy_url = f'http://{brightdata_user}-session-{session_id}-country-{country}:{brightdata_pass}@zproxy.lum-superproxy.io:{port}'
@@ -140,13 +161,14 @@ class ProxyManager:
 
         return proxy_list
     
-    def get_proxy_with_session(self, base_proxy: str, session_id: int = None, country: str = None) -> str:
+    def get_proxy_with_session(self, base_proxy: str, session_id: str = None, country: str = None) -> str:
         """Add enhanced session rotation to proxy URL for better success rates"""
         if not base_proxy:
             return base_proxy
 
         if not session_id:
-            session_id = random.randint(10000, 99999)
+            # Use machine-specific session ID to avoid conflicts
+            session_id = f"{self.machine_id}{random.randint(10, 99)}"
 
         # Handle different proxy formats with enhanced parameters
         if 'smartproxy.com' in base_proxy:

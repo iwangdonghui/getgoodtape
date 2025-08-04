@@ -1002,20 +1002,47 @@ async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: b
                         },
                     })
 
-            # Fast download and convert in one step with proxy fallback
+            # Fast download and convert - try direct connection first due to proxy issues
+            direct_connection_success = False
             try:
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    # Download and convert in one operation (faster than separate steps)
+                # First attempt: Direct connection (no proxy) - more reliable
+                print("🚀 Attempting direct connection (no proxy) for better reliability")
+                no_proxy_opts = ydl_opts.copy()
+                no_proxy_opts.update({
+                    'proxy': None,  # Explicitly disable proxy
+                    'socket_timeout': 30,
+                    'retries': 3,
+                    'http_headers': {
+                        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
+                    }
+                })
+
+                with yt_dlp.YoutubeDL(no_proxy_opts) as ydl:
                     info = ydl.extract_info(url, download=True)
                     title = info.get('title', 'audio')
                     duration = info.get('duration', 0)
-            except Exception as e:
-                error_str = str(e)
-                # Check if it's a proxy authentication error (HTTP 407) or tunnel connection failed
-                if (('407' in error_str or 'Proxy Authentication Required' in error_str or
-                     'Tunnel connection failed' in error_str or 'ProxyError' in error_str or
-                     'proxy' in error_str.lower()) and ('youtube.com' in url or 'youtu.be' in url)):
-                    print(f"🔄 Proxy authentication failed ({error_str[:100]}...), trying direct connection")
+                    direct_connection_success = True
+                    print("✅ Direct connection successful!")
+            except Exception as direct_error:
+                print(f"⚠️ Direct connection failed: {str(direct_error)[:100]}...")
+                print("🔄 Falling back to proxy connection...")
+
+                # Fallback: Try with proxy
+                try:
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                        # Download and convert in one operation (faster than separate steps)
+                        info = ydl.extract_info(url, download=True)
+                        title = info.get('title', 'audio')
+                        duration = info.get('duration', 0)
+                except Exception as e:
+                    error_str = str(e)
+                    # Check if it's a proxy authentication error (HTTP 407) or tunnel connection failed
+                    if (('407' in error_str or 'Proxy Authentication Required' in error_str or
+                         'Tunnel connection failed' in error_str or 'ProxyError' in error_str or
+                         'proxy' in error_str.lower()) and ('youtube.com' in url or 'youtu.be' in url)):
+                        print(f"🚨 Proxy authentication failed (HTTP 407) - Proxy service issue detected")
+                        print(f"🔄 Error: {error_str[:150]}...")
+                        print(f"🔄 Switching to direct connection (no proxy) for this request")
 
                     # Create a new configuration without proxy for YouTube
                     no_proxy_opts = ydl_opts.copy()
