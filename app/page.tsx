@@ -26,8 +26,8 @@ export default function HomePage() {
                 {/* Hero Section */}
                 <section className="text-center mb-16 sm:mb-20">
                   <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight">
-                    Convert Any Video to MP3{' '}
-                    <span className="text-primary">Instantly</span>
+                    Convert Any Video to{' '}
+                    <span className="text-primary">MP3 Instantly</span>
                   </h1>
                   <p className="text-xl sm:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto">
                     The fastest, easiest way to extract high-quality audio from
