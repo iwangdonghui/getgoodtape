@@ -12,7 +12,7 @@ local_protocol = "http"
 vars = { ENVIRONMENT = "development" }
 
 [env.production]
-vars = { ENVIRONMENT = "production", PROCESSING_SERVICE_URL = "https://getgoodtape-production.up.railway.app" }
+vars = { ENVIRONMENT = "production", PROCESSING_SERVICE_URL = "https://getgoodtape-video-proc.fly.dev" }
 
 # D1 Database bindings
 [[env.production.d1_databases]]
