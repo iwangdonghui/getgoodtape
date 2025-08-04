@@ -9,7 +9,10 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     wget \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    procps \
+    && rm -rf /var/lib/apt/lists/* \
+    && which ffmpeg \
+    && ffmpeg -version
 
 # Copy requirements first for better Docker layer caching
 COPY requirements.txt .

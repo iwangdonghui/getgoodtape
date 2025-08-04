@@ -1,5 +1,5 @@
 # Fly.io configuration for video-processor service
-app = "getgoodtape-video-processor"
+app = "getgoodtape-video-proc"
 primary_region = "nrt"  # Tokyo region for better Asia connectivity
 
 [build]
@@ -32,14 +32,26 @@ primary_region = "nrt"  # Tokyo region for better Asia connectivity
   path = "/metrics"
 
 # Health check configuration
-[[services.http_checks]]
-  interval = "30s"
-  timeout = "10s"
-  grace_period = "10s"
-  method = "GET"
-  path = "/health"
-  protocol = "http"
-  tls_skip_verify = false
+[[services]]
+  internal_port = 8000
+  protocol = "tcp"
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [[services.http_checks]]
+    interval = "30s"
+    timeout = "10s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/health"
+    protocol = "http"
+    tls_skip_verify = false
 
 # Auto-scaling configuration
 [scaling]
@@ -47,6 +59,6 @@ primary_region = "nrt"  # Tokyo region for better Asia connectivity
   max_machines = 3
 
 # Restart policy
-[restart]
+[[restart]]
   policy = "on-failure"
   max_retries = 3
