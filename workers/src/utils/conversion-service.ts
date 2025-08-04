@@ -92,7 +92,10 @@ export class ConversionService {
     request: ConvertRequest
   ): Promise<void> {
     console.log(
-      `Starting processConversion for job ${jobId}, URL: ${request.url}`
+      `🚀 Starting processConversion for job ${jobId}, URL: ${request.url}`
+    );
+    console.log(
+      `🔧 Environment: ${this.env.ENVIRONMENT}, Processing Service: ${this.env.PROCESSING_SERVICE_URL}`
     );
 
     // Set up timeout for the entire conversion process (5 minutes)
@@ -137,9 +140,15 @@ export class ConversionService {
     request: ConvertRequest
   ): Promise<void> {
     try {
-      // Mark job as processing
-      await this.jobManager.startProcessing(jobId);
-      console.log(`Job ${jobId} marked as processing`);
+      // Try to lock job for processing (atomic operation)
+      const lockAcquired = await this.jobManager.startProcessing(jobId);
+      if (!lockAcquired) {
+        console.log(
+          `⚠️ Job ${jobId} is already being processed by another instance`
+        );
+        return; // Exit gracefully - another instance is handling this job
+      }
+      console.log(`✅ Job ${jobId} locked for processing`);
 
       // 检查是否有最近的相同URL转换结果
       const recentConversion = await this.dbManager.findRecentConversionByUrl(
@@ -453,18 +462,24 @@ export class ConversionService {
         await this.jobManager.updateProgress(jobId, 95); // File uploaded successfully
       }
 
-      // Step 4: Complete job with final progress update
+      // Step 4: Complete job with final progress update (atomic operation)
       await this.jobManager.updateProgress(jobId, 100);
       console.log(`Job ${jobId} progress set to 100% before completion`);
 
-      await this.jobManager.completeJob(
+      const completionSuccess = await this.jobManager.completeJob(
         jobId,
         downloadUrl,
         fileName, // Use the generated filename instead of the temporary file path
         metadata
       );
 
-      console.log(`Job ${jobId} marked as completed successfully`);
+      if (completionSuccess) {
+        console.log(`✅ Job ${jobId} marked as completed successfully`);
+      } else {
+        console.log(
+          `⚠️ Job ${jobId} was already completed by another instance`
+        );
+      }
     } catch (error) {
       console.error(`Processing failed for job ${jobId}:`, error);
       const errorMessage =

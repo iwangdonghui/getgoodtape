@@ -59,21 +59,40 @@ export class JobManager {
   }
 
   /**
-   * Mark job as completed with download URL
+   * Mark job as completed with download URL (atomic operation)
    */
   async completeJob(
     jobId: string,
     downloadUrl: string,
     filePath: string,
     metadata?: VideoMetadata
-  ): Promise<void> {
-    await this.updateJob(jobId, {
-      status: 'completed',
-      progress: 100,
-      download_url: downloadUrl,
-      file_path: filePath,
-      metadata: metadata ? JSON.stringify(metadata) : undefined,
-    });
+  ): Promise<boolean> {
+    try {
+      // Atomic update: only complete if status is still 'processing'
+      const result = await this.db.updateConversionJobAtomic(
+        jobId,
+        {
+          status: 'completed',
+          progress: 100,
+          download_url: downloadUrl,
+          file_path: filePath,
+          metadata: metadata ? JSON.stringify(metadata) : undefined,
+          updated_at: Date.now(),
+        },
+        'processing'
+      );
+
+      if (result) {
+        console.log(`✅ Job ${jobId} completed successfully (atomic)`);
+      } else {
+        console.log(`⚠️ Job ${jobId} was already completed by another process`);
+      }
+
+      return result;
+    } catch (error) {
+      console.error(`Failed to complete job ${jobId}:`, error);
+      return false;
+    }
   }
 
   /**
@@ -87,13 +106,26 @@ export class JobManager {
   }
 
   /**
-   * Start processing a job
+   * Start processing a job with atomic locking
    */
-  async startProcessing(jobId: string): Promise<void> {
-    await this.updateJob(jobId, {
-      status: 'processing',
-      progress: 10,
-    });
+  async startProcessing(jobId: string): Promise<boolean> {
+    try {
+      // Atomic update: only update if status is still 'queued'
+      const result = await this.db.updateConversionJobAtomic(
+        jobId,
+        {
+          status: 'processing',
+          progress: 10,
+          updated_at: Date.now(),
+        },
+        'queued'
+      );
+
+      return result; // Returns true if update was successful (job was locked)
+    } catch (error) {
+      console.error(`Failed to start processing job ${jobId}:`, error);
+      return false;
+    }
   }
 
   /**

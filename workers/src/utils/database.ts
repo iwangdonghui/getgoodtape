@@ -114,6 +114,42 @@ export class DatabaseManager {
     await stmt.bind(...values, now, id).run();
   }
 
+  /**
+   * Atomic update: only update if current status matches expected status
+   * Returns true if update was successful, false if status didn't match
+   */
+  async updateConversionJobAtomic(
+    id: string,
+    updates: Partial<ConversionJob>,
+    expectedStatus: string
+  ): Promise<boolean> {
+    if (!this.env.DB) {
+      console.warn('Using mock database for development environment');
+      const mockDb = getGlobalMockDatabase();
+      await mockDb.updateJob(id, updates);
+      return true; // Mock always succeeds
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+
+    const fields = Object.keys(updates).filter(
+      key => key !== 'id' && key !== 'created_at'
+    );
+    const values = fields.map(field => updates[field as keyof ConversionJob]);
+
+    if (fields.length === 0) return false;
+
+    const setClause = fields.map(field => `${field} = ?`).join(', ');
+    const stmt = this.env.DB.prepare(`
+      UPDATE conversion_jobs
+      SET ${setClause}, updated_at = ?
+      WHERE id = ? AND status = ?
+    `);
+
+    const result = await stmt.bind(...values, now, id, expectedStatus).run();
+    return (result.meta.changes || 0) > 0;
+  }
+
   async deleteExpiredJobs(timestamp?: number): Promise<number> {
     const now = timestamp
       ? Math.floor(timestamp / 1000)

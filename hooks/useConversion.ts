@@ -78,6 +78,7 @@ const MAX_RETRIES = 3;
 const POLLING_INTERVAL = 2000; // 2 seconds
 const STUCK_PROGRESS_TIMEOUT = 30000; // 30 seconds
 const STUCK_PROGRESS_THRESHOLD = 75; // If progress > 75% and stuck, check for completion
+const MAX_POLLING_ATTEMPTS = 150; // Maximum polling attempts (5 minutes at 2s intervals)
 
 export function useConversion(): ConversionState & ConversionActions {
   const [state, setState] = useState<ConversionState>(INITIAL_STATE);
@@ -85,6 +86,7 @@ export function useConversion(): ConversionState & ConversionActions {
   const validationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastProgressUpdateRef = useRef<number>(Date.now());
   const stuckProgressCheckRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingAttemptsRef = useRef<number>(0);
 
   // Cleanup polling on unmount
   useEffect(() => {
@@ -187,7 +189,26 @@ export function useConversion(): ConversionState & ConversionActions {
         return;
       }
 
-      console.log(`📡 Polling status for job: ${jobId}`);
+      // Check if we've exceeded maximum polling attempts
+      pollingAttemptsRef.current += 1;
+      if (pollingAttemptsRef.current > MAX_POLLING_ATTEMPTS) {
+        console.log(`⏰ Maximum polling attempts reached for job: ${jobId}`);
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+        }
+        setState(prev => ({
+          ...prev,
+          isConverting: false,
+          error: 'Conversion timeout - please try again',
+          canRetry: true,
+        }));
+        return;
+      }
+
+      console.log(
+        `📡 Polling status for job: ${jobId} (attempt ${pollingAttemptsRef.current}/${MAX_POLLING_ATTEMPTS})`
+      );
 
       // Add cache-busting parameter to prevent stale responses
       const timestamp = Date.now();
@@ -477,6 +498,9 @@ export function useConversion(): ConversionState & ConversionActions {
           ...prev,
           jobId: response.jobId!,
         }));
+
+        // Reset polling attempts counter
+        pollingAttemptsRef.current = 0;
 
         // Start polling for status
         console.log('🔄 Starting polling for job:', response.jobId);
