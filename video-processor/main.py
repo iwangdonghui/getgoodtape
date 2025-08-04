@@ -364,8 +364,8 @@ async def extract_video_metadata(url: str) -> Dict[str, Any]:
                         for i, proxy in enumerate(proxies[:3]):  # Try top 3 proxies
                             if proxy:
                                 try:
-                                    # Add session rotation
-                                    if any(x in proxy for x in ['smartproxy', 'brightdata', 'oxylabs', 'decodo', 'lum-superproxy']):
+                                    # Add session rotation (except for Decodo)
+                                    if any(x in proxy for x in ['smartproxy', 'brightdata', 'oxylabs', 'lum-superproxy']) and 'decodo' not in proxy:
                                         proxy = proxy_manager.get_proxy_with_session(proxy)
 
                                     proxy_opts = get_yt_dlp_proxy_options(proxy)
@@ -740,13 +740,21 @@ async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: b
                             endpoint = os.getenv('RESIDENTIAL_PROXY_ENDPOINT')
 
                             if user and password and endpoint and len(user) > 5 and len(password) > 5:
-                                # Add session rotation to environment proxy
-                                session_id = random.randint(10000, 99999)
-                                enhanced_user = f"{user}-session-{session_id}"
-                                ydl_opts['proxy'] = f"http://{enhanced_user}:{password}@{endpoint}"
+                                # Check if this is Decodo proxy (doesn't support session rotation)
+                                if 'decodo.com' in endpoint:
+                                    # Use original credentials for Decodo
+                                    proxy_url = f"http://{user}:{password}@{endpoint}"
+                                    ydl_opts['proxy'] = proxy_url
+                                    print(f"🔄 Using Decodo proxy without session rotation: {proxy_url}")
+                                else:
+                                    # Add session rotation for other proxies
+                                    session_id = random.randint(10000, 99999)
+                                    enhanced_user = f"{user}-session-{session_id}"
+                                    ydl_opts['proxy'] = f"http://{enhanced_user}:{password}@{endpoint}"
+                                    print(f"🔄 Using enhanced fallback proxy with session {session_id}")
+
                                 ydl_opts['socket_timeout'] = 60
                                 ydl_opts['retries'] = 8
-                                print(f"🔄 Using enhanced fallback proxy with session {session_id}")
                                 proxy_configured = True
 
                         if not proxy_configured:

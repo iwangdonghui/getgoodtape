@@ -11,7 +11,7 @@ primary_region = "nrt"  # Tokyo region for better Asia connectivity
 
 [http_service]
   internal_port = 8000
-  force_https = true
+  force_https = false
   auto_stop_machines = false
   auto_start_machines = true
   min_machines_running = 1
@@ -22,6 +22,13 @@ primary_region = "nrt"  # Tokyo region for better Asia connectivity
     hard_limit = 25
     soft_limit = 20
 
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "10s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/health"
+
 [[vm]]
   cpu_kind = "shared"
   cpus = 1
@@ -31,27 +38,7 @@ primary_region = "nrt"  # Tokyo region for better Asia connectivity
   port = 9091
   path = "/metrics"
 
-# Health check configuration
-[[services]]
-  internal_port = 8000
-  protocol = "tcp"
-
-  [[services.ports]]
-    port = 80
-    handlers = ["http"]
-
-  [[services.ports]]
-    port = 443
-    handlers = ["tls", "http"]
-
-  [[services.http_checks]]
-    interval = "30s"
-    timeout = "10s"
-    grace_period = "10s"
-    method = "GET"
-    path = "/health"
-    protocol = "http"
-    tls_skip_verify = false
+# Health check configuration is now handled by http_service above
 
 # Auto-scaling configuration
 [scaling]
