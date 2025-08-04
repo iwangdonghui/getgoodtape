@@ -782,12 +782,19 @@ async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: b
                         if ffmpeg_result.returncode == 0:
                             file_size = os.path.getsize(output_path)
                             logger.info(f"✅ Subprocess MP3 conversion successful! File size: {file_size} bytes")
+
+                            # Generate download URL for the file
+                            filename = os.path.basename(output_path)
+                            download_url = f"/download/{filename}"
+
                             return ConversionResult(
                                 success=True,
-                                output_path=output_path,
+                                file_path=output_path,
                                 file_size=file_size,
                                 format='mp3',
-                                quality=quality
+                                quality=quality,
+                                download_url=download_url,
+                                filename=filename
                             )
                         else:
                             logger.error(f"❌ FFmpeg conversion failed: {ffmpeg_result.stderr}")
