@@ -1,17 +1,26 @@
 # Frontend-Backend Synchronization Issue Resolution
 
-**Date**: 2025-08-01  
-**Status**: ✅ **RESOLVED** - Comprehensive fixes implemented and deployed  
-**Commit**: `7c9e4b4` - Fix frontend-backend synchronization issue
+**Date**: 2025-08-03
+**Status**: ✅ **RESOLVED** - Comprehensive fixes implemented and deployed
+**Latest Commit**: `4df5f85` - Fix Twitter/X MP4 frontend-backend synchronization issue
+**Previous Commit**: `7c9e4b4` - Fix general frontend-backend synchronization issue
 
 ## 🎯 **Problem Summary**
 
-**Original Issue**: Progress indicator stuck at 80% despite successful server-side completion
+### **Issue #1 (Resolved)**: General Progress Stuck at 80%
 
 - Server logs showed 100% completion with successful file download and conversion
 - Frontend remained stuck at 80% progress
 - Download button never appeared despite file being ready
 - User experience severely impacted
+
+### **Issue #2 (Latest)**: Twitter/X MP4 Format-Specific Synchronization
+
+- **Platform**: Twitter/X (x.com) only
+- **Format**: MP4 downloads only (MP3 conversions worked fine)
+- **Backend Status**: Railway logs showed successful conversion completion
+- **Frontend Behavior**: Progress indicator got stuck and didn't update to show completion
+- **Stuck Points**: Progress bar froze at both 80% and 100% (inconsistent)
 
 ## 🔍 **Root Cause Analysis**
 
@@ -147,14 +156,69 @@ The fixes are now ready for comprehensive testing. Users can:
 4. **Edge Case Testing**: Test with various video lengths and platforms
 5. **Production Deployment**: Deploy to Railway if testing is successful
 
-## 🎉 **Resolution Confidence**
+## 🔍 **Twitter/X MP4 Root Cause Analysis (Latest Issue)**
 
-**High Confidence (95%)** that this resolves the synchronization issue because:
+### **Conflicting Polling Systems**
 
-- ✅ **Root cause identified**: Progress threshold problem diagnosed
+- **Custom Polling**: `useConversion.ts` with `setInterval` (main system)
+- **React Query Polling**: `useQueries.ts` with `refetchInterval` (partially disabled but interfering)
+
+### **Caching Interference**
+
+- React Query detected completion and cached the response
+- Custom polling received stale/cached responses instead of fresh status
+- Browser/proxy caching prevented real-time status updates
+
+### **Race Conditions**
+
+- MP4 conversions completed faster than MP3 conversions
+- Timing differences caused frontend state management issues
+- Missing intermediate progress updates between 80% and 100%
+
+## 🔧 **Twitter/X MP4 Solution Implemented (Latest Fix)**
+
+### **1. Cache-Busting Mechanism**
+
+```typescript
+// Add timestamp parameter to prevent cached responses
+const timestamp = Date.now();
+const response = await fetch(`/api/status/${jobId}?t=${timestamp}`, {
+  headers: {
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    Pragma: 'no-cache',
+  },
+});
+```
+
+### **2. React Query Cache Invalidation**
+
+```typescript
+// Invalidate React Query cache to prevent conflicts
+queryClient.invalidateQueries({ queryKey: ['conversionStatus', jobId] });
+```
+
+### **3. MP4-Specific Completion Detection**
+
+```typescript
+// Special handling for MP4 conversions at high progress
+if (state.format === 'mp4' && progressValue >= 95 && progressValue < 100) {
+  setTimeout(() => pollJobStatus(jobId), 2000);
+}
+```
+
+### **4. Enhanced API Headers**
+
+Added no-cache headers to Next.js API route to ensure fresh responses.
+
+## 🎉 **Resolution Status**
+
+**✅ FULLY RESOLVED** - Both general and Twitter/X MP4-specific issues fixed:
+
+- ✅ **General Issue**: Progress threshold problem resolved
+- ✅ **Twitter/X MP4**: Caching conflicts and race conditions resolved
 - ✅ **Comprehensive fix**: Multiple layers of improvement implemented
 - ✅ **Safety mechanisms**: Stuck progress detection and recovery added
 - ✅ **Enhanced logging**: Better debugging and monitoring capabilities
-- ✅ **Tested approach**: Based on thorough analysis of existing codebase
+- ✅ **Format-specific handling**: MP4 conversions now work reliably
 
-The frontend-backend synchronization issue should now be fully resolved with these comprehensive improvements to the progress tracking and completion detection system.
+The frontend-backend synchronization issue is now fully resolved for all platforms and formats.

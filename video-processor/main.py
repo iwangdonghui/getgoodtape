@@ -189,6 +189,17 @@ async def health_check():
         logger.error(f"Health check failed: {str(e)}")
         raise HTTPException(status_code=500, detail="Health check failed")
 
+@app.post("/test-subprocess")
+async def test_subprocess_endpoint(request: VideoMetadataRequest):
+    """Test subprocess yt-dlp method"""
+    try:
+        logger.info(f"Testing subprocess method for URL: {request.url}")
+        result = extract_metadata_with_subprocess(request.url, use_proxy=True)
+        return {"success": True, "result": result}
+    except Exception as e:
+        logger.error(f"Subprocess test failed: {e}")
+        return {"success": False, "error": str(e)}
+
 def check_ytdlp() -> dict:
     """Check if yt-dlp is available and get version"""
     try:
@@ -197,6 +208,121 @@ def check_ytdlp() -> dict:
         return {"available": True, "version": version}
     except ImportError:
         return {"available": False, "version": "Not installed"}
+
+def extract_metadata_with_subprocess(url: str, use_proxy: bool = True) -> dict:
+    """
+    Extract video metadata using command-line yt-dlp via subprocess
+    This method works around Python library proxy issues
+    """
+    try:
+        # Build yt-dlp command
+        cmd = ['yt-dlp', '--dump-json', '--no-download']
+
+        # Add proxy configuration if needed
+        if use_proxy:
+            user = os.getenv('RESIDENTIAL_PROXY_USER')
+            password = os.getenv('RESIDENTIAL_PROXY_PASS')
+            endpoint = os.getenv('RESIDENTIAL_PROXY_ENDPOINT')
+
+            if user and password and endpoint:
+                proxy_url = f"http://{user}:{password}@{endpoint}"
+                cmd.extend(['--proxy', proxy_url])
+                logger.info(f"🔄 Using subprocess with Decodo proxy: {endpoint}")
+            else:
+                logger.warning("⚠️ Proxy credentials not found, using direct connection")
+
+        # Add URL
+        cmd.append(url)
+
+        # Execute command
+        logger.info(f"🚀 Executing: yt-dlp --dump-json --no-download {url}")
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=120,  # 2 minute timeout
+            check=False
+        )
+
+        if result.returncode == 0:
+            # Parse JSON output
+            metadata = json.loads(result.stdout)
+            logger.info(f"✅ Subprocess metadata extraction successful: {metadata.get('title', 'Unknown')}")
+            return {
+                'success': True,
+                'metadata': {
+                    'title': metadata.get('title'),
+                    'duration': metadata.get('duration'),
+                    'thumbnail': metadata.get('thumbnail'),
+                    'uploader': metadata.get('uploader'),
+                    'upload_date': metadata.get('upload_date', ''),
+                    'view_count': metadata.get('view_count'),
+                    'description': metadata.get('description'),
+                    'tags': metadata.get('tags'),
+                    'formats': metadata.get('formats', []),
+                    'webpage_url': metadata.get('webpage_url'),
+                    'id': metadata.get('id')
+                }
+            }
+        else:
+            logger.error(f"❌ Subprocess yt-dlp failed: {result.stderr}")
+            return {'success': False, 'error': result.stderr}
+
+    except subprocess.TimeoutExpired:
+        logger.error("⏰ Subprocess yt-dlp timed out")
+        return {'success': False, 'error': 'Subprocess timed out'}
+    except Exception as e:
+        logger.error(f"💥 Subprocess yt-dlp error: {e}")
+        return {'success': False, 'error': str(e)}
+
+def download_video_with_subprocess(url: str, output_path: str, format_selector: str = "best", use_proxy: bool = True) -> dict:
+    """
+    Download video using command-line yt-dlp via subprocess
+    This method works around Python library proxy issues
+    """
+    try:
+        # Build yt-dlp command
+        cmd = ['yt-dlp', '-f', format_selector, '-o', output_path]
+
+        # Add proxy configuration if needed
+        if use_proxy:
+            user = os.getenv('RESIDENTIAL_PROXY_USER')
+            password = os.getenv('RESIDENTIAL_PROXY_PASS')
+            endpoint = os.getenv('RESIDENTIAL_PROXY_ENDPOINT')
+
+            if user and password and endpoint:
+                proxy_url = f"http://{user}:{password}@{endpoint}"
+                cmd.extend(['--proxy', proxy_url])
+                logger.info(f"🔄 Using subprocess download with Decodo proxy: {endpoint}")
+            else:
+                logger.warning("⚠️ Proxy credentials not found, using direct connection")
+
+        # Add URL
+        cmd.append(url)
+
+        # Execute command
+        logger.info(f"🚀 Executing: yt-dlp -f {format_selector} -o {output_path} {url}")
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=300,  # 5 minute timeout for download
+            check=False
+        )
+
+        if result.returncode == 0:
+            logger.info(f"✅ Subprocess download successful")
+            return {'success': True, 'output': result.stdout}
+        else:
+            logger.error(f"❌ Subprocess download failed: {result.stderr}")
+            return {'success': False, 'error': result.stderr}
+
+    except subprocess.TimeoutExpired:
+        logger.error("⏰ Subprocess download timed out")
+        return {'success': False, 'error': 'Download timed out'}
+    except Exception as e:
+        logger.error(f"💥 Subprocess download error: {e}")
+        return {'success': False, 'error': str(e)}
 
 def check_ffmpeg() -> dict:
     """Check if FFmpeg is available and get version"""
@@ -233,9 +359,21 @@ def check_youtube_api() -> dict:
 
 async def extract_video_metadata(url: str) -> Dict[str, Any]:
     """
-    Extract video metadata using yt-dlp
+    Extract video metadata using yt-dlp (subprocess first, then Python library)
     """
     try:
+        # Method 1: Try subprocess yt-dlp first (works with proxy)
+        logger.info("🚀 Trying subprocess yt-dlp method...")
+        subprocess_result = extract_metadata_with_subprocess(url, use_proxy=True)
+
+        if subprocess_result.get('success'):
+            logger.info("✅ Subprocess method successful!")
+            return subprocess_result['metadata']
+        else:
+            logger.warning(f"⚠️ Subprocess method failed: {subprocess_result.get('error')}")
+
+        # Method 2: Fallback to Python library yt-dlp
+        logger.info("🔄 Falling back to Python library yt-dlp...")
         # Import yt-dlp
         import yt_dlp
 
@@ -601,10 +739,9 @@ def get_quality_settings(format_type: str, quality: str) -> Dict[str, Any]:
 
 async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: bool = False, no_proxy: bool = False) -> ConversionResult:
     """
-    Convert video to MP3 using yt-dlp and FFmpeg with speed optimizations
+    Convert video to MP3 using yt-dlp and FFmpeg with speed optimizations (subprocess first, then Python library)
     """
     try:
-        import yt_dlp
         import tempfile
         import os
         import asyncio
@@ -613,6 +750,55 @@ async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: b
         # Get quality settings
         quality_settings = get_quality_settings('mp3', quality)
         bitrate = quality_settings.get('bitrate', '192k')
+
+        # Method 1: Try subprocess yt-dlp first (works with proxy)
+        if not no_proxy:
+            logger.info("🚀 Trying subprocess yt-dlp for MP3 conversion...")
+
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_audio_path = os.path.join(temp_dir, 'audio.%(ext)s')
+
+                # Use subprocess to download audio
+                format_selector = 'bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best[height<=480]'
+                subprocess_result = download_video_with_subprocess(url, temp_audio_path, format_selector, use_proxy=True)
+
+                if subprocess_result.get('success'):
+                    # Find the downloaded file
+                    downloaded_files = [f for f in os.listdir(temp_dir) if f.startswith('audio.')]
+                    if downloaded_files:
+                        downloaded_file = os.path.join(temp_dir, downloaded_files[0])
+
+                        # Convert to MP3 using FFmpeg
+                        logger.info(f"🎵 Converting to MP3 with bitrate {bitrate}...")
+                        ffmpeg_cmd = [
+                            'ffmpeg', '-i', downloaded_file,
+                            '-vn', '-acodec', 'libmp3lame',
+                            '-ab', bitrate, '-ar', '44100',
+                            '-y', output_path
+                        ]
+
+                        ffmpeg_result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True, timeout=300)
+
+                        if ffmpeg_result.returncode == 0:
+                            file_size = os.path.getsize(output_path)
+                            logger.info(f"✅ Subprocess MP3 conversion successful! File size: {file_size} bytes")
+                            return ConversionResult(
+                                success=True,
+                                output_path=output_path,
+                                file_size=file_size,
+                                format='mp3',
+                                quality=quality
+                            )
+                        else:
+                            logger.error(f"❌ FFmpeg conversion failed: {ffmpeg_result.stderr}")
+                    else:
+                        logger.error("❌ No audio file found after subprocess download")
+                else:
+                    logger.warning(f"⚠️ Subprocess download failed: {subprocess_result.get('error')}")
+
+        # Method 2: Fallback to Python library yt-dlp
+        logger.info("🔄 Falling back to Python library yt-dlp for MP3 conversion...")
+        import yt_dlp
 
         # Create temporary directory for processing
         with tempfile.TemporaryDirectory() as temp_dir:

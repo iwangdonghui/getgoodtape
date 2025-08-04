@@ -27,7 +27,7 @@ export default function HomePage() {
                 <section className="text-center mb-16 sm:mb-20">
                   <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight">
                     Convert Any Video to MP3 in{' '}
-                    <span className="text-primary">3 Seconds</span>
+                    <span className="text-primary">Seconds</span>
                   </h1>
                   <p className="text-xl sm:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto">
                     The fastest, easiest way to extract high-quality audio from
