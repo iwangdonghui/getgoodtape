@@ -419,10 +419,16 @@ export class ConversionService {
         // Download the file from the processing service
         const relativeUrl = resultObj.download_url as string;
         // Properly encode the URL to handle special characters (like Chinese characters)
-        const encodedRelativeUrl = relativeUrl
-          .split('/')
-          .map(part => encodeURIComponent(part))
-          .join('/');
+        // Only encode the filename part, not the path separators
+        const urlParts = relativeUrl.split('/');
+        const encodedParts = urlParts.map(part => {
+          // Don't encode empty parts (from leading slash) or 'download' path
+          if (part === '' || part === 'download') {
+            return part;
+          }
+          return encodeURIComponent(part);
+        });
+        const encodedRelativeUrl = encodedParts.join('/');
         const fileUrl = `${processingServiceUrl}${encodedRelativeUrl}`;
         console.log(`Downloading file from processing service: ${fileUrl}`);
 
@@ -520,7 +526,7 @@ export class ConversionService {
 
     // Create AbortController for timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 minutes timeout for video processing
+    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes timeout for video processing
 
     try {
       console.log(`Making fetch request to: ${url}`);
