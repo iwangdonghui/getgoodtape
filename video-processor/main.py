@@ -12,9 +12,15 @@ import logging
 import asyncio
 import subprocess
 import json
+import time
 from datetime import datetime
 import boto3
 from botocore.exceptions import ClientError
+import urllib3
+import ssl
+
+# Disable SSL warnings
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Configure logging first
 logging.basicConfig(level=logging.INFO)
@@ -69,19 +75,32 @@ try:
     r2_endpoint = os.getenv('R2_ENDPOINT')
     r2_bucket = os.getenv('R2_BUCKET', 'getgoodtape-files')
 
+    logger.info(f"R2 initialization - Access Key: {'✓' if r2_access_key else '✗'}")
+    logger.info(f"R2 initialization - Secret Key: {'✓' if r2_secret_key else '✗'}")
+    logger.info(f"R2 initialization - Endpoint: {r2_endpoint}")
+    logger.info(f"R2 initialization - Bucket: {r2_bucket}")
+
     if r2_access_key and r2_secret_key and r2_endpoint:
+        # Configure R2 client according to Cloudflare documentation
         r2_client = boto3.client(
             's3',
             endpoint_url=r2_endpoint,
             aws_access_key_id=r2_access_key,
             aws_secret_access_key=r2_secret_key,
-            region_name='auto'
+            region_name='auto',  # Cloudflare R2 supports 'auto' region
+            config=boto3.session.Config(
+                signature_version='s3v4',
+                retries={
+                    'max_attempts': 3,
+                    'mode': 'adaptive'
+                }
+            )
         )
-        logger.info(f"R2 client initialized successfully for bucket: {r2_bucket}")
+        logger.info(f"✅ R2 client initialized successfully for bucket: {r2_bucket}")
     else:
-        logger.warning("R2 credentials not found, file upload will be disabled")
+        logger.warning("❌ R2 credentials not found, file upload will be disabled")
 except Exception as e:
-    logger.error(f"Failed to initialize R2 client: {e}")
+    logger.error(f"❌ Failed to initialize R2 client: {e}")
     r2_client = None
 
 async def upload_to_r2(file_path: str, filename: str) -> Optional[str]:
@@ -94,19 +113,43 @@ async def upload_to_r2(file_path: str, filename: str) -> Optional[str]:
         # Generate storage key
         storage_key = f"converted/{filename}"
 
-        # Upload file to R2
-        with open(file_path, 'rb') as file_data:
-            r2_client.upload_fileobj(
-                file_data,
-                r2_bucket,
-                storage_key,
-                ExtraArgs={
-                    'ContentType': 'audio/mpeg' if filename.endswith('.mp3') else 'video/mp4',
-                    'ContentDisposition': f'attachment; filename="{filename}"'
-                }
-            )
+        # Try alternative upload method using presigned URL
+        logger.info(f"📤 Generating presigned URL for {filename}...")
 
-        logger.info(f"Successfully uploaded {filename} to R2 storage ({os.path.getsize(file_path)} bytes)")
+        # Generate presigned URL for upload
+        presigned_url = r2_client.generate_presigned_url(
+            'put_object',
+            Params={
+                'Bucket': r2_bucket,
+                'Key': storage_key,
+                'ContentType': 'audio/mpeg' if filename.endswith('.mp3') else 'video/mp4'
+            },
+            ExpiresIn=3600  # 1 hour
+        )
+
+        # Upload using curl subprocess to bypass Python SSL issues
+        content_type = 'audio/mpeg' if filename.endswith('.mp3') else 'video/mp4'
+
+        curl_command = [
+            'curl',
+            '-X', 'PUT',
+            '-H', f'Content-Type: {content_type}',
+            '--data-binary', f'@{file_path}',
+            '--insecure',  # Disable SSL verification
+            '--max-time', '300',
+            '--fail',  # Fail on HTTP errors
+            presigned_url
+        ]
+
+        logger.info(f"🔧 Using curl to upload {filename}...")
+        result = subprocess.run(curl_command, capture_output=True, text=True)
+
+        if result.returncode != 0:
+            raise Exception(f"Curl upload failed: {result.stderr}")
+
+        logger.info(f"✅ Curl upload successful for {filename}")
+
+        logger.info(f"✅ Successfully uploaded {filename} to R2 storage ({os.path.getsize(file_path)} bytes)")
 
         # Return the download URL (will be handled by Workers proxy)
         return f"/api/download/{filename}"
@@ -258,6 +301,49 @@ async def test_subprocess_endpoint(request: VideoMetadataRequest):
     except Exception as e:
         logger.error(f"Subprocess test failed: {e}")
         return {"success": False, "error": str(e)}
+
+@app.get("/test-r2")
+async def test_r2():
+    """Test R2 connection and upload"""
+    try:
+        if not r2_client:
+            return {"status": "error", "message": "R2 client not configured"}
+
+        # Create a small test file
+        test_content = "R2 upload test - " + str(int(time.time()))
+        test_filename = f"test_upload_{int(time.time())}.txt"
+        test_file_path = f"/tmp/{test_filename}"
+
+        with open(test_file_path, 'w') as f:
+            f.write(test_content)
+
+        # Test upload using our upload function
+        upload_result = await upload_to_r2(test_file_path, test_filename)
+
+        # Clean up test file
+        try:
+            os.remove(test_file_path)
+        except:
+            pass
+
+        if upload_result:
+            return {
+                "status": "success",
+                "message": "R2 upload test successful",
+                "bucket": r2_bucket,
+                "endpoint": r2_endpoint,
+                "upload_url": upload_result
+            }
+        else:
+            return {
+                "status": "error",
+                "message": "R2 upload test failed",
+                "bucket": r2_bucket,
+                "endpoint": r2_endpoint
+            }
+    except Exception as e:
+        logger.error(f"R2 test failed: {e}")
+        return {"status": "error", "message": str(e)}
 
 def check_ytdlp() -> dict:
     """Check if yt-dlp is available and get version"""
