@@ -29,17 +29,8 @@ export class ConversionService {
       request.quality
     );
 
-    // Start processing asynchronously
-    this.processConversion(jobId, request).catch(error => {
-      console.error(`Conversion failed for job ${jobId}:`, error);
-      console.error(
-        `Error stack:`,
-        error instanceof Error ? error.stack : 'No stack trace'
-      );
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      this.jobManager.failJob(jobId, errorMessage);
-    });
+    // Note: Processing will be handled by the router or queue processor
+    // Don't start processing here to avoid duplicate processing attempts
 
     return jobId;
   }
@@ -140,13 +131,33 @@ export class ConversionService {
     request: ConvertRequest
   ): Promise<void> {
     try {
+      // Check current job status first
+      const currentJob = await this.jobManager.getJob(jobId);
+      if (!currentJob) {
+        throw new Error(`Job ${jobId} not found`);
+      }
+
+      // If job is already processing, check if it's stuck
+      if (currentJob.status === 'processing') {
+        const timeSinceUpdate = Date.now() - currentJob.updated_at;
+        if (timeSinceUpdate < 5 * 60 * 1000) {
+          // Less than 5 minutes
+          console.log(
+            `⚠️ Job ${jobId} is already being processed recently (${Math.round(timeSinceUpdate / 1000)}s ago)`
+          );
+          return; // Exit gracefully - job is being processed recently
+        } else {
+          console.log(
+            `🔄 Job ${jobId} appears stuck, attempting to resume processing`
+          );
+        }
+      }
+
       // Try to lock job for processing (atomic operation)
       const lockAcquired = await this.jobManager.startProcessing(jobId);
-      if (!lockAcquired) {
-        console.log(
-          `⚠️ Job ${jobId} is already being processed by another instance`
-        );
-        return; // Exit gracefully - another instance is handling this job
+      if (!lockAcquired && currentJob.status === 'queued') {
+        console.log(`⚠️ Job ${jobId} could not be locked (race condition)`);
+        return; // Exit gracefully - another instance won the race
       }
       console.log(`✅ Job ${jobId} locked for processing`);
 
@@ -419,6 +430,7 @@ export class ConversionService {
           60000
         ); // 60 seconds - if it takes longer, there's a performance issue
 
+        let fileContent: ArrayBuffer;
         try {
           const fileResponse = await fetch(fileUrl, {
             signal: downloadController.signal,
@@ -431,7 +443,7 @@ export class ConversionService {
             );
           }
 
-          const fileContent = await fileResponse.arrayBuffer();
+          fileContent = await fileResponse.arrayBuffer();
           console.log(
             `Downloaded file content: ${fileContent.byteLength} bytes`
           );
