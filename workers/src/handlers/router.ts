@@ -603,7 +603,7 @@ router.get('/download-url/:fileName', async c => {
     const storage = new StorageManager(c.env);
 
     try {
-      const downloadUrl = await storage.generateDownloadUrl(fileName, 3600); // 1 hour expiry
+      const downloadUrl = await storage.generateDownloadUrl(fileName);
 
       return c.json({
         success: true,
