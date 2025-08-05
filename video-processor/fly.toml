@@ -8,6 +8,9 @@ primary_region = "nrt"  # Tokyo region for better Asia connectivity
 [env]
   PORT = "8000"
   PYTHONUNBUFFERED = "1"
+  # R2 Storage configuration
+  R2_ENDPOINT = "https://getgoodtape-files.wangdonghuiibt-cloudflare.r2.cloudflarestorage.com"
+  R2_BUCKET = "getgoodtape-files"
 
 [http_service]
   internal_port = 8000

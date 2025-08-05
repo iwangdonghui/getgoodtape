@@ -13,6 +13,8 @@ import asyncio
 import subprocess
 import json
 from datetime import datetime
+import boto3
+from botocore.exceptions import ClientError
 
 # Configure logging first
 logging.basicConfig(level=logging.INFO)
@@ -58,6 +60,63 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Initialize R2 client
+r2_client = None
+try:
+    r2_access_key = os.getenv('R2_ACCESS_KEY')
+    r2_secret_key = os.getenv('R2_SECRET_KEY')
+    r2_endpoint = os.getenv('R2_ENDPOINT')
+    r2_bucket = os.getenv('R2_BUCKET', 'getgoodtape-files')
+
+    if r2_access_key and r2_secret_key and r2_endpoint:
+        r2_client = boto3.client(
+            's3',
+            endpoint_url=r2_endpoint,
+            aws_access_key_id=r2_access_key,
+            aws_secret_access_key=r2_secret_key,
+            region_name='auto'
+        )
+        logger.info(f"R2 client initialized successfully for bucket: {r2_bucket}")
+    else:
+        logger.warning("R2 credentials not found, file upload will be disabled")
+except Exception as e:
+    logger.error(f"Failed to initialize R2 client: {e}")
+    r2_client = None
+
+async def upload_to_r2(file_path: str, filename: str) -> Optional[str]:
+    """Upload file to R2 storage and return the download URL"""
+    if not r2_client:
+        logger.warning("R2 client not available, skipping upload")
+        return None
+
+    try:
+        # Generate storage key
+        storage_key = f"converted/{filename}"
+
+        # Upload file to R2
+        with open(file_path, 'rb') as file_data:
+            r2_client.upload_fileobj(
+                file_data,
+                r2_bucket,
+                storage_key,
+                ExtraArgs={
+                    'ContentType': 'audio/mpeg' if filename.endswith('.mp3') else 'video/mp4',
+                    'ContentDisposition': f'attachment; filename="{filename}"'
+                }
+            )
+
+        logger.info(f"Successfully uploaded {filename} to R2 storage ({os.path.getsize(file_path)} bytes)")
+
+        # Return the download URL (will be handled by Workers proxy)
+        return f"/api/download/{filename}"
+
+    except ClientError as e:
+        logger.error(f"Failed to upload {filename} to R2: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error uploading {filename} to R2: {e}")
+        return None
 
 class HealthResponse(BaseModel):
     status: str
@@ -783,9 +842,13 @@ async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: b
                             file_size = os.path.getsize(output_path)
                             logger.info(f"✅ Subprocess MP3 conversion successful! File size: {file_size} bytes")
 
-                            # Generate download URL for the file
+                            # Upload to R2 storage
                             filename = os.path.basename(output_path)
-                            download_url = f"/download/{filename}"
+                            download_url = await upload_to_r2(output_path, filename)
+
+                            # If R2 upload failed, fallback to local download
+                            if not download_url:
+                                download_url = f"/download/{filename}"
 
                             return ConversionResult(
                                 success=True,
@@ -1119,9 +1182,13 @@ async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: b
 
             logger.info(f"Successfully converted to MP3: {title} ({format_duration(duration)}) - {file_size} bytes")
 
-            # Generate download URL for the file
+            # Upload to R2 storage
             filename = os.path.basename(output_path)
-            download_url = f"/download/{filename}"
+            download_url = await upload_to_r2(output_path, filename)
+
+            # If R2 upload failed, fallback to local download
+            if not download_url:
+                download_url = f"/download/{filename}"
 
             return ConversionResult(
                 success=True,
@@ -1276,9 +1343,13 @@ async def convert_to_mp4(url: str, quality: str, output_path: str, use_bypass: b
 
                 logger.info(f"Successfully converted to MP4: {title} ({format_duration(duration)}) - {format_file_size(file_size)}")
 
-                # Generate download URL for the file
+                # Upload to R2 storage
                 filename = os.path.basename(output_path)
-                download_url = f"/download/{filename}"
+                download_url = await upload_to_r2(output_path, filename)
+
+                # If R2 upload failed, fallback to local download
+                if not download_url:
+                    download_url = f"/download/{filename}"
 
                 return ConversionResult(
                     success=True,
