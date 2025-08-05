@@ -418,7 +418,12 @@ export class ConversionService {
       } else {
         // Download the file from the processing service
         const relativeUrl = resultObj.download_url as string;
-        const fileUrl = `${processingServiceUrl}${relativeUrl}`;
+        // Properly encode the URL to handle special characters (like Chinese characters)
+        const encodedRelativeUrl = relativeUrl
+          .split('/')
+          .map(part => encodeURIComponent(part))
+          .join('/');
+        const fileUrl = `${processingServiceUrl}${encodedRelativeUrl}`;
         console.log(`Downloading file from processing service: ${fileUrl}`);
 
         await this.jobManager.updateProgress(jobId, 85); // File download started
@@ -515,7 +520,7 @@ export class ConversionService {
 
     // Create AbortController for timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds timeout
+    const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 minutes timeout for video processing
 
     try {
       console.log(`Making fetch request to: ${url}`);
