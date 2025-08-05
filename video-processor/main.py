@@ -151,8 +151,8 @@ async def upload_to_r2(file_path: str, filename: str) -> Optional[str]:
 
         logger.info(f"✅ Successfully uploaded {filename} to R2 storage ({os.path.getsize(file_path)} bytes)")
 
-        # Return the download URL (will be handled by Workers proxy)
-        return f"/api/download/{filename}"
+        # Return the download URL
+        return f"/download/{filename}"
 
     except ClientError as e:
         logger.error(f"Failed to upload {filename} to R2: {e}")
@@ -343,6 +343,69 @@ async def test_r2():
             }
     except Exception as e:
         logger.error(f"R2 test failed: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.get("/test-r2-full")
+async def test_r2_full():
+    """Test complete R2 workflow including file listing"""
+    try:
+        if not r2_client:
+            return {"status": "error", "message": "R2 client not configured"}
+
+        # Create a test MP3 file to simulate real conversion
+        test_filename = f"test_conversion_{int(time.time())}.mp3"
+        test_file_path = f"/tmp/{test_filename}"
+
+        # Create a small test MP3 file (just headers, not real audio)
+        test_content = b"ID3\x03\x00\x00\x00\x00\x00\x00\x00" + b"Test MP3 file content" + b"\x00" * 100
+
+        with open(test_file_path, 'wb') as f:
+            f.write(test_content)
+
+        logger.info(f"🧪 Testing full R2 workflow with {test_filename}")
+
+        # Test upload using our upload function
+        upload_result = await upload_to_r2(test_file_path, test_filename)
+
+        # Try to list files in the bucket to verify upload
+        try:
+            response = r2_client.list_objects_v2(
+                Bucket=r2_bucket,
+                Prefix="converted/",
+                MaxKeys=10
+            )
+
+            files_in_bucket = []
+            if 'Contents' in response:
+                for obj in response['Contents']:
+                    files_in_bucket.append({
+                        "key": obj['Key'],
+                        "size": obj['Size'],
+                        "last_modified": obj['LastModified'].isoformat()
+                    })
+        except Exception as list_error:
+            logger.error(f"Failed to list R2 objects: {list_error}")
+            files_in_bucket = [f"Error listing files: {list_error}"]
+
+        # Clean up test file
+        try:
+            os.remove(test_file_path)
+        except:
+            pass
+
+        return {
+            "status": "success" if upload_result else "partial_success",
+            "message": "R2 full test completed",
+            "bucket": r2_bucket,
+            "endpoint": r2_endpoint,
+            "upload_result": upload_result,
+            "storage_key": f"converted/{test_filename}",
+            "files_in_bucket": files_in_bucket,
+            "test_file_size": len(test_content)
+        }
+
+    except Exception as e:
+        logger.error(f"R2 full test failed: {e}")
         return {"status": "error", "message": str(e)}
 
 def check_ytdlp() -> dict:
@@ -2083,35 +2146,65 @@ async def validate_conversion_endpoint(request: ConvertRequest):
 
 @app.get("/download/{filename}")
 async def download_file(filename: str):
-    """Download a converted file"""
+    """Download a converted file from R2 storage or local filesystem"""
     try:
         import os
-        from fastapi.responses import FileResponse
+        from fastapi.responses import FileResponse, RedirectResponse
 
         # Security: Only allow files from the output directory
         safe_filename = os.path.basename(filename)
         file_path = os.path.join("/tmp", safe_filename)
 
-        if not os.path.exists(file_path):
-            raise HTTPException(status_code=404, detail="File not found")
+        # First try local file system
+        if os.path.exists(file_path):
+            # Determine content type based on file extension
+            content_type = "application/octet-stream"
+            if filename.endswith('.mp3'):
+                content_type = "audio/mpeg"
+            elif filename.endswith('.mp4'):
+                content_type = "video/mp4"
 
-        # Determine content type based on file extension
-        content_type = "application/octet-stream"
-        if filename.endswith('.mp3'):
-            content_type = "audio/mpeg"
-        elif filename.endswith('.mp4'):
-            content_type = "video/mp4"
+            return FileResponse(
+                path=file_path,
+                media_type=content_type,
+                filename=safe_filename,
+                headers={"Cache-Control": "public, max-age=3600"}
+            )
 
-        return FileResponse(
-            path=file_path,
-            media_type=content_type,
-            filename=safe_filename,
-            headers={"Cache-Control": "public, max-age=3600"}
-        )
+        # If not found locally, try to get from R2 storage
+        if r2_client:
+            try:
+                storage_key = f"converted/{safe_filename}"
 
+                # Generate presigned URL for download
+                download_url = r2_client.generate_presigned_url(
+                    'get_object',
+                    Params={
+                        'Bucket': r2_bucket,
+                        'Key': storage_key
+                    },
+                    ExpiresIn=3600  # 1 hour
+                )
+
+                # Redirect to the presigned URL
+                return RedirectResponse(url=download_url, status_code=302)
+
+            except Exception as r2_error:
+                logger.error(f"R2 download error: {str(r2_error)}")
+                raise HTTPException(status_code=404, detail="File not found in storage")
+
+        raise HTTPException(status_code=404, detail="File not found")
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Download error: {str(e)}")
         raise HTTPException(status_code=500, detail="Download failed")
+
+@app.get("/api/download/{filename}")
+async def api_download_file(filename: str):
+    """Download a converted file (API endpoint for compatibility)"""
+    return await download_file(filename)
 
 @app.get("/")
 async def root():

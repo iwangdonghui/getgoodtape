@@ -11,40 +11,11 @@ import ConversionResult from '../../components/ConversionResult';
 import SupportedPlatforms from '../../components/SupportedPlatforms';
 import BrandFeatures from '../../components/BrandFeatures';
 import VideoPreview from '../../components/VideoPreview';
+import { useConversion } from '../../hooks/useConversion';
 import { apiClient, ValidationResponse } from '../../lib/api-client';
 
-interface ConversionState {
-  status:
-    | 'idle'
-    | 'validating'
-    | 'queued'
-    | 'processing'
-    | 'completed'
-    | 'failed';
-  jobId?: string;
-  progress: number;
-  error?: string;
-  downloadUrl?: string;
-  filename?: string;
-  metadata?: {
-    title: string;
-    duration: number;
-    thumbnail: string;
-    uploader: string;
-  };
-  estimatedTimeRemaining?: number;
-  currentStep?: string;
-  queuePosition?: number;
-}
-
 export default function AppPage() {
-  const [url, setUrl] = useState('');
-  const [format, setFormat] = useState<'mp3' | 'mp4'>('mp3');
-  const [quality, setQuality] = useState('medium');
-  const [conversionState, setConversionState] = useState<ConversionState>({
-    status: 'idle',
-    progress: 0,
-  });
+  const conversion = useConversion();
   const [urlValidation, setUrlValidation] = useState<ValidationResponse>({
     isValid: false,
   });
@@ -55,32 +26,31 @@ export default function AppPage() {
     setIsMounted(true);
   }, []);
 
-  // URL validation effect
+  // Sync URL validation with conversion hook
   useEffect(() => {
-    if (!url.trim()) {
+    if (conversion.detectedPlatform) {
+      setUrlValidation({
+        isValid: true,
+        platform: conversion.detectedPlatform,
+        metadata: conversion.urlMetadata,
+      });
+    } else if (conversion.urlError) {
+      setUrlValidation({
+        isValid: false,
+        error: {
+          type: 'VALIDATION_ERROR',
+          message: conversion.urlError,
+          retryable: true,
+        },
+      });
+    } else {
       setUrlValidation({ isValid: false });
-      return;
     }
-
-    const validateUrl = async () => {
-      try {
-        const result = await apiClient.validateUrl(url);
-        setUrlValidation(result);
-      } catch (error) {
-        setUrlValidation({
-          isValid: false,
-          error: {
-            type: 'NETWORK_ERROR',
-            message: 'Failed to validate URL',
-            retryable: true,
-          },
-        });
-      }
-    };
-
-    const timeoutId = setTimeout(validateUrl, 500);
-    return () => clearTimeout(timeoutId);
-  }, [url]);
+  }, [
+    conversion.detectedPlatform,
+    conversion.urlError,
+    conversion.urlMetadata,
+  ]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,133 +59,18 @@ export default function AppPage() {
       return;
     }
 
-    setConversionState({
-      status: 'validating',
-      progress: 0,
-    });
-
-    try {
-      // Start conversion
-      const result = await apiClient.convert({
-        url,
-        format,
-        quality,
-      });
-
-      if (result.success && result.jobId) {
-        setConversionState({
-          status: 'queued',
-          jobId: result.jobId,
-          progress: 10,
-        });
-
-        // Start polling for status
-        pollConversionStatus(result.jobId);
-      } else {
-        setConversionState({
-          status: 'failed',
-          progress: 0,
-          error:
-            typeof result.error === 'string'
-              ? result.error
-              : result.error?.message || 'Failed to start conversion',
-        });
-      }
-    } catch (error) {
-      setConversionState({
-        status: 'failed',
-        progress: 0,
-        error: 'Network error occurred',
-      });
-    }
-  };
-
-  const pollConversionStatus = async (jobId: string) => {
-    const maxAttempts = 120; // 10 minutes max
-    let attempts = 0;
-
-    const poll = async () => {
-      try {
-        const result = await apiClient.getStatus(jobId);
-
-        if (result.success) {
-          setConversionState(prev => ({
-            ...prev,
-            status: result.status || prev.status,
-            progress: result.progress || prev.progress,
-            estimatedTimeRemaining: result.estimatedTimeRemaining,
-            queuePosition: result.queuePosition,
-          }));
-
-          if (result.status === 'completed') {
-            setConversionState(prev => ({
-              ...prev,
-              downloadUrl: result.downloadUrl,
-              filename: result.filename,
-              metadata: result.metadata,
-            }));
-            return;
-          }
-
-          if (result.status === 'failed') {
-            setConversionState(prev => ({
-              ...prev,
-              error:
-                typeof result.error === 'string'
-                  ? result.error
-                  : result.error?.message || 'Conversion failed',
-            }));
-            return;
-          }
-
-          attempts++;
-          if (
-            attempts < maxAttempts &&
-            (result.status === 'queued' || result.status === 'processing')
-          ) {
-            setTimeout(poll, 5000); // Poll every 5 seconds
-          }
-        } else {
-          setConversionState(prev => ({
-            ...prev,
-            status: 'failed',
-            error:
-              typeof result.error === 'string'
-                ? result.error
-                : result.error?.message || 'Failed to get status',
-          }));
-        }
-      } catch (error) {
-        console.error('Polling error:', error);
-        attempts++;
-        if (attempts < maxAttempts) {
-          setTimeout(poll, 5000);
-        }
-      }
-    };
-
-    poll();
+    await conversion.startConversion();
   };
 
   const resetConversion = () => {
-    setConversionState({
-      status: 'idle',
-      progress: 0,
-    });
-    setUrl('');
+    conversion.reset();
   };
 
   const startNewConversion = () => {
-    setConversionState({
-      status: 'idle',
-      progress: 0,
-    });
+    conversion.reset();
   };
 
-  const isConverting =
-    conversionState.status !== 'idle' &&
-    conversionState.status !== 'completed' &&
-    conversionState.status !== 'failed';
+  const isConverting = conversion.isConverting;
 
   return (
     <>
@@ -235,8 +90,8 @@ export default function AppPage() {
               </p>
 
               {/* Conversion Form */}
-              {(conversionState.status === 'idle' ||
-                conversionState.status === 'failed') && (
+              {(conversion.status === 'idle' ||
+                conversion.status === 'failed') && (
                 <div className="max-w-2xl mx-auto">
                   <form onSubmit={handleSubmit} className="space-y-6">
                     {/* URL Input */}
@@ -245,19 +100,19 @@ export default function AppPage() {
                         <Input
                           type="url"
                           id="url"
-                          value={url}
-                          onChange={e => setUrl(e.target.value)}
+                          value={conversion.url}
+                          onChange={e => conversion.setUrl(e.target.value)}
                           placeholder="Paste your video URL here..."
                           required
                           className={`h-14 text-lg px-6 ${
-                            url && !urlValidation.isValid
+                            conversion.url && !urlValidation.isValid
                               ? 'border-red-300 focus:border-red-500'
-                              : url && urlValidation.isValid
+                              : conversion.url && urlValidation.isValid
                                 ? 'border-green-300 focus:border-green-500'
                                 : ''
                           }`}
                         />
-                        {url && urlValidation.isValid && (
+                        {conversion.url && urlValidation.isValid && (
                           <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
                             <span className="text-green-500 text-xl">✓</span>
                           </div>
@@ -265,7 +120,7 @@ export default function AppPage() {
                       </div>
 
                       {/* Validation Messages */}
-                      {url &&
+                      {conversion.url &&
                         urlValidation.isValid &&
                         urlValidation.platform &&
                         (() => {
@@ -286,7 +141,7 @@ export default function AppPage() {
                             </p>
                           );
                         })()}
-                      {url && urlValidation.error && (
+                      {conversion.url && urlValidation.error && (
                         <p className="text-sm text-red-600 flex items-center gap-2">
                           <span className="text-red-500">✗</span>
                           {urlValidation.error.message}
@@ -295,7 +150,7 @@ export default function AppPage() {
 
                       {/* Video Preview */}
                       {isMounted &&
-                        url &&
+                        conversion.url &&
                         urlValidation.isValid &&
                         urlValidation.metadata && (
                           <VideoPreview
@@ -325,7 +180,7 @@ export default function AppPage() {
                         <div className="grid grid-cols-2 gap-2">
                           <label
                             className={`flex items-center justify-center p-3 border rounded-lg cursor-pointer transition-all ${
-                              format === 'mp3'
+                              conversion.format === 'mp3'
                                 ? 'border-primary bg-primary/10 text-primary'
                                 : 'border-border hover:border-primary/50'
                             }`}
@@ -333,9 +188,11 @@ export default function AppPage() {
                             <input
                               type="radio"
                               value="mp3"
-                              checked={format === 'mp3'}
+                              checked={conversion.format === 'mp3'}
                               onChange={e =>
-                                setFormat(e.target.value as 'mp3' | 'mp4')
+                                conversion.setFormat(
+                                  e.target.value as 'mp3' | 'mp4'
+                                )
                               }
                               className="sr-only"
                             />
@@ -349,7 +206,7 @@ export default function AppPage() {
                           </label>
                           <label
                             className={`flex items-center justify-center p-3 border rounded-lg cursor-pointer transition-all ${
-                              format === 'mp4'
+                              conversion.format === 'mp4'
                                 ? 'border-primary bg-primary/10 text-primary'
                                 : 'border-border hover:border-primary/50'
                             }`}
@@ -357,9 +214,11 @@ export default function AppPage() {
                             <input
                               type="radio"
                               value="mp4"
-                              checked={format === 'mp4'}
+                              checked={conversion.format === 'mp4'}
                               onChange={e =>
-                                setFormat(e.target.value as 'mp3' | 'mp4')
+                                conversion.setFormat(
+                                  e.target.value as 'mp3' | 'mp4'
+                                )
                               }
                               className="sr-only"
                             />
@@ -380,21 +239,21 @@ export default function AppPage() {
                           Quality
                         </label>
                         <select
-                          value={quality}
-                          onChange={e => setQuality(e.target.value)}
+                          value={conversion.quality}
+                          onChange={e => conversion.setQuality(e.target.value)}
                           className="w-full p-3 border rounded-lg bg-background text-foreground focus:border-primary focus:ring-1 focus:ring-primary"
                         >
-                          {format === 'mp3' ? (
+                          {conversion.format === 'mp3' ? (
                             <>
-                              <option value="320">320 kbps (High)</option>
-                              <option value="192">192 kbps (Medium)</option>
-                              <option value="128">128 kbps (Low)</option>
+                              <option value="high">320 kbps (High)</option>
+                              <option value="medium">192 kbps (Medium)</option>
+                              <option value="low">128 kbps (Low)</option>
                             </>
                           ) : (
                             <>
-                              <option value="1080">1080p (High)</option>
-                              <option value="720">720p (Medium)</option>
-                              <option value="360">360p (Low)</option>
+                              <option value="high">1080p (High)</option>
+                              <option value="medium">720p (Medium)</option>
+                              <option value="low">360p (Low)</option>
                             </>
                           )}
                         </select>
@@ -407,7 +266,9 @@ export default function AppPage() {
                       size="lg"
                       className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all duration-200 shadow-lg hover:shadow-xl"
                       disabled={
-                        !urlValidation.isValid || !url.trim() || isConverting
+                        !urlValidation.isValid ||
+                        !conversion.url.trim() ||
+                        isConverting
                       }
                     >
                       {isConverting ? (
@@ -424,32 +285,29 @@ export default function AppPage() {
               )}
 
               {/* Conversion Progress */}
-              {(conversionState.status === 'validating' ||
-                conversionState.status === 'queued' ||
-                conversionState.status === 'processing') && (
+              {(conversion.status === 'validating' ||
+                conversion.status === 'queued' ||
+                conversion.status === 'processing') && (
                 <div className="max-w-2xl mx-auto">
                   <ConversionProgress
-                    status={conversionState.status}
-                    progress={conversionState.progress}
-                    jobId={conversionState.jobId}
-                    estimatedTimeRemaining={
-                      conversionState.estimatedTimeRemaining
-                    }
-                    currentStep={conversionState.currentStep}
-                    queuePosition={conversionState.queuePosition}
+                    status={conversion.status}
+                    progress={conversion.progress}
+                    jobId={conversion.jobId}
+                    estimatedTimeRemaining={conversion.estimatedTimeRemaining}
+                    queuePosition={conversion.queuePosition}
                   />
                 </div>
               )}
 
               {/* Conversion Result */}
-              {conversionState.status === 'completed' && (
+              {conversion.status === 'completed' && (
                 <div className="max-w-2xl mx-auto">
                   <ConversionResult
-                    downloadUrl={conversionState.downloadUrl}
-                    filename={conversionState.filename}
-                    metadata={conversionState.metadata}
-                    format={format}
-                    quality={quality}
+                    downloadUrl={conversion.result?.downloadUrl}
+                    filename={conversion.result?.filename}
+                    metadata={conversion.result?.metadata}
+                    format={conversion.format}
+                    quality={conversion.quality}
                     onReset={resetConversion}
                     onNewConversion={startNewConversion}
                   />
@@ -457,7 +315,7 @@ export default function AppPage() {
               )}
 
               {/* Error State */}
-              {conversionState.status === 'failed' && (
+              {conversion.status === 'failed' && (
                 <div className="max-w-2xl mx-auto">
                   <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
                     <div className="flex items-center space-x-2 mb-2">
@@ -467,7 +325,7 @@ export default function AppPage() {
                       </h3>
                     </div>
                     <p className="text-red-700 mb-4">
-                      {conversionState.error || 'An unknown error occurred'}
+                      {conversion.error || 'An unknown error occurred'}
                     </p>
                     <Button
                       onClick={resetConversion}
