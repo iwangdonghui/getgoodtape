@@ -1,9 +1,7 @@
 import { NextRequest } from 'next/server';
 
 const WORKERS_URL =
-  process.env.NODE_ENV === 'development'
-    ? 'https://getgoodtape-video-proc.fly.dev'
-    : 'https://getgoodtape-api-production.wangdonghuiibt-cloudflare.workers.dev';
+  'https://getgoodtape-api-production.wangdonghuiibt-cloudflare.workers.dev';
 
 export async function POST(request: NextRequest) {
   try {
