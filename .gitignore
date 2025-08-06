@@ -59,3 +59,36 @@ Thumbs.db
 **/config/api_keys.py
 **/*_secrets.py
 **/*_keys.py
+
+# Python cache and temporary files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache/
+
+# Backup files
+*.backup
+*.bak
+*~
+
+# Test reports and temporary files
+*_test_report.json
+frontend_test_report.json
+
+# Temporary scripts and debug files
+test_after_ip_fix.sh
+test_ip_direct.py
+test_ip_proxy_direct.py
+test_manual.sh
+test_proxy_fix.sh
+test_dns_override.sh
+shadowrocket_debug.sh
+create_direct_only_version.py
+create_ip_bypass.py
+create_no_proxy_version.py
+
+# API client backups
+lib/api-client.ts.backup
