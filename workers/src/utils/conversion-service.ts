@@ -11,7 +11,7 @@ export class ConversionService {
   private storage: StorageManager;
   private dbManager: DatabaseManager;
   private presignedUrlManager: PresignedUrlManager;
-  private wsManager: any; // WebSocketManager - using any to avoid circular dependency
+  private wsManager: any = null; // WebSocketManager - using any to avoid circular dependency
 
   constructor(env: Env) {
     this.env = env;
@@ -24,7 +24,7 @@ export class ConversionService {
   /**
    * Set WebSocket manager for real-time updates
    */
-  setWebSocketManager(wsManager: any) {
+  setWebSocketManager(wsManager: any): void {
     this.wsManager = wsManager;
   }
 
@@ -78,7 +78,7 @@ export class ConversionService {
     jobId: string,
     progress: number,
     status?: string,
-    additionalData?: any
+    additionalData?: Record<string, unknown>
   ) {
     // Update database
     await this.jobManager.updateProgress(jobId, progress);

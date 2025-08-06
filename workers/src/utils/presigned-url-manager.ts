@@ -45,7 +45,7 @@ export class PresignedUrlManager {
   async generateUploadUrl(
     fileName: string,
     contentType: string,
-    metadata?: Record<string, string>
+    _metadata?: Record<string, string>
   ): Promise<PresignedUploadUrl> {
     if (!this.env.STORAGE) {
       throw new Error('R2 storage not configured');
