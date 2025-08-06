@@ -11,6 +11,7 @@ const app = new Hono<{ Bindings: Env }>();
 
 // Middleware
 app.use('*', logger());
+// 🚀 OPTIMIZED: Enhanced CORS for direct frontend connections (API层级简化)
 app.use(
   '*',
   cors({
@@ -19,16 +20,36 @@ app.use(
       if (origin?.includes('localhost') || origin?.includes('127.0.0.1')) {
         return origin;
       }
+
       // Allow production domains
       const allowedOrigins = [
         'https://getgoodtape.com',
         'https://www.getgoodtape.com',
+        // Add more domains as needed for direct frontend access
       ];
-      return allowedOrigins.includes(origin || '') ? origin : null;
+
+      if (origin && allowedOrigins.some(domain => origin.startsWith(domain))) {
+        return origin;
+      }
+
+      // For development environments, be more permissive
+      if (process.env.NODE_ENV === 'development') {
+        return origin || '*';
+      }
+
+      return null;
     },
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization'],
-    maxAge: 86400,
+    allowHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'X-Request-ID',
+      'X-Client-Version',
+    ],
+    exposeHeaders: ['X-Response-Time', 'X-Request-ID', 'X-API-Version'],
+    credentials: true,
+    maxAge: 86400, // 24 hours cache for preflight requests
   })
 );
 

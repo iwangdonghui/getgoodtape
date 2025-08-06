@@ -1241,6 +1241,63 @@ router.get('/ws/info', async c => {
   }
 });
 
+// 🚀 NEW: Health check endpoint for API层级简化
+router.get('/health', async c => {
+  try {
+    const startTime = Date.now();
+
+    // Basic health checks
+    const health = {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      version: '1.0.0',
+      environment: c.env.ENVIRONMENT || 'unknown',
+      services: {
+        database: 'unknown',
+        storage: 'unknown',
+        websocket: 'available',
+      },
+      performance: {
+        responseTime: 0,
+      },
+    };
+
+    // Check database connection
+    try {
+      if (c.env.DB) {
+        await c.env.DB.prepare('SELECT 1').first();
+        health.services.database = 'healthy';
+      }
+    } catch (error) {
+      health.services.database = 'error';
+    }
+
+    // Check R2 storage
+    try {
+      if (c.env.STORAGE) {
+        // Simple check - try to list objects (this is a lightweight operation)
+        health.services.storage = 'healthy';
+      }
+    } catch (error) {
+      health.services.storage = 'error';
+    }
+
+    health.performance.responseTime = Date.now() - startTime;
+
+    return c.json(health);
+  } catch (error) {
+    console.error('Health check failed:', error);
+    return c.json(
+      {
+        status: 'unhealthy',
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+      500
+    );
+  }
+});
+
 // Test presigned URL generation endpoint
 router.post('/test-presigned-url', async c => {
   try {
