@@ -4,6 +4,7 @@ import { logger } from 'hono/logger';
 import { router } from './handlers/router';
 import { ConversionService } from './utils/conversion-service';
 import { QueueManager } from './utils/queue-manager';
+import { getWebSocketManager } from './handlers/websocket';
 import type { Env } from './types';
 
 const app = new Hono<{ Bindings: Env }>();
@@ -66,6 +67,10 @@ async function processQueue(env: Env): Promise<void> {
 
   const queueManager = new QueueManager(env);
   const conversionService = new ConversionService(env);
+  const wsManager = getWebSocketManager(env);
+
+  // Set WebSocket manager for real-time updates
+  conversionService.setWebSocketManager(wsManager);
 
   try {
     // Handle timeout jobs first
@@ -102,6 +107,9 @@ async function processQueue(env: Env): Promise<void> {
 
     // Clean up old jobs
     await queueManager.cleanupOldJobs();
+
+    // Clean up stale WebSocket connections
+    wsManager.cleanupStaleConnections();
   } catch (error) {
     console.error('Queue processing error:', error);
   }

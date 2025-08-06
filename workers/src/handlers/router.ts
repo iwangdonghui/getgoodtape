@@ -6,6 +6,7 @@ import { ConversionService } from '../utils/conversion-service';
 import { StorageManager } from '../utils/storage';
 import { QueueManager } from '../utils/queue-manager';
 import { FileCleanupService } from '../utils/file-cleanup';
+import { getWebSocketManager } from './websocket';
 import { ErrorType, ConvertRequest, Env } from '../types';
 
 /**
@@ -1187,6 +1188,99 @@ router.delete('/admin/storage/files/:fileName', async c => {
         error: {
           type: ErrorType.SERVER_ERROR,
           message: 'Internal server error',
+          retryable: true,
+        },
+      },
+      500
+    );
+  }
+});
+
+// WebSocket endpoint for real-time conversion updates
+router.get('/ws', async c => {
+  try {
+    const wsManager = getWebSocketManager(c.env);
+    return await wsManager.handleUpgrade(c);
+  } catch (error) {
+    console.error('WebSocket endpoint error:', error);
+    return c.json(
+      {
+        error: {
+          type: ErrorType.SERVER_ERROR,
+          message: 'WebSocket connection failed',
+          retryable: true,
+        },
+      },
+      500
+    );
+  }
+});
+
+// WebSocket connection info endpoint
+router.get('/ws/info', async c => {
+  try {
+    const wsManager = getWebSocketManager(c.env);
+    return c.json({
+      success: true,
+      activeConnections: wsManager.getConnectionCount(),
+      endpoint: '/api/ws',
+      protocols: ['websocket'],
+    });
+  } catch (error) {
+    console.error('WebSocket info endpoint error:', error);
+    return c.json(
+      {
+        error: {
+          type: ErrorType.SERVER_ERROR,
+          message: 'Failed to get WebSocket info',
+          retryable: true,
+        },
+      },
+      500
+    );
+  }
+});
+
+// Test presigned URL generation endpoint
+router.post('/test-presigned-url', async c => {
+  try {
+    const { PresignedUrlManager } = await import(
+      '../utils/presigned-url-manager'
+    );
+    const presignedUrlManager = new PresignedUrlManager(c.env);
+
+    const body = await c.req.json();
+    const { filename, contentType } = body;
+
+    if (!filename || !contentType) {
+      return c.json({ error: 'Missing filename or contentType' }, 400);
+    }
+
+    // Generate upload URL
+    const uploadUrl = await presignedUrlManager.generateUploadUrl(
+      filename,
+      contentType,
+      { test: 'true' }
+    );
+
+    // Generate download URL (using the same key)
+    const downloadUrl = await presignedUrlManager.generateDownloadUrl(
+      uploadUrl.key
+    );
+
+    return c.json({
+      success: true,
+      upload: uploadUrl,
+      download: downloadUrl,
+      message: 'Presigned URLs generated successfully',
+    });
+  } catch (error) {
+    console.error('Test presigned URL error:', error);
+    return c.json(
+      {
+        error: {
+          type: ErrorType.SERVER_ERROR,
+          message: 'Failed to generate presigned URLs',
           retryable: true,
         },
       },
