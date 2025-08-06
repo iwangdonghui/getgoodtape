@@ -237,7 +237,12 @@ export class WebSocketManager {
     status: string,
     additionalData?: any
   ) {
-    this.broadcastToJob(jobId, {
+    // 🐛 FIX: Add detailed logging for progress updates
+    console.log(
+      `📊 WebSocket: Sending progress update for job ${jobId}: ${progress}% (${status})`
+    );
+
+    const message = {
       type: 'progress_update',
       payload: {
         jobId,
@@ -246,7 +251,12 @@ export class WebSocketManager {
         timestamp: Date.now(),
         ...additionalData,
       },
-    });
+    };
+
+    this.broadcastToJob(jobId, message);
+    console.log(
+      `📤 WebSocket: Progress update sent to ${this.getConnectionCountForJob(jobId)} clients`
+    );
   }
 
   /**
@@ -258,7 +268,13 @@ export class WebSocketManager {
     filename: string,
     metadata?: any
   ) {
-    this.broadcastToJob(jobId, {
+    // 🐛 FIX: Add detailed logging for completion
+    console.log(
+      `🎉 WebSocket: Sending completion notification for job ${jobId}`
+    );
+    console.log(`📁 File: ${filename}, URL: ${downloadUrl}`);
+
+    const message = {
       type: 'conversion_completed',
       payload: {
         jobId,
@@ -269,12 +285,20 @@ export class WebSocketManager {
         metadata,
         timestamp: Date.now(),
       },
-    });
+    };
 
-    // Clean up connection after completion
+    this.broadcastToJob(jobId, message);
+    console.log(
+      `📤 WebSocket: Completion notification sent to ${this.getConnectionCountForJob(jobId)} clients`
+    );
+
+    // 🐛 FIX: Extend cleanup delay to ensure message delivery
     setTimeout(() => {
+      console.log(
+        `🧹 WebSocket: Cleaning up connections for completed job ${jobId}`
+      );
       this.removeConnectionByJobId(jobId);
-    }, 5000); // Keep connection for 5 seconds after completion
+    }, 10000); // Keep connection for 10 seconds after completion to ensure message delivery
   }
 
   /**
@@ -320,6 +344,13 @@ export class WebSocketManager {
    */
   getConnectionCount(): number {
     return activeConnections.size;
+  }
+
+  /**
+   * Get connection count for a specific job
+   */
+  private getConnectionCountForJob(jobId: string): number {
+    return activeConnections.has(jobId) ? 1 : 0;
   }
 
   /**
