@@ -9,7 +9,7 @@ export async function GET(
   try {
     const { fileName } = params;
     console.log('🔗 Download request for:', fileName);
-    
+
     const response = await fetch(`${BACKEND_URL}/download/${fileName}`, {
       method: 'GET',
     });
@@ -21,13 +21,14 @@ export async function GET(
 
     // 获取文件内容和头部信息
     const fileBuffer = await response.arrayBuffer();
-    const contentType = response.headers.get('content-type') || 'application/octet-stream';
+    const contentType =
+      response.headers.get('content-type') || 'application/octet-stream';
     const contentLength = response.headers.get('content-length');
 
     console.log('✅ Download successful:', {
       fileName,
       contentType,
-      size: contentLength
+      size: contentLength,
     });
 
     return new Response(fileBuffer, {

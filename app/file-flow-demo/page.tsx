@@ -46,13 +46,16 @@ export default function FileFlowDemoPage() {
               File Flow Optimization Demo
             </h1>
             <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Experience the power of direct R2 upload with presigned URLs - no more Worker bottlenecks!
+              Experience the power of direct R2 upload with presigned URLs - no
+              more Worker bottlenecks!
             </p>
 
             {/* Architecture Comparison */}
             <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
               <div className="p-6 bg-red-50 border border-red-200 rounded-lg">
-                <h3 className="font-semibold text-red-800 mb-4 text-xl">❌ Old File Flow</h3>
+                <h3 className="font-semibold text-red-800 mb-4 text-xl">
+                  ❌ Old File Flow
+                </h3>
                 <div className="space-y-3 text-sm text-red-700">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 bg-red-500 rounded-full"></span>
@@ -79,7 +82,9 @@ export default function FileFlowDemoPage() {
               </div>
 
               <div className="p-6 bg-green-50 border border-green-200 rounded-lg">
-                <h3 className="font-semibold text-green-800 mb-4 text-xl">✅ New File Flow</h3>
+                <h3 className="font-semibold text-green-800 mb-4 text-xl">
+                  ✅ New File Flow
+                </h3>
                 <div className="space-y-3 text-sm text-green-700">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 bg-green-500 rounded-full"></span>
@@ -112,13 +117,17 @@ export default function FileFlowDemoPage() {
 
             {/* Flow Diagram */}
             <div className="mb-8 p-6 bg-blue-50 border border-blue-200 rounded-lg">
-              <h3 className="font-semibold text-blue-800 mb-4 text-xl">🚀 Optimized Flow Diagram</h3>
+              <h3 className="font-semibold text-blue-800 mb-4 text-xl">
+                🚀 Optimized Flow Diagram
+              </h3>
               <div className="flex flex-col md:flex-row items-center justify-center gap-4 text-sm">
                 <div className="flex flex-col items-center">
                   <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
                     1
                   </div>
-                  <p className="mt-2 text-blue-700 font-medium">Generate Presigned URL</p>
+                  <p className="mt-2 text-blue-700 font-medium">
+                    Generate Presigned URL
+                  </p>
                   <p className="text-blue-600 text-xs">Worker → R2</p>
                 </div>
                 <div className="hidden md:block text-blue-400 text-2xl">→</div>
@@ -126,7 +135,9 @@ export default function FileFlowDemoPage() {
                   <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center text-white font-bold">
                     2
                   </div>
-                  <p className="mt-2 text-green-700 font-medium">Convert Video</p>
+                  <p className="mt-2 text-green-700 font-medium">
+                    Convert Video
+                  </p>
                   <p className="text-green-600 text-xs">VideoProcessor</p>
                 </div>
                 <div className="hidden md:block text-green-400 text-2xl">→</div>
@@ -134,15 +145,21 @@ export default function FileFlowDemoPage() {
                   <div className="w-16 h-16 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold">
                     3
                   </div>
-                  <p className="mt-2 text-purple-700 font-medium">Direct Upload</p>
+                  <p className="mt-2 text-purple-700 font-medium">
+                    Direct Upload
+                  </p>
                   <p className="text-purple-600 text-xs">VideoProcessor → R2</p>
                 </div>
-                <div className="hidden md:block text-purple-400 text-2xl">→</div>
+                <div className="hidden md:block text-purple-400 text-2xl">
+                  →
+                </div>
                 <div className="flex flex-col items-center">
                   <div className="w-16 h-16 bg-orange-500 rounded-full flex items-center justify-center text-white font-bold">
                     4
                   </div>
-                  <p className="mt-2 text-orange-700 font-medium">Verify & Complete</p>
+                  <p className="mt-2 text-orange-700 font-medium">
+                    Verify & Complete
+                  </p>
                   <p className="text-orange-600 text-xs">Worker verifies</p>
                 </div>
               </div>
@@ -153,21 +170,27 @@ export default function FileFlowDemoPage() {
               <div className="flex items-center gap-2">
                 <div
                   className={`w-3 h-3 rounded-full ${
-                    conversion.isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'
+                    conversion.isConnected
+                      ? 'bg-green-500 animate-pulse'
+                      : 'bg-red-500'
                   }`}
                 />
                 <span className="text-sm font-medium">
-                  WebSocket: {conversion.isConnected ? 'Connected' : 'Disconnected'}
+                  WebSocket:{' '}
+                  {conversion.isConnected ? 'Connected' : 'Disconnected'}
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse" />
-                <span className="text-sm font-medium">File Flow: Optimized</span>
+                <span className="text-sm font-medium">
+                  File Flow: Optimized
+                </span>
               </div>
             </div>
 
             {/* Conversion Form */}
-            {(conversion.status === 'idle' || conversion.status === 'failed') && (
+            {(conversion.status === 'idle' ||
+              conversion.status === 'failed') && (
               <div className="max-w-2xl mx-auto">
                 <form onSubmit={handleSubmit} className="space-y-6">
                   {/* URL Input */}
@@ -196,12 +219,15 @@ export default function FileFlowDemoPage() {
                     </div>
 
                     {/* Validation Messages */}
-                    {conversion.url && isValidUrl && conversion.detectedPlatform && (
-                      <p className="text-sm text-green-600 flex items-center gap-2">
-                        <span className="text-green-500">✓</span>
-                        {conversion.detectedPlatform} video detected - ready for optimized processing
-                      </p>
-                    )}
+                    {conversion.url &&
+                      isValidUrl &&
+                      conversion.detectedPlatform && (
+                        <p className="text-sm text-green-600 flex items-center gap-2">
+                          <span className="text-green-500">✓</span>
+                          {conversion.detectedPlatform} video detected - ready
+                          for optimized processing
+                        </p>
+                      )}
                     {conversion.url && conversion.urlError && (
                       <p className="text-sm text-red-600 flex items-center gap-2">
                         <span className="text-red-500">✗</span>
@@ -247,7 +273,9 @@ export default function FileFlowDemoPage() {
                             value="mp3"
                             checked={conversion.format === 'mp3'}
                             onChange={e =>
-                              conversion.setFormat(e.target.value as 'mp3' | 'mp4')
+                              conversion.setFormat(
+                                e.target.value as 'mp3' | 'mp4'
+                              )
                             }
                             className="sr-only"
                           />
@@ -271,7 +299,9 @@ export default function FileFlowDemoPage() {
                             value="mp4"
                             checked={conversion.format === 'mp4'}
                             onChange={e =>
-                              conversion.setFormat(e.target.value as 'mp3' | 'mp4')
+                              conversion.setFormat(
+                                e.target.value as 'mp3' | 'mp4'
+                              )
                             }
                             className="sr-only"
                           />
@@ -318,7 +348,11 @@ export default function FileFlowDemoPage() {
                     type="submit"
                     size="lg"
                     className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
-                    disabled={!isValidUrl || !conversion.url.trim() || conversion.isConverting}
+                    disabled={
+                      !isValidUrl ||
+                      !conversion.url.trim() ||
+                      conversion.isConverting
+                    }
                   >
                     {conversion.isConverting ? (
                       <div className="flex items-center gap-2">
@@ -347,22 +381,35 @@ export default function FileFlowDemoPage() {
                   currentStep={conversion.currentStep}
                   isConnected={conversion.isConnected}
                 />
-                
+
                 {/* Progress Explanation */}
                 <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h4 className="font-semibold text-blue-800 mb-2">🔍 What's happening behind the scenes:</h4>
+                  <h4 className="font-semibold text-blue-800 mb-2">
+                    🔍 What's happening behind the scenes:
+                  </h4>
                   <div className="text-sm text-blue-700 space-y-1">
                     {conversion.progress >= 35 && (
-                      <p>✅ Presigned upload URL generated for direct R2 access</p>
+                      <p>
+                        ✅ Presigned upload URL generated for direct R2 access
+                      </p>
                     )}
                     {conversion.progress >= 40 && (
-                      <p>✅ VideoProcessor received upload URL and started conversion</p>
+                      <p>
+                        ✅ VideoProcessor received upload URL and started
+                        conversion
+                      </p>
                     )}
                     {conversion.progress >= 80 && (
-                      <p>✅ File converted and uploaded directly to R2 (bypassing Worker)</p>
+                      <p>
+                        ✅ File converted and uploaded directly to R2 (bypassing
+                        Worker)
+                      </p>
                     )}
                     {conversion.progress >= 90 && (
-                      <p>✅ Worker verified upload and generated secure download link</p>
+                      <p>
+                        ✅ Worker verified upload and generated secure download
+                        link
+                      </p>
                     )}
                   </div>
                 </div>
@@ -381,13 +428,16 @@ export default function FileFlowDemoPage() {
                   onReset={resetConversion}
                   onNewConversion={startNewConversion}
                 />
-                
+
                 {/* Success Message */}
                 <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <h4 className="font-semibold text-green-800 mb-2">🎉 Optimization Success!</h4>
+                  <h4 className="font-semibold text-green-800 mb-2">
+                    🎉 Optimization Success!
+                  </h4>
                   <p className="text-sm text-green-700">
-                    Your file was processed using the optimized flow with direct R2 upload, 
-                    resulting in faster processing and reduced server load.
+                    Your file was processed using the optimized flow with direct
+                    R2 upload, resulting in faster processing and reduced server
+                    load.
                   </p>
                 </div>
               </div>

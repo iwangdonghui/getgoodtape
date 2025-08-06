@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useConversionWebSocket } from '../hooks/useConversionWebSocket';
 import WebSocketDebugger from './WebSocketDebugger';
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,7 @@ export default function ConversionProgressDebug({
   const [isPolling, setIsPolling] = useState(false);
 
   // 轮询服务器状态作为对比
-  const pollServerStatus = async () => {
+  const pollServerStatus = useCallback(async () => {
     if (!state.jobId) return;
 
     try {
@@ -47,7 +47,7 @@ export default function ConversionProgressDebug({
     } catch (error) {
       console.error('Failed to poll server status:', error);
     }
-  };
+  }, [state.jobId, state.status]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -57,7 +57,7 @@ export default function ConversionProgressDebug({
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isPolling, state.jobId]);
+  }, [isPolling, state.jobId, pollServerStatus]);
 
   const handleStartConversion = async () => {
     setDebugMessages([]);

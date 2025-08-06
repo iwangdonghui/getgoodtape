@@ -31,8 +31,8 @@ export async function POST(request: NextRequest) {
           uploader: data.metadata.uploader,
           channelTitle: data.metadata.uploader,
           videoId: data.metadata.id,
-          platform: 'youtube'
-        }
+          platform: 'youtube',
+        },
       });
     } else {
       return Response.json({
@@ -40,19 +40,22 @@ export async function POST(request: NextRequest) {
         error: {
           type: 'VALIDATION_ERROR',
           message: data.error || 'Unable to validate video URL',
-          retryable: true
-        }
+          retryable: true,
+        },
       });
     }
   } catch (error) {
     console.error('Validation proxy error:', error);
-    return Response.json({
-      isValid: false,
-      error: {
-        type: 'NETWORK_ERROR',
-        message: 'Network error occurred',
-        retryable: true
-      }
-    }, { status: 500 });
+    return Response.json(
+      {
+        isValid: false,
+        error: {
+          type: 'NETWORK_ERROR',
+          message: 'Network error occurred',
+          retryable: true,
+        },
+      },
+      { status: 500 }
+    );
   }
 }

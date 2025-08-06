@@ -44,8 +44,7 @@ export class PresignedUrlManager {
    */
   async generateUploadUrl(
     fileName: string,
-    contentType: string,
-    _metadata?: Record<string, string>
+    contentType: string
   ): Promise<PresignedUploadUrl> {
     if (!this.env.STORAGE) {
       throw new Error('R2 storage not configured');
@@ -72,7 +71,9 @@ export class PresignedUrlManager {
         // TODO: In production, use aws4fetch to generate real presigned URLs
         // For now, we'll return a placeholder that indicates the feature is not fully implemented
         uploadUrl = `https://production-r2-upload.example.com/${key}?expires=${expiresIn}`;
-        console.log(`⚠️ Generated placeholder presigned upload URL for: ${key} (TODO: implement with aws4fetch)`);
+        console.log(
+          `⚠️ Generated placeholder presigned upload URL for: ${key} (TODO: implement with aws4fetch)`
+        );
       }
 
       return {
@@ -110,7 +111,9 @@ export class PresignedUrlManager {
         // TODO: In production, use aws4fetch to generate real presigned URLs
         // For now, we'll return a placeholder
         downloadUrl = `https://production-r2-download.example.com/${key}?expires=${expiresIn}`;
-        console.log(`⚠️ Generated placeholder presigned download URL for: ${key} (TODO: implement with aws4fetch)`);
+        console.log(
+          `⚠️ Generated placeholder presigned download URL for: ${key} (TODO: implement with aws4fetch)`
+        );
       }
 
       return {
@@ -157,7 +160,7 @@ export class PresignedUrlManager {
 
       // Extract custom metadata
       const metadata: Record<string, string> = {};
-      
+
       if (object.customMetadata) {
         for (const [key, value] of Object.entries(object.customMetadata)) {
           metadata[key] = value;
@@ -188,7 +191,7 @@ export class PresignedUrlManager {
 
     const timestamp = Date.now();
     const extension = format.toLowerCase();
-    
+
     return `${cleanTitle}_${timestamp}.${extension}`;
   }
 
@@ -198,7 +201,7 @@ export class PresignedUrlManager {
   extractFilenameFromKey(key: string): string {
     const parts = key.split('/');
     const filename = parts[parts.length - 1];
-    
+
     // Remove timestamp and random suffix if present
     const match = filename.match(/^\d+_[a-z0-9]+_(.+)$/);
     return match ? match[1] : filename;
@@ -240,7 +243,7 @@ export class PresignedUrlManager {
 
       for (const object of objects.objects) {
         totalSize += object.size || 0;
-        
+
         if (object.uploaded && object.uploaded.getTime() > oneDayAgo) {
           recentUploads++;
         }

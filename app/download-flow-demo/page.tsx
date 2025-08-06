@@ -9,7 +9,7 @@ export default function DownloadFlowDemoPage() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [downloadStats, setDownloadStats] = useState({
     oldFlow: { steps: 3, avgTime: 2.5, serverLoad: 'High' },
-    newFlow: { steps: 1, avgTime: 0.3, serverLoad: 'Minimal' }
+    newFlow: { steps: 1, avgTime: 0.3, serverLoad: 'Minimal' },
   });
 
   // Update current time every second
@@ -46,7 +46,9 @@ export default function DownloadFlowDemoPage() {
             {/* Performance Comparison */}
             <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
               <div className="p-6 bg-red-50 border border-red-200 rounded-lg">
-                <h3 className="font-semibold text-red-800 mb-4 text-xl">❌ 旧下载流程</h3>
+                <h3 className="font-semibold text-red-800 mb-4 text-xl">
+                  ❌ 旧下载流程
+                </h3>
                 <div className="space-y-3 text-sm text-red-700">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 bg-red-500 rounded-full"></span>
@@ -77,7 +79,9 @@ export default function DownloadFlowDemoPage() {
               </div>
 
               <div className="p-6 bg-green-50 border border-green-200 rounded-lg">
-                <h3 className="font-semibold text-green-800 mb-4 text-xl">✅ 新下载流程</h3>
+                <h3 className="font-semibold text-green-800 mb-4 text-xl">
+                  ✅ 新下载流程
+                </h3>
                 <div className="space-y-3 text-sm text-green-700">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 bg-green-500 rounded-full"></span>
@@ -106,7 +110,9 @@ export default function DownloadFlowDemoPage() {
 
             {/* Flow Diagram */}
             <div className="mb-8 p-6 bg-blue-50 border border-blue-200 rounded-lg">
-              <h3 className="font-semibold text-blue-800 mb-4 text-xl">🚀 优化流程图</h3>
+              <h3 className="font-semibold text-blue-800 mb-4 text-xl">
+                🚀 优化流程图
+              </h3>
               <div className="flex flex-col md:flex-row items-center justify-center gap-4 text-sm">
                 <div className="flex flex-col items-center">
                   <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
@@ -128,15 +134,21 @@ export default function DownloadFlowDemoPage() {
                   <div className="w-16 h-16 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold">
                     3
                   </div>
-                  <p className="mt-2 text-purple-700 font-medium">存储到数据库</p>
+                  <p className="mt-2 text-purple-700 font-medium">
+                    存储到数据库
+                  </p>
                   <p className="text-purple-600 text-xs">包含过期时间</p>
                 </div>
-                <div className="hidden md:block text-purple-400 text-2xl">→</div>
+                <div className="hidden md:block text-purple-400 text-2xl">
+                  →
+                </div>
                 <div className="flex flex-col items-center">
                   <div className="w-16 h-16 bg-orange-500 rounded-full flex items-center justify-center text-white font-bold">
                     4
                   </div>
-                  <p className="mt-2 text-orange-700 font-medium">用户直接下载</p>
+                  <p className="mt-2 text-orange-700 font-medium">
+                    用户直接下载
+                  </p>
                   <p className="text-orange-600 text-xs">无API中转</p>
                 </div>
               </div>
@@ -144,7 +156,9 @@ export default function DownloadFlowDemoPage() {
 
             {/* Smart URL Management */}
             <div className="mb-8 p-6 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <h3 className="font-semibold text-yellow-800 mb-4 text-xl">🧠 智能URL管理</h3>
+              <h3 className="font-semibold text-yellow-800 mb-4 text-xl">
+                🧠 智能URL管理
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                 <div className="text-center">
                   <div className="w-12 h-12 bg-yellow-500 rounded-full flex items-center justify-center text-white font-bold mx-auto mb-2">
@@ -191,7 +205,9 @@ export default function DownloadFlowDemoPage() {
 
             {/* Performance Metrics */}
             <div className="mb-8 p-6 bg-gray-50 border border-gray-200 rounded-lg">
-              <h3 className="font-semibold text-gray-800 mb-4 text-xl">📊 性能提升指标</h3>
+              <h3 className="font-semibold text-gray-800 mb-4 text-xl">
+                📊 性能提升指标
+              </h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                 <div>
                   <div className="text-2xl font-bold text-green-600">87%</div>
@@ -214,10 +230,14 @@ export default function DownloadFlowDemoPage() {
 
             {/* Technical Details */}
             <div className="mb-8 p-6 bg-indigo-50 border border-indigo-200 rounded-lg text-left">
-              <h3 className="font-semibold text-indigo-800 mb-4 text-xl text-center">🔧 技术实现细节</h3>
+              <h3 className="font-semibold text-indigo-800 mb-4 text-xl text-center">
+                🔧 技术实现细节
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
                 <div>
-                  <h4 className="font-medium text-indigo-800 mb-2">数据库优化</h4>
+                  <h4 className="font-medium text-indigo-800 mb-2">
+                    数据库优化
+                  </h4>
                   <ul className="space-y-1 text-indigo-700">
                     <li>• 新增 download_expires_at 字段</li>
                     <li>• 新增 r2_key 字段用于直接访问</li>

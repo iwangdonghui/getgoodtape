@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server';
 
-const WORKERS_URL =
-  'https://getgoodtape-video-proc.fly.dev';
+const WORKERS_URL = 'https://getgoodtape-video-proc.fly.dev';
 
 export async function GET(
   request: NextRequest,

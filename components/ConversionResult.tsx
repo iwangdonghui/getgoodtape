@@ -42,8 +42,9 @@ export default function ConversionResult({
 
     try {
       // 🚀 OPTIMIZED: Support direct R2 downloads and API fallback
-      const isDirectR2Url = downloadUrl.includes('r2.cloudflarestorage.com') ||
-                           downloadUrl.includes('mock-r2-download.example.com');
+      const isDirectR2Url =
+        downloadUrl.includes('r2.cloudflarestorage.com') ||
+        downloadUrl.includes('mock-r2-download.example.com');
 
       let fullDownloadUrl: string;
 
@@ -53,7 +54,9 @@ export default function ConversionResult({
         console.log('🚀 Using direct R2 download:', fullDownloadUrl);
       } else {
         // Fallback to API route for compatibility
-        fullDownloadUrl = downloadUrl.startsWith('http') ? downloadUrl : downloadUrl;
+        fullDownloadUrl = downloadUrl.startsWith('http')
+          ? downloadUrl
+          : downloadUrl;
         console.log('🔄 Using API fallback download:', fullDownloadUrl);
       }
 
@@ -203,11 +206,14 @@ export default function ConversionResult({
       {downloadUrl && (
         <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <div className="flex items-center gap-2 text-sm">
-            {downloadUrl.includes('r2.cloudflarestorage.com') || downloadUrl.includes('mock-r2-download.example.com') ? (
+            {downloadUrl.includes('r2.cloudflarestorage.com') ||
+            downloadUrl.includes('mock-r2-download.example.com') ? (
               <>
                 <span className="text-green-600">⚡</span>
                 <span className="font-medium text-green-800">优化下载</span>
-                <span className="text-green-700">- 直接从R2存储下载，无API中转</span>
+                <span className="text-green-700">
+                  - 直接从R2存储下载，无API中转
+                </span>
               </>
             ) : (
               <>
