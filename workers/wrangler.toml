@@ -9,7 +9,7 @@ port = 8789
 local_protocol = "http"
 
 [env.development]
-vars = { ENVIRONMENT = "development" }
+vars = { ENVIRONMENT = "development", PROCESSING_SERVICE_URL = "https://getgoodtape-video-proc.fly.dev" }
 
 [env.production]
 vars = { ENVIRONMENT = "production", PROCESSING_SERVICE_URL = "https://getgoodtape-video-proc.fly.dev" }
@@ -23,7 +23,7 @@ database_id = "0e89da43-8723-4bf3-bc4c-3bd484cc148e"
 [[env.development.d1_databases]]
 binding = "DB"
 database_name = "getgoodtape-dev"
-database_id = "your-dev-database-id"
+database_id = "8835135a-9d34-4f5a-8fde-87352d1b57f9"
 
 # R2 Storage bindings
 [[env.production.r2_buckets]]
