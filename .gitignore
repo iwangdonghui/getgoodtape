@@ -73,6 +73,9 @@ __pycache__/
 *.backup
 *.bak
 *~
+*_backup
+*.direct_backup
+*.no_proxy_backup
 
 # Test reports and temporary files
 *_test_report.json
