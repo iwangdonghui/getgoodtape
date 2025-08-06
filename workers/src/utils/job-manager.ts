@@ -60,14 +60,20 @@ export class JobManager {
 
   /**
    * Mark job as completed with download URL (atomic operation)
+   * 🚀 OPTIMIZED: Now supports download URL expiration and R2 key storage
    */
   async completeJob(
     jobId: string,
     downloadUrl: string,
     filePath: string,
-    metadata?: VideoMetadata
+    metadata?: VideoMetadata,
+    r2Key?: string,
+    downloadExpiresAt?: number
   ): Promise<boolean> {
     try {
+      // Calculate download URL expiration (24 hours from now if not provided)
+      const expirationTime = downloadExpiresAt || (Date.now() + 24 * 60 * 60 * 1000);
+
       // Atomic update: only complete if status is still 'processing'
       const result = await this.db.updateConversionJobAtomic(
         jobId,
@@ -75,6 +81,8 @@ export class JobManager {
           status: 'completed',
           progress: 100,
           download_url: downloadUrl,
+          download_expires_at: Math.floor(expirationTime / 1000), // Store as Unix timestamp
+          r2_key: r2Key,
           file_path: filePath,
           metadata: metadata ? JSON.stringify(metadata) : undefined,
           updated_at: Date.now(),
@@ -83,7 +91,10 @@ export class JobManager {
       );
 
       if (result) {
-        console.log(`✅ Job ${jobId} completed successfully (atomic)`);
+        console.log(`✅ Job ${jobId} completed successfully (atomic) with download expiration: ${new Date(expirationTime).toISOString()}`);
+        if (r2Key) {
+          console.log(`📁 R2 key stored: ${r2Key}`);
+        }
       } else {
         console.log(`⚠️ Job ${jobId} was already completed by another process`);
       }

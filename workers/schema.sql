@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS conversion_jobs (
     progress INTEGER DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
     file_path TEXT,
     download_url TEXT,
+    download_expires_at INTEGER, -- 下载URL过期时间戳
+    r2_key TEXT, -- R2存储中的文件key
     metadata TEXT, -- JSON 字符串存储视频元数据
     error_message TEXT,
     created_at INTEGER DEFAULT (strftime('%s', 'now')),
@@ -23,6 +25,8 @@ CREATE TABLE IF NOT EXISTS conversion_jobs (
 CREATE INDEX IF NOT EXISTS idx_conversion_jobs_status ON conversion_jobs(status);
 CREATE INDEX IF NOT EXISTS idx_conversion_jobs_created_at ON conversion_jobs(created_at);
 CREATE INDEX IF NOT EXISTS idx_conversion_jobs_expires_at ON conversion_jobs(expires_at);
+CREATE INDEX IF NOT EXISTS idx_conversion_jobs_download_expires ON conversion_jobs(download_expires_at);
+CREATE INDEX IF NOT EXISTS idx_conversion_jobs_r2_key ON conversion_jobs(r2_key);
 
 -- 复合索引优化常见查询
 CREATE INDEX IF NOT EXISTS idx_conversion_jobs_status_created ON conversion_jobs(status, created_at);
