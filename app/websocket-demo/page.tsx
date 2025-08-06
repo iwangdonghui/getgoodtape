@@ -152,7 +152,7 @@ export default function WebSocketDemoPage() {
                             conversion.urlMetadata.channelTitle ||
                             conversion.urlMetadata.uploader
                           }
-                          platform={conversion.detectedPlatform}
+                          platform={conversion.detectedPlatform || undefined}
                         />
                       )}
                   </div>
@@ -272,14 +272,13 @@ export default function WebSocketDemoPage() {
             )}
 
             {/* Conversion Progress */}
-            {(conversion.status === 'validating' ||
-              conversion.status === 'queued' ||
+            {(conversion.status === 'queued' ||
               conversion.status === 'processing') && (
               <div className="max-w-2xl mx-auto">
                 <ConversionProgressWebSocket
                   status={conversion.status}
                   progress={conversion.progress}
-                  jobId={conversion.jobId}
+                  jobId={conversion.jobId || undefined}
                   estimatedTimeRemaining={conversion.estimatedTimeRemaining}
                   queuePosition={conversion.queuePosition}
                   currentStep={conversion.currentStep}

@@ -105,7 +105,10 @@ export function useConversionWebSocket(): ConversionState & ConversionActions {
         setState(prev => ({
           ...prev,
           urlError: result.error?.message || null,
-          detectedPlatform: result.platform?.name || null,
+          detectedPlatform:
+            typeof result.platform === 'string'
+              ? result.platform
+              : result.platform?.name || null,
           urlMetadata: result.metadata || null,
         }));
       } catch (error) {
@@ -319,7 +322,7 @@ export function useConversionWebSocket(): ConversionState & ConversionActions {
         if (response.success && response.jobId) {
           setState(prev => ({
             ...prev,
-            jobId: response.jobId,
+            jobId: response.jobId || null,
             status: 'queued',
             progress: 0,
             isConverting: true,
@@ -338,7 +341,10 @@ export function useConversionWebSocket(): ConversionState & ConversionActions {
         } else {
           setState(prev => ({
             ...prev,
-            error: response.error || 'Failed to start conversion',
+            error:
+              typeof response.error === 'string'
+                ? response.error
+                : response.error?.message || 'Failed to start conversion',
           }));
         }
       } catch (error) {

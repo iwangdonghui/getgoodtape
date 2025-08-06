@@ -77,7 +77,7 @@ export default function WebSocketDebugger({
         } catch (error) {
           console.error('Failed to parse WebSocket message:', error);
           addMessage('parse_error', 'received', {
-            error: error.message,
+            error: error instanceof Error ? error.message : String(error),
             raw: event.data,
           });
         }
@@ -142,13 +142,17 @@ export default function WebSocketDebugger({
   }, [websocket]);
 
   const formatTimestamp = (timestamp: number) => {
-    return new Date(timestamp).toLocaleTimeString('zh-CN', {
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      fractionalSecondDigits: 3,
-    });
+    const date = new Date(timestamp);
+    return (
+      date.toLocaleTimeString('zh-CN', {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      }) +
+      '.' +
+      date.getMilliseconds().toString().padStart(3, '0')
+    );
   };
 
   const getMessageColor = (type: string, direction: 'sent' | 'received') => {

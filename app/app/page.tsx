@@ -32,7 +32,7 @@ export default function AppPage() {
       setUrlValidation({
         isValid: true,
         platform: conversion.detectedPlatform,
-        metadata: conversion.urlMetadata,
+        metadata: conversion.urlMetadata || undefined,
       });
     } else if (conversion.urlError) {
       setUrlValidation({
@@ -285,8 +285,7 @@ export default function AppPage() {
               )}
 
               {/* Conversion Progress */}
-              {(conversion.status === 'validating' ||
-                conversion.status === 'queued' ||
+              {(conversion.status === 'queued' ||
                 conversion.status === 'processing') && (
                 <div className="max-w-2xl mx-auto">
                   <ConversionProgress

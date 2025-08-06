@@ -155,7 +155,7 @@ export class ApiPerformanceMonitor {
     const result: Record<string, { avgLatency: number; requestCount: number }> =
       {};
 
-    for (const [endpoint, durations] of this.metrics.entries()) {
+    for (const [endpoint, durations] of Array.from(this.metrics.entries())) {
       result[endpoint] = {
         avgLatency: this.getAverageLatency(endpoint),
         requestCount: durations.length,

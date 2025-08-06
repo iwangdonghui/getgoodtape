@@ -16,8 +16,24 @@ export default function ConversionProgressDebug({
   format,
   quality,
 }: ConversionProgressDebugProps) {
-  const { state, startConversion, disconnect, isConnected, reconnect } =
-    useConversionWebSocket();
+  const conversionState = useConversionWebSocket();
+  const {
+    startConversion,
+    reset: disconnect,
+    setUrl,
+    setFormat,
+    setQuality,
+  } = conversionState;
+
+  // 简单的重连功能
+  const reconnect = () => {
+    disconnect();
+    // 等待一下再重新连接
+    setTimeout(() => {
+      // 这里可以触发重新连接，但由于useConversionWebSocket没有直接的reconnect方法
+      // 我们使用reset来重置状态
+    }, 1000);
+  };
 
   const [debugMessages, setDebugMessages] = useState<any[]>([]);
   const [serverLogs, setServerLogs] = useState<string[]>([]);
@@ -25,17 +41,20 @@ export default function ConversionProgressDebug({
 
   // 轮询服务器状态作为对比
   const pollServerStatus = useCallback(async () => {
-    if (!state.jobId) return;
+    if (!conversionState.jobId) return;
 
     try {
-      const response = await fetch(`/api/status/${state.jobId}`);
+      const response = await fetch(`/api/status/${conversionState.jobId}`);
       const data = await response.json();
 
       const logEntry = `[${new Date().toLocaleTimeString()}] Server Status: ${data.status}, Progress: ${data.progress}%`;
       setServerLogs(prev => [...prev.slice(-9), logEntry]);
 
       // 如果服务器显示完成但WebSocket没有更新，这就是问题所在
-      if (data.status === 'completed' && state.status !== 'completed') {
+      if (
+        data.status === 'completed' &&
+        conversionState.status !== 'completed'
+      ) {
         console.warn(
           '🐛 BUG DETECTED: Server shows completed but WebSocket state is not updated!'
         );
@@ -47,17 +66,17 @@ export default function ConversionProgressDebug({
     } catch (error) {
       console.error('Failed to poll server status:', error);
     }
-  }, [state.jobId, state.status]);
+  }, [conversionState.jobId, conversionState.status]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isPolling && state.jobId) {
+    if (isPolling && conversionState.jobId) {
       interval = setInterval(pollServerStatus, 2000); // Poll every 2 seconds
     }
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isPolling, state.jobId, pollServerStatus]);
+  }, [isPolling, conversionState.jobId, pollServerStatus]);
 
   const handleStartConversion = async () => {
     setDebugMessages([]);
@@ -65,7 +84,16 @@ export default function ConversionProgressDebug({
     setIsPolling(true);
 
     try {
-      await startConversion(url, format, quality);
+      // 设置转换参数
+      setUrl(url);
+      setFormat(format as 'mp3' | 'mp4');
+      setQuality(quality);
+
+      // 等待一下让状态更新
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // 开始转换
+      await startConversion();
     } catch (error) {
       console.error('Failed to start conversion:', error);
       setIsPolling(false);
@@ -83,23 +111,26 @@ export default function ConversionProgressDebug({
   };
 
   useEffect(() => {
-    if (state.status === 'completed' || state.status === 'failed') {
+    if (
+      conversionState.status === 'completed' ||
+      conversionState.status === 'failed'
+    ) {
       setIsPolling(false);
     }
-  }, [state.status]);
+  }, [conversionState.status]);
 
   const getProgressColor = () => {
-    if (state.status === 'completed') return 'bg-green-500';
-    if (state.status === 'failed') return 'bg-red-500';
-    if (state.progress >= 80) return 'bg-blue-500';
-    if (state.progress >= 40) return 'bg-yellow-500';
+    if (conversionState.status === 'completed') return 'bg-green-500';
+    if (conversionState.status === 'failed') return 'bg-red-500';
+    if (conversionState.progress >= 80) return 'bg-blue-500';
+    if (conversionState.progress >= 40) return 'bg-yellow-500';
     return 'bg-gray-400';
   };
 
   const getStepStatus = (stepNumber: number) => {
     const progressThresholds = [0, 20, 40, 80, 100];
     const currentThreshold = progressThresholds.findIndex(
-      threshold => state.progress < threshold
+      threshold => conversionState.progress < threshold
     );
 
     if (currentThreshold === -1)
@@ -119,11 +150,13 @@ export default function ConversionProgressDebug({
         {/* 连接状态 */}
         <div className="mb-4 flex items-center gap-4">
           <div
-            className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}
+            className={`w-3 h-3 rounded-full ${conversionState.isConnected ? 'bg-green-500' : 'bg-red-500'}`}
           ></div>
-          <span>WebSocket: {isConnected ? '已连接' : '未连接'}</span>
+          <span>
+            WebSocket: {conversionState.isConnected ? '已连接' : '未连接'}
+          </span>
 
-          {!isConnected && (
+          {!conversionState.isConnected && (
             <Button onClick={reconnect} size="sm" variant="outline">
               重新连接
             </Button>
@@ -141,13 +174,13 @@ export default function ConversionProgressDebug({
 
           <Button
             onClick={handleStartConversion}
-            disabled={state.isConverting}
+            disabled={conversionState.isConverting}
             className="mr-2"
           >
-            {state.isConverting ? '转换中...' : '开始转换'}
+            {conversionState.isConverting ? '转换中...' : '开始转换'}
           </Button>
 
-          {state.isConverting && (
+          {conversionState.isConverting && (
             <Button onClick={disconnect} variant="outline">
               停止转换
             </Button>
@@ -155,17 +188,19 @@ export default function ConversionProgressDebug({
         </div>
 
         {/* 进度显示 */}
-        {state.jobId && (
+        {conversionState.jobId && (
           <div className="mb-6">
             <div className="flex justify-between items-center mb-2">
               <span className="text-lg font-semibold">转换进度</span>
-              <span className="text-2xl font-bold">{state.progress}%</span>
+              <span className="text-2xl font-bold">
+                {conversionState.progress}%
+              </span>
             </div>
 
             <div className="w-full bg-gray-200 rounded-full h-4 mb-4">
               <div
                 className={`h-4 rounded-full transition-all duration-300 ${getProgressColor()}`}
-                style={{ width: `${state.progress}%` }}
+                style={{ width: `${conversionState.progress}%` }}
               ></div>
             </div>
 
@@ -199,33 +234,38 @@ export default function ConversionProgressDebug({
 
             <div className="text-sm text-gray-600">
               <div>
-                <strong>状态:</strong> {state.status}
+                <strong>状态:</strong> {conversionState.status}
               </div>
               <div>
-                <strong>当前步骤:</strong> {state.currentStep || '等待中'}
+                <strong>当前步骤:</strong>{' '}
+                {conversionState.currentStep || '等待中'}
               </div>
               <div>
-                <strong>Job ID:</strong> {state.jobId}
+                <strong>Job ID:</strong> {conversionState.jobId}
               </div>
             </div>
           </div>
         )}
 
         {/* 错误显示 */}
-        {state.error && (
+        {conversionState.error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded">
             <h3 className="font-semibold text-red-800">错误信息</h3>
-            <p className="text-red-700">{state.error}</p>
+            <p className="text-red-700">{conversionState.error}</p>
           </div>
         )}
 
         {/* 结果显示 */}
-        {state.result && (
+        {conversionState.result && (
           <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded">
             <h3 className="font-semibold text-green-800">转换完成</h3>
-            <p className="text-green-700">文件: {state.result.filename}</p>
+            <p className="text-green-700">
+              文件: {conversionState.result.filename}
+            </p>
             <Button
-              onClick={() => window.open(state.result!.downloadUrl, '_blank')}
+              onClick={() =>
+                window.open(conversionState.result!.downloadUrl, '_blank')
+              }
               className="mt-2"
             >
               下载文件
@@ -256,7 +296,7 @@ export default function ConversionProgressDebug({
       {/* WebSocket调试器 */}
       <div className="bg-white rounded-lg shadow-lg p-6">
         <WebSocketDebugger
-          jobId={state.jobId}
+          jobId={conversionState.jobId || undefined}
           onMessageReceived={handleWebSocketMessage}
         />
       </div>
