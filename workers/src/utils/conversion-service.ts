@@ -3,18 +3,95 @@ import { JobManager } from './job-manager';
 import { QueueManager } from './queue-manager';
 import { StorageManager } from './storage';
 import { DatabaseManager } from './database';
+import { PresignedUrlManager } from './presigned-url-manager';
 
 export class ConversionService {
   private env: Env;
   private jobManager: JobManager;
   private storage: StorageManager;
   private dbManager: DatabaseManager;
+  private presignedUrlManager: PresignedUrlManager;
+  private wsManager: any; // WebSocketManager - using any to avoid circular dependency
 
   constructor(env: Env) {
     this.env = env;
     this.jobManager = new JobManager(env);
     this.storage = new StorageManager(env);
     this.dbManager = new DatabaseManager(env);
+    this.presignedUrlManager = new PresignedUrlManager(env);
+  }
+
+  /**
+   * Set WebSocket manager for real-time updates
+   */
+  setWebSocketManager(wsManager: any) {
+    this.wsManager = wsManager;
+  }
+
+  /**
+   * 🚀 NEW: Refresh download URL if it's about to expire
+   */
+  async refreshDownloadUrlIfNeeded(jobId: string): Promise<string | null> {
+    try {
+      const job = await this.jobManager.getJob(jobId);
+      if (!job || job.status !== 'completed' || !job.r2_key) {
+        return null;
+      }
+
+      // Check if download URL is about to expire (within 1 hour)
+      const now = Date.now() / 1000; // Convert to Unix timestamp
+      const expirationBuffer = 60 * 60; // 1 hour buffer
+
+      if (job.download_expires_at && job.download_expires_at > now + expirationBuffer) {
+        // URL is still valid, return existing URL
+        return job.download_url || null;
+      }
+
+      console.log(`🔄 Refreshing download URL for job ${jobId} (expires at: ${job.download_expires_at})`);
+
+      // Generate new download URL
+      const presignedDownload = await this.presignedUrlManager.generateDownloadUrl(
+        job.r2_key,
+        24 * 60 * 60 // 24 hours
+      );
+
+      // Update database with new URL and expiration
+      const newExpirationTime = Date.now() + 24 * 60 * 60 * 1000;
+      await this.dbManager.updateJob(jobId, {
+        download_url: presignedDownload.downloadUrl,
+        download_expires_at: Math.floor(newExpirationTime / 1000),
+        updated_at: Date.now()
+      });
+
+      console.log(`✅ Download URL refreshed for job ${jobId}`);
+      return presignedDownload.downloadUrl;
+    } catch (error) {
+      console.error(`Failed to refresh download URL for job ${jobId}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Update progress with WebSocket notification
+   */
+  private async updateProgressWithNotification(
+    jobId: string,
+    progress: number,
+    status?: string,
+    additionalData?: any
+  ) {
+    // Update database
+    await this.jobManager.updateProgress(jobId, progress);
+
+    // Send WebSocket notification if manager is available
+    if (this.wsManager) {
+      this.wsManager.sendProgressUpdate(
+        jobId,
+        progress,
+        status || 'processing',
+        additionalData
+      );
+    }
   }
 
   /**
@@ -37,12 +114,22 @@ export class ConversionService {
 
   /**
    * Get conversion status
+   * 🚀 OPTIMIZED: Now refreshes download URL if needed
    */
   async getConversionStatus(jobId: string) {
     const job = await this.jobManager.getJob(jobId);
 
     if (!job) {
       return null;
+    }
+
+    // 🚀 NEW: Refresh download URL if it's about to expire
+    let downloadUrl = job.download_url;
+    if (job.status === 'completed' && job.r2_key) {
+      const refreshedUrl = await this.refreshDownloadUrlIfNeeded(jobId);
+      if (refreshedUrl) {
+        downloadUrl = refreshedUrl;
+      }
     }
 
     // Get queue position and estimated time if job is queued
@@ -63,7 +150,7 @@ export class ConversionService {
       jobId: job.id,
       status: job.status,
       progress: job.progress,
-      downloadUrl: job.download_url,
+      downloadUrl, // 🚀 OPTIMIZED: Always fresh download URL
       filename: job.file_path ? job.file_path.split('/').pop() : undefined,
       queuePosition,
       estimatedTimeRemaining,
@@ -72,6 +159,8 @@ export class ConversionService {
       createdAt: new Date(job.created_at).toISOString(),
       updatedAt: new Date(job.updated_at).toISOString(),
       expiresAt: new Date(job.expires_at).toISOString(),
+      // 🚀 NEW: Include download URL expiration info
+      downloadExpiresAt: job.download_expires_at ? new Date(job.download_expires_at * 1000).toISOString() : undefined,
     };
   }
 
@@ -184,7 +273,9 @@ export class ConversionService {
         this.env.PROCESSING_SERVICE_URL || 'http://localhost:8000';
 
       // Step 1: Extract metadata with fallback
-      await this.jobManager.updateProgress(jobId, 20);
+      await this.updateProgressWithNotification(jobId, 20, 'processing', {
+        currentStep: 'Extracting video metadata'
+      });
       console.log(`Extracting metadata for URL: ${request.url}`);
 
       let metadataResponse;
@@ -302,8 +393,38 @@ export class ConversionService {
 
       console.log(`Processed metadata:`, JSON.stringify(metadata, null, 2));
 
-      // Step 2: Start conversion
-      await this.jobManager.updateProgress(jobId, 40);
+      // Step 2: Generate presigned upload URL for direct upload
+      await this.updateProgressWithNotification(jobId, 35, 'processing', {
+        currentStep: 'Preparing cloud storage'
+      });
+
+      const fileName = this.presignedUrlManager.generateFileName(
+        metadata.title || 'converted_file',
+        request.format
+      );
+
+      const contentType = request.format === 'mp3' ? 'audio/mpeg' : 'video/mp4';
+
+      const presignedUpload = await this.presignedUrlManager.generateUploadUrl(
+        fileName,
+        contentType,
+        {
+          originalTitle: metadata.title || '',
+          platform: metadata.platform || '',
+          duration: metadata.duration?.toString() || '',
+          format: request.format,
+          quality: request.quality,
+        }
+      );
+
+      console.log(`✅ Generated presigned upload URL for: ${fileName}`);
+
+      // Step 3: Start conversion with presigned URL
+      await this.updateProgressWithNotification(jobId, 40, 'processing', {
+        currentStep: `Starting ${request.format.toUpperCase()} conversion`,
+        format: request.format,
+        quality: request.quality
+      });
       console.log(
         `Starting conversion: ${request.format} quality ${request.quality}`
       );
@@ -321,15 +442,21 @@ export class ConversionService {
             duration: metadata.duration,
             format: request.format,
             quality: request.quality,
+            r2_key: presignedUpload.key, // Mock R2 key
           },
         };
       } else {
+        // Call processing service with presigned upload URL
         conversionResponse = await this.callProcessingService(
           `${processingServiceUrl}/convert`,
           {
             url: request.url,
             format: request.format,
             quality: request.quality,
+            // 🚀 NEW: Direct upload to R2
+            upload_url: presignedUpload.uploadUrl,
+            upload_key: presignedUpload.key,
+            content_type: contentType,
           }
         );
       }
@@ -352,7 +479,9 @@ export class ConversionService {
             conversionResponse.error?.includes('anti-bot'))
         ) {
           console.log('YouTube access restricted, trying bypass endpoint...');
-          await this.jobManager.updateProgress(jobId, 50);
+          await this.updateProgressWithNotification(jobId, 50, 'processing', {
+            currentStep: 'Trying alternative access method'
+          });
 
           try {
             // First try the YouTube bypass endpoint to test if we can access the video
@@ -374,6 +503,10 @@ export class ConversionService {
                   format: request.format,
                   quality: request.quality,
                   useBypass: true, // Signal to use bypass methods
+                  // 🚀 NEW: Direct upload to R2 (bypass)
+                  upload_url: presignedUpload.uploadUrl,
+                  upload_key: presignedUpload.key,
+                  content_type: contentType,
                 }
               );
 
@@ -401,100 +534,86 @@ export class ConversionService {
         }
       }
 
-      // Step 3: Download file from processing service and upload to R2 storage
-      await this.jobManager.updateProgress(jobId, 80);
-      const fileName = this.generateFileName(metadata.title, request.format);
-      const resultObj = conversionResponse.result as Record<string, unknown>;
+      // Step 4: Verify direct upload to R2 storage
+      await this.updateProgressWithNotification(jobId, 80, 'processing', {
+        currentStep: 'Verifying file upload'
+      });
 
+      const resultObj = conversionResponse.result as Record<string, unknown>;
       let downloadUrl: string;
+      let finalFileName: string;
 
       // In development environment, use mock download URL
       if (this.env.ENVIRONMENT === 'development') {
         console.log(`Using mock download URL for development environment`);
+        finalFileName = fileName;
         downloadUrl = `https://mock-storage.example.com/${fileName}`;
         // Simulate progress updates for development
-        await this.jobManager.updateProgress(jobId, 85);
-        await this.jobManager.updateProgress(jobId, 95);
-      } else {
-        // Download the file from the processing service
-        const relativeUrl = resultObj.download_url as string;
-        // Properly encode the URL to handle special characters (like Chinese characters)
-        // Only encode the filename part, not the path separators
-        const urlParts = relativeUrl.split('/');
-        const encodedParts = urlParts.map(part => {
-          // Don't encode empty parts (from leading slash) or 'download' path
-          if (part === '' || part === 'download') {
-            return part;
-          }
-          return encodeURIComponent(part);
+        await this.updateProgressWithNotification(jobId, 85, 'processing', {
+          currentStep: 'Simulating file verification'
         });
-        const encodedRelativeUrl = encodedParts.join('/');
-        const fileUrl = `${processingServiceUrl}${encodedRelativeUrl}`;
-        console.log(`Downloading file from processing service: ${fileUrl}`);
+        await this.updateProgressWithNotification(jobId, 95, 'processing', {
+          currentStep: 'Generating download link'
+        });
+      } else {
+        // 🚀 NEW: File was uploaded directly to R2, verify and generate download URL
+        const r2Key = resultObj.r2_key as string || presignedUpload.key;
+        console.log(`✅ File uploaded directly to R2 with key: ${r2Key}`);
 
-        await this.jobManager.updateProgress(jobId, 85); // File download started
+        await this.updateProgressWithNotification(jobId, 85, 'processing', {
+          currentStep: 'Verifying file in cloud storage'
+        });
 
-        // Create AbortController for file download with reasonable timeout (60 seconds)
-        const downloadController = new AbortController();
-        const downloadTimeoutId = setTimeout(
-          () => downloadController.abort(),
-          60000
-        ); // 60 seconds - if it takes longer, there's a performance issue
-
-        let fileContent: ArrayBuffer;
-        try {
-          const fileResponse = await fetch(fileUrl, {
-            signal: downloadController.signal,
-          });
-          clearTimeout(downloadTimeoutId);
-
-          if (!fileResponse.ok) {
-            throw new Error(
-              `Failed to download file from processing service: ${fileResponse.status}`
-            );
-          }
-
-          fileContent = await fileResponse.arrayBuffer();
-          console.log(
-            `Downloaded file content: ${fileContent.byteLength} bytes`
-          );
-        } catch (error) {
-          clearTimeout(downloadTimeoutId);
-          if (error instanceof Error && error.name === 'AbortError') {
-            throw new Error(
-              'File download timeout - large file took too long to download from processing service'
-            );
-          }
-          throw error;
+        // Verify file exists in R2
+        const fileExists = await this.presignedUrlManager.verifyFileExists(r2Key);
+        if (!fileExists) {
+          throw new Error('File upload to R2 failed - file not found');
         }
 
-        await this.jobManager.updateProgress(jobId, 90); // File downloaded, starting upload
+        console.log(`✅ File verified in R2 storage: ${r2Key}`);
 
-        // Upload to R2 storage
-        downloadUrl = await this.storage.uploadFileContent(
-          fileName,
-          fileContent,
-          request.format,
-          {
-            originalTitle: metadata.title,
-            platform: request.platform || 'unknown',
-            duration: metadata.duration.toString(),
-          }
+        await this.updateProgressWithNotification(jobId, 90, 'processing', {
+          currentStep: 'Generating secure download link'
+        });
+
+        // Generate presigned download URL (valid for 24 hours)
+        const presignedDownload = await this.presignedUrlManager.generateDownloadUrl(
+          r2Key,
+          24 * 60 * 60 // 24 hours
         );
 
-        await this.jobManager.updateProgress(jobId, 95); // File uploaded successfully
+        downloadUrl = presignedDownload.downloadUrl;
+        finalFileName = this.presignedUrlManager.extractFilenameFromKey(r2Key);
+
+        console.log(`✅ Generated download URL for: ${finalFileName}`);
+
+        await this.updateProgressWithNotification(jobId, 95, 'processing', {
+          currentStep: 'Download link ready'
+        });
       }
 
+
       // Step 4: Complete job with final progress update (atomic operation)
-      await this.jobManager.updateProgress(jobId, 100);
+      await this.updateProgressWithNotification(jobId, 100, 'completed', {
+        currentStep: 'Conversion completed successfully'
+      });
       console.log(`Job ${jobId} progress set to 100% before completion`);
 
+      // 🚀 OPTIMIZED: Store download URL with expiration and R2 key
+      const downloadExpiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24 hours from now
       const completionSuccess = await this.jobManager.completeJob(
         jobId,
         downloadUrl,
-        fileName, // Use the generated filename instead of the temporary file path
-        metadata
+        finalFileName, // Use the final filename from R2
+        metadata,
+        r2Key, // Store R2 key for future reference
+        downloadExpiresAt // Store expiration time
       );
+
+      // Send WebSocket completion notification
+      if (this.wsManager && completionSuccess) {
+        this.wsManager.sendCompletion(jobId, downloadUrl, finalFileName, metadata);
+      }
 
       if (completionSuccess) {
         console.log(`✅ Job ${jobId} marked as completed successfully`);

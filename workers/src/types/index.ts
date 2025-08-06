@@ -14,6 +14,8 @@ export interface ConversionJob {
   progress: number;
   file_path?: string;
   download_url?: string;
+  download_expires_at?: number; // 🚀 NEW: Download URL expiration timestamp
+  r2_key?: string; // 🚀 NEW: R2 storage key for direct access
   metadata?: string; // JSON string
   error_message?: string;
   created_at: number;
@@ -52,6 +54,10 @@ export interface ConvertRequest {
   format: 'mp3' | 'mp4';
   quality: string;
   platform?: string;
+  // 🚀 NEW: File flow optimization fields
+  upload_url?: string;
+  upload_key?: string;
+  content_type?: string;
 }
 
 export interface VideoMetadata {

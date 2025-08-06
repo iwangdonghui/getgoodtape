@@ -18,6 +18,7 @@ import boto3
 from botocore.exceptions import ClientError
 import urllib3
 import ssl
+import requests
 
 # Disable SSL warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -161,6 +162,48 @@ async def upload_to_r2(file_path: str, filename: str) -> Optional[str]:
         logger.error(f"Unexpected error uploading {filename} to R2: {e}")
         return None
 
+async def upload_to_r2_direct(file_path: str, upload_url: str, content_type: str) -> bool:
+    """
+    🚀 NEW: Upload file directly to R2 using presigned URL
+    Returns True if successful, False if failed
+    """
+    try:
+        logger.info(f"🚀 Uploading file directly to R2: {file_path}")
+
+        # Get file size for logging
+        file_size = os.path.getsize(file_path)
+        logger.info(f"📁 File size: {file_size} bytes")
+
+        # Upload using curl subprocess (more reliable than requests for large files)
+        curl_command = [
+            'curl',
+            '-X', 'PUT',
+            '-H', f'Content-Type: {content_type}',
+            '--data-binary', f'@{file_path}',
+            '--insecure',  # Disable SSL verification if needed
+            '--max-time', '600',  # 10 minutes timeout for large files
+            '--fail',  # Fail on HTTP errors
+            '--silent',  # Reduce output
+            '--show-error',  # Show errors
+            upload_url
+        ]
+
+        logger.info(f"🔧 Using curl to upload directly to R2...")
+        result = subprocess.run(curl_command, capture_output=True, text=True)
+
+        if result.returncode == 0:
+            logger.info(f"✅ Successfully uploaded file directly to R2: {file_size} bytes")
+            return True
+        else:
+            logger.error(f"❌ Failed to upload to R2: curl exit code {result.returncode}")
+            logger.error(f"❌ Curl stderr: {result.stderr}")
+            logger.error(f"❌ Curl stdout: {result.stdout}")
+            return False
+
+    except Exception as e:
+        logger.error(f"❌ Direct R2 upload failed: {str(e)}")
+        return False
+
 class HealthResponse(BaseModel):
     status: str
     service: str
@@ -201,6 +244,10 @@ class ConvertRequest(BaseModel):
     platform: Optional[str] = None
     useBypass: Optional[bool] = Field(False, description="Use YouTube bypass methods if available")
     noProxy: Optional[bool] = Field(False, description="Disable proxy usage for direct connection")
+    # 🚀 NEW: Direct R2 upload support
+    upload_url: Optional[str] = Field(None, description="Presigned URL for direct upload to R2")
+    upload_key: Optional[str] = Field(None, description="R2 key for the uploaded file")
+    content_type: Optional[str] = Field(None, description="Content type for the upload")
 
 class ConversionProgress(BaseModel):
     percentage: float
@@ -218,6 +265,8 @@ class ConversionResult(BaseModel):
     download_url: Optional[str] = None
     filename: Optional[str] = None
     error: Optional[str] = None
+    # 🚀 NEW: R2 storage key for direct upload
+    r2_key: Optional[str] = None
 
 class ConvertResponse(BaseModel):
     success: bool
@@ -428,16 +477,34 @@ def extract_metadata_with_subprocess(url: str, use_proxy: bool = True) -> dict:
 
         # Add proxy configuration if needed
         if use_proxy:
-            user = os.getenv('RESIDENTIAL_PROXY_USER')
-            password = os.getenv('RESIDENTIAL_PROXY_PASS')
-            endpoint = os.getenv('RESIDENTIAL_PROXY_ENDPOINT')
+            try:
+                from proxy_config import proxy_manager
+                
+                # Get IP-based proxies for better VPN compatibility
+                proxies = proxy_manager.get_proxy_list(include_no_proxy=False, prioritize_youtube=True)
+                
+                if proxies:
+                    # Use the first available proxy
+                    selected_proxy = proxies[0]
+                    cmd.extend(['--proxy', selected_proxy])
+                    logger.info(f"🔄 Using subprocess metadata extraction with IP proxy: {selected_proxy.split('@')[1] if '@' in selected_proxy else selected_proxy}")
+                else:
+                    logger.warning("⚠️ No proxies available, using direct connection")
+                    
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to get proxy from proxy_manager: {e}")
+                
+                # Fallback to environment variables
+                user = os.getenv('RESIDENTIAL_PROXY_USER')
+                password = os.getenv('RESIDENTIAL_PROXY_PASS')
+                endpoint = os.getenv('RESIDENTIAL_PROXY_ENDPOINT')
 
-            if user and password and endpoint:
-                proxy_url = f"http://{user}:{password}@{endpoint}"
-                cmd.extend(['--proxy', proxy_url])
-                logger.info(f"🔄 Using subprocess with Decodo proxy: {endpoint}")
-            else:
-                logger.warning("⚠️ Proxy credentials not found, using direct connection")
+                if user and password and endpoint:
+                    proxy_url = f"http://{user}:{password}@{endpoint}"
+                    cmd.extend(['--proxy', proxy_url])
+                    logger.info(f"🔄 Using subprocess metadata extraction with fallback proxy: {endpoint}")
+                else:
+                    logger.warning("⚠️ Proxy credentials not found, using direct connection")
 
         # Add URL
         cmd.append(url)
@@ -494,16 +561,34 @@ def download_video_with_subprocess(url: str, output_path: str, format_selector: 
 
         # Add proxy configuration if needed
         if use_proxy:
-            user = os.getenv('RESIDENTIAL_PROXY_USER')
-            password = os.getenv('RESIDENTIAL_PROXY_PASS')
-            endpoint = os.getenv('RESIDENTIAL_PROXY_ENDPOINT')
+            try:
+                from proxy_config import proxy_manager
+                
+                # Get IP-based proxies for better VPN compatibility
+                proxies = proxy_manager.get_proxy_list(include_no_proxy=False, prioritize_youtube=True)
+                
+                if proxies:
+                    # Use the first available proxy
+                    selected_proxy = proxies[0]
+                    cmd.extend(['--proxy', selected_proxy])
+                    logger.info(f"🔄 Using subprocess download with IP proxy: {selected_proxy.split('@')[1] if '@' in selected_proxy else selected_proxy}")
+                else:
+                    logger.warning("⚠️ No proxies available, using direct connection")
+                    
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to get proxy from proxy_manager: {e}")
+                
+                # Fallback to environment variables
+                user = os.getenv('RESIDENTIAL_PROXY_USER')
+                password = os.getenv('RESIDENTIAL_PROXY_PASS')
+                endpoint = os.getenv('RESIDENTIAL_PROXY_ENDPOINT')
 
-            if user and password and endpoint:
-                proxy_url = f"http://{user}:{password}@{endpoint}"
-                cmd.extend(['--proxy', proxy_url])
-                logger.info(f"🔄 Using subprocess download with Decodo proxy: {endpoint}")
-            else:
-                logger.warning("⚠️ Proxy credentials not found, using direct connection")
+                if user and password and endpoint:
+                    proxy_url = f"http://{user}:{password}@{endpoint}"
+                    cmd.extend(['--proxy', proxy_url])
+                    logger.info(f"🔄 Using subprocess download with fallback proxy: {endpoint}")
+                else:
+                    logger.warning("⚠️ Proxy credentials not found, using direct connection")
 
         # Add URL
         cmd.append(url)
@@ -570,23 +655,15 @@ async def extract_video_metadata(url: str) -> Dict[str, Any]:
     Extract video metadata using yt-dlp (subprocess first, then Python library)
     """
     try:
-        # Method 1: Try subprocess yt-dlp first (works with proxy)
-        logger.info("🚀 Trying subprocess yt-dlp method...")
-        subprocess_result = extract_metadata_with_subprocess(url, use_proxy=True)
-
-        if subprocess_result.get('success'):
-            logger.info("✅ Subprocess method successful!")
-            return subprocess_result['metadata']
-        else:
-            logger.warning(f"⚠️ Subprocess method failed: {subprocess_result.get('error')}")
-
-        # Method 2: Fallback to Python library yt-dlp
+        # 🔧 DIRECT CONNECTION ONLY - Skip subprocess method
+        logger.info("🚀 Using direct Python library yt-dlp (no proxy)...")
         logger.info("🔄 Falling back to Python library yt-dlp...")
         # Import yt-dlp
         import yt_dlp
 
-        # Configure yt-dlp options with latest 2025 best practices
+        # Configure yt-dlp options for DIRECT CONNECTION ONLY
         ydl_opts = {
+            'proxy': None,  # 强制不使用代理
             'quiet': False,  # Enable output for debugging
             'no_warnings': False,
             'extract_flat': False,
@@ -660,9 +737,18 @@ async def extract_video_metadata(url: str) -> Dict[str, Any]:
         info = None
         last_error = None
 
-        # Try multiple extraction methods with environment-specific optimizations
-        import os
-        is_cloud_env = bool(os.getenv('RENDER') or os.getenv('RAILWAY') or os.getenv('HEROKU'))
+        # DIRECT CONNECTION - No proxy methods
+        logger.info("🔄 Using direct connection (no proxy)")
+        
+        # Single extraction attempt with direct connection
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+                logger.info("✅ Direct extraction successful!")
+                return info
+        except Exception as e:
+            logger.error(f"❌ Direct extraction failed: {e}")
+            raise Exception(f"Could not extract YouTube video information. Last error: {e}")
 
         extraction_methods = [
             # Method 1: Standard extraction
@@ -945,7 +1031,7 @@ def get_quality_settings(format_type: str, quality: str) -> Dict[str, Any]:
 
     return {}
 
-async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: bool = False, no_proxy: bool = False) -> ConversionResult:
+async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: bool = False, no_proxy: bool = False, upload_url: str = None, upload_key: str = None, content_type: str = None) -> ConversionResult:
     """
     Convert video to MP3 using yt-dlp and FFmpeg with speed optimizations (subprocess first, then Python library)
     """
@@ -991,13 +1077,23 @@ async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: b
                             file_size = os.path.getsize(output_path)
                             logger.info(f"✅ Subprocess MP3 conversion successful! File size: {file_size} bytes")
 
-                            # Upload to R2 storage
+                            # 🚀 NEW: Upload directly to R2 if presigned URL provided
                             filename = os.path.basename(output_path)
-                            download_url = await upload_to_r2(output_path, filename)
-
-                            # If R2 upload failed, fallback to local download
-                            if not download_url:
-                                download_url = f"/download/{filename}"
+                            if upload_url and upload_key and content_type:
+                                logger.info(f"🚀 Using direct R2 upload for: {filename}")
+                                upload_success = await upload_to_r2_direct(output_path, upload_url, content_type)
+                                if upload_success:
+                                    download_url = f"/download/{filename}"  # Will be replaced with presigned download URL by Worker
+                                else:
+                                    logger.warning("Direct R2 upload failed, falling back to traditional upload")
+                                    download_url = await upload_to_r2(output_path, filename)
+                                    if not download_url:
+                                        download_url = f"/download/{filename}"
+                            else:
+                                # Traditional upload to R2 storage
+                                download_url = await upload_to_r2(output_path, filename)
+                                if not download_url:
+                                    download_url = f"/download/{filename}"
 
                             return ConversionResult(
                                 success=True,
@@ -1006,7 +1102,8 @@ async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: b
                                 format='mp3',
                                 quality=quality,
                                 download_url=download_url,
-                                filename=filename
+                                filename=filename,
+                                r2_key=upload_key if upload_key else None
                             )
                         else:
                             logger.error(f"❌ FFmpeg conversion failed: {ffmpeg_result.stderr}")
@@ -1331,13 +1428,23 @@ async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: b
 
             logger.info(f"Successfully converted to MP3: {title} ({format_duration(duration)}) - {file_size} bytes")
 
-            # Upload to R2 storage
+            # 🚀 NEW: Upload directly to R2 if presigned URL provided
             filename = os.path.basename(output_path)
-            download_url = await upload_to_r2(output_path, filename)
-
-            # If R2 upload failed, fallback to local download
-            if not download_url:
-                download_url = f"/download/{filename}"
+            if upload_url and upload_key and content_type:
+                logger.info(f"🚀 Using direct R2 upload for: {filename}")
+                upload_success = await upload_to_r2_direct(output_path, upload_url, content_type)
+                if upload_success:
+                    download_url = f"/download/{filename}"  # Will be replaced with presigned download URL by Worker
+                else:
+                    logger.warning("Direct R2 upload failed, falling back to traditional upload")
+                    download_url = await upload_to_r2(output_path, filename)
+                    if not download_url:
+                        download_url = f"/download/{filename}"
+            else:
+                # Traditional upload to R2 storage
+                download_url = await upload_to_r2(output_path, filename)
+                if not download_url:
+                    download_url = f"/download/{filename}"
 
             return ConversionResult(
                 success=True,
@@ -1347,7 +1454,8 @@ async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: b
                 format='mp3',
                 quality=quality,
                 download_url=download_url,
-                filename=filename
+                filename=filename,
+                r2_key=upload_key if upload_key else None
             )
 
     except Exception as e:
@@ -1359,7 +1467,7 @@ async def convert_to_mp3(url: str, quality: str, output_path: str, use_bypass: b
             error=f"MP3 conversion failed: {error_msg}"
         )
 
-async def convert_to_mp4(url: str, quality: str, output_path: str, use_bypass: bool = False, no_proxy: bool = False) -> ConversionResult:
+async def convert_to_mp4(url: str, quality: str, output_path: str, use_bypass: bool = False, no_proxy: bool = False, upload_url: str = None, upload_key: str = None, content_type: str = None) -> ConversionResult:
     """
     Convert video to MP4 using yt-dlp and FFmpeg
     """
@@ -1388,6 +1496,33 @@ async def convert_to_mp4(url: str, quality: str, output_path: str, use_bypass: b
                 'quiet': True,
                 'no_warnings': True,
             }
+
+            # Add proxy configuration if not disabled
+            if not no_proxy:
+                try:
+                    from proxy_config import proxy_manager, get_yt_dlp_proxy_options
+                    
+                    # Get IP-based proxies for better VPN compatibility
+                    proxies = proxy_manager.get_proxy_list(include_no_proxy=False, prioritize_youtube=True)
+                    
+                    if proxies:
+                        # Use the first available proxy
+                        selected_proxy = proxies[0]
+                        logger.info(f"🔄 Using proxy for MP4 conversion: {selected_proxy.split('@')[1] if '@' in selected_proxy else selected_proxy}")
+                        
+                        # Add proxy to yt-dlp options
+                        proxy_opts = get_yt_dlp_proxy_options(selected_proxy)
+                        ydl_opts.update(proxy_opts)
+                        
+                        # Record proxy usage
+                        proxy_manager.record_proxy_result(selected_proxy, True)  # Will be updated based on actual result
+                    else:
+                        logger.warning("⚠️ No proxies available, using direct connection")
+                        
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to configure proxy: {e}, using direct connection")
+            else:
+                logger.info("🚫 Proxy disabled, using direct connection")
 
             # Apply bypass methods if requested
             if use_bypass and ('youtube.com' in url or 'youtu.be' in url):
@@ -1492,13 +1627,23 @@ async def convert_to_mp4(url: str, quality: str, output_path: str, use_bypass: b
 
                 logger.info(f"Successfully converted to MP4: {title} ({format_duration(duration)}) - {format_file_size(file_size)}")
 
-                # Upload to R2 storage
+                # 🚀 NEW: Upload directly to R2 if presigned URL provided
                 filename = os.path.basename(output_path)
-                download_url = await upload_to_r2(output_path, filename)
-
-                # If R2 upload failed, fallback to local download
-                if not download_url:
-                    download_url = f"/download/{filename}"
+                if upload_url and upload_key and content_type:
+                    logger.info(f"🚀 Using direct R2 upload for: {filename}")
+                    upload_success = await upload_to_r2_direct(output_path, upload_url, content_type)
+                    if upload_success:
+                        download_url = f"/download/{filename}"  # Will be replaced with presigned download URL by Worker
+                    else:
+                        logger.warning("Direct R2 upload failed, falling back to traditional upload")
+                        download_url = await upload_to_r2(output_path, filename)
+                        if not download_url:
+                            download_url = f"/download/{filename}"
+                else:
+                    # Traditional upload to R2 storage
+                    download_url = await upload_to_r2(output_path, filename)
+                    if not download_url:
+                        download_url = f"/download/{filename}"
 
                 return ConversionResult(
                     success=True,
@@ -1508,7 +1653,8 @@ async def convert_to_mp4(url: str, quality: str, output_path: str, use_bypass: b
                     format='mp4',
                     quality=quality,
                     download_url=download_url,
-                    filename=filename
+                    filename=filename,
+                    r2_key=upload_key if upload_key else None
                 )
 
     except Exception as e:
@@ -1658,9 +1804,17 @@ async def convert_video_fast_endpoint(request: ConvertRequest):
 
         # Direct conversion without metadata pre-check (saves time)
         if request.format.lower() == 'mp3':
-            result = await convert_to_mp3(request.url, request.quality, output_path, use_bypass=True, no_proxy=request.noProxy)
+            result = await convert_to_mp3(
+                request.url, request.quality, output_path,
+                use_bypass=True, no_proxy=request.noProxy,
+                upload_url=request.upload_url, upload_key=request.upload_key, content_type=request.content_type
+            )
         else:
-            result = await convert_to_mp4(request.url, request.quality, output_path, use_bypass=True, no_proxy=request.noProxy)
+            result = await convert_to_mp4(
+                request.url, request.quality, output_path,
+                use_bypass=True, no_proxy=request.noProxy,
+                upload_url=request.upload_url, upload_key=request.upload_key, content_type=request.content_type
+            )
 
         if result.success:
             logger.info(f"FAST conversion completed: {result.file_path}")
@@ -1748,12 +1902,20 @@ async def convert_video_no_proxy_endpoint(request: ConvertRequest):
             print(f"🚫 NO-PROXY Conversion parameters: format={request.format}, quality={request.quality}")
             if request.format.lower() == 'mp3':
                 result = await asyncio.wait_for(
-                    convert_to_mp3(request.url, request.quality, output_path, use_bypass=False, no_proxy=True),
+                    convert_to_mp3(
+                        request.url, request.quality, output_path,
+                        use_bypass=False, no_proxy=True,
+                        upload_url=request.upload_url, upload_key=request.upload_key, content_type=request.content_type
+                    ),
                     timeout=conversion_timeout
                 )
             elif request.format.lower() == 'mp4':
                 result = await asyncio.wait_for(
-                    convert_to_mp4(request.url, request.quality, output_path, use_bypass=False, no_proxy=True),
+                    convert_to_mp4(
+                        request.url, request.quality, output_path,
+                        use_bypass=False, no_proxy=True,
+                        upload_url=request.upload_url, upload_key=request.upload_key, content_type=request.content_type
+                    ),
                     timeout=conversion_timeout
                 )
             else:
@@ -1855,12 +2017,20 @@ async def convert_video_endpoint(request: ConvertRequest):
             print(f"🔧 Conversion parameters: format={request.format}, quality={request.quality}, useBypass={request.useBypass}, noProxy={request.noProxy}")
             if request.format.lower() == 'mp3':
                 result = await asyncio.wait_for(
-                    convert_to_mp3(request.url, request.quality, output_path, request.useBypass, request.noProxy),
+                    convert_to_mp3(
+                        request.url, request.quality, output_path,
+                        request.useBypass, request.noProxy,
+                        upload_url=request.upload_url, upload_key=request.upload_key, content_type=request.content_type
+                    ),
                     timeout=conversion_timeout
                 )
             elif request.format.lower() == 'mp4':
                 result = await asyncio.wait_for(
-                    convert_to_mp4(request.url, request.quality, output_path, request.useBypass, request.noProxy),
+                    convert_to_mp4(
+                        request.url, request.quality, output_path,
+                        request.useBypass, request.noProxy,
+                        upload_url=request.upload_url, upload_key=request.upload_key, content_type=request.content_type
+                    ),
                     timeout=conversion_timeout
                 )
             else:
@@ -2760,6 +2930,242 @@ async def fallback_extract_endpoint(request: dict):
 
     except Exception as e:
         return {"success": False, "error": f"Fallback extraction failed: {str(e)}"}
+
+@app.get("/diagnose-vpn-conflict")
+async def diagnose_vpn_conflict():
+    """Diagnose VPN and proxy conflicts"""
+    try:
+        from proxy_config import proxy_manager
+        
+        # Run comprehensive VPN conflict test
+        diagnosis = proxy_manager.test_and_fix_vpn_conflict()
+        
+        # Add additional network diagnostics
+        import socket
+        import subprocess
+        
+        # DNS resolution test
+        dns_test = {}
+        test_domains = ['gate.decodo.com', 'google.com', 'youtube.com']
+        for domain in test_domains:
+            try:
+                ip = socket.gethostbyname(domain)
+                dns_test[domain] = {'status': 'success', 'ip': ip}
+            except Exception as e:
+                dns_test[domain] = {'status': 'failed', 'error': str(e)}
+        
+        # Network route test (if available)
+        route_test = {}
+        try:
+            # Test route to Decodo
+            result = subprocess.run(['traceroute', '-m', '5', 'gate.decodo.com'], 
+                                  capture_output=True, text=True, timeout=30)
+            if result.returncode == 0:
+                route_test['decodo'] = {'status': 'success', 'route': result.stdout[:500]}
+            else:
+                route_test['decodo'] = {'status': 'failed', 'error': result.stderr}
+        except Exception as e:
+            route_test['decodo'] = {'status': 'unavailable', 'error': str(e)}
+        
+        return {
+            'success': True,
+            'vpn_conflict_diagnosis': diagnosis,
+            'dns_resolution': dns_test,
+            'network_routes': route_test,
+            'server_info': {
+                'public_ip': await get_public_ip(),
+                'hostname': socket.gethostname()
+            }
+        }
+        
+    except Exception as e:
+        return {"success": False, "error": f"VPN diagnosis failed: {str(e)}"}
+
+@app.get("/smart-proxy-report")
+async def smart_proxy_report():
+    """Get intelligent proxy connection report"""
+    try:
+        from smart_proxy_fallback import get_connection_report
+        
+        report = get_connection_report()
+        
+        return {
+            'success': True,
+            'report': report,
+            'timestamp': time.time()
+        }
+        
+    except Exception as e:
+        logger.error(f"Smart proxy report failed: {e}")
+        return {"success": False, "error": f"Smart proxy report failed: {str(e)}"}
+
+@app.get("/optimize-connection")
+async def optimize_connection():
+    """Optimize connection settings based on current environment"""
+    try:
+        from smart_proxy_fallback import smart_proxy_manager
+        
+        # Run comprehensive test
+        smart_proxy_manager.detect_vpn_environment()
+        test_results = smart_proxy_manager.run_comprehensive_test()
+        best_connection = smart_proxy_manager.select_best_connection()
+        
+        # Generate optimization report
+        optimization_report = {
+            'vpn_detected': smart_proxy_manager.vpn_detected,
+            'total_tests': len(test_results),
+            'successful_connections': len([r for r in test_results if r.success]),
+            'best_connection': {
+                'method': best_connection.method if best_connection else None,
+                'proxy': best_connection.proxy if best_connection else None,
+                'response_time': best_connection.response_time if best_connection else None,
+                'ip_address': best_connection.ip_address if best_connection else None,
+            } if best_connection else None,
+            'optimization_applied': best_connection is not None,
+            'recommendations': smart_proxy_manager._generate_recommendations()
+        }
+        
+        return {
+            'success': True,
+            'optimization': optimization_report,
+            'timestamp': time.time()
+        }
+        
+    except Exception as e:
+        logger.error(f"Connection optimization failed: {e}")
+        return {"success": False, "error": f"Connection optimization failed: {str(e)}"}
+
+async def get_public_ip():
+    """Get server's public IP"""
+    try:
+        import aiohttp
+        async with aiohttp.ClientSession() as session:
+            async with session.get('https://api.ipify.org', timeout=10) as response:
+                return await response.text()
+    except:
+        return 'unknown'
+
+@app.post("/convert-with-ip-proxy")
+async def convert_with_ip_proxy(request: ConvertRequest):
+    """Convert video using IP-based proxy (bypass DNS issues)"""
+    try:
+        logger.info(f"🚀 Converting with IP proxy: {request.url}")
+        
+        # Force use IP-based proxy
+        ip_proxies = [
+            "http://spwd19mn8t:VWo_9unscw6dpAl57T@149.102.253.91:10001",
+            "http://spwd19mn8t:VWo_9unscw6dpAl57T@149.102.253.91:10002",
+            "http://spwd19mn8t:VWo_9unscw6dpAl57T@149.102.253.65:10001",
+            "http://spwd19mn8t:VWo_9unscw6dpAl57T@149.102.253.65:10002"
+        ]
+        
+        import random
+        selected_proxy = random.choice(ip_proxies)
+        logger.info(f"🔄 Using IP proxy: {selected_proxy.split('@')[1]}")
+        
+        if request.format == 'mp3':
+            result = await convert_to_mp3_with_proxy(request.url, request.quality, selected_proxy)
+        else:
+            result = await convert_to_mp4_with_proxy(request.url, request.quality, selected_proxy)
+            
+        return ConvertResponse(success=True, result=result)
+        
+    except Exception as e:
+        logger.error(f"IP proxy conversion failed: {e}")
+        return ConvertResponse(success=False, error=str(e))
+
+async def convert_to_mp3_with_proxy(url: str, quality: str, proxy: str) -> ConversionResult:
+    """Convert to MP3 using specific proxy"""
+    import yt_dlp
+    import os
+    import tempfile
+    
+    # Create temp directory
+    with tempfile.TemporaryDirectory() as temp_dir:
+        output_path = os.path.join(temp_dir, f'converted_{int(time.time())}.%(ext)s')
+        
+        # Configure yt-dlp with proxy
+        ydl_opts = {
+            'format': 'bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best',
+            'outtmpl': output_path,
+            'proxy': proxy,
+            'extractaudio': True,
+            'audioformat': 'mp3',
+            'audioquality': '192' if quality == 'medium' else ('320' if quality == 'high' else '128'),
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+        
+        # Find the converted file
+        converted_files = [f for f in os.listdir(temp_dir) if f.endswith('.mp3')]
+        if not converted_files:
+            raise Exception("No MP3 file found after conversion")
+        
+        converted_file = os.path.join(temp_dir, converted_files[0])
+        file_size = os.path.getsize(converted_file)
+        
+        # Upload to R2 (if configured)
+        filename = f"converted_with_proxy_{int(time.time())}.mp3"
+        download_url = await upload_to_r2(converted_file, filename)
+        
+        return ConversionResult(
+            success=True,
+            file_path=converted_file,
+            file_size=file_size,
+            format='mp3',
+            quality=quality,
+            download_url=download_url or f"/download/{filename}",
+            filename=filename
+        )
+
+async def convert_to_mp4_with_proxy(url: str, quality: str, proxy: str) -> ConversionResult:
+    """Convert to MP4 using specific proxy"""
+    import yt_dlp
+    import os
+    import tempfile
+    
+    # Create temp directory
+    with tempfile.TemporaryDirectory() as temp_dir:
+        output_path = os.path.join(temp_dir, f'converted_{int(time.time())}.%(ext)s')
+        
+        # Configure yt-dlp with proxy
+        format_selector = {
+            'low': 'best[height<=360]',
+            'medium': 'best[height<=720]', 
+            'high': 'best[height<=1080]'
+        }.get(quality, 'best[height<=720]')
+        
+        ydl_opts = {
+            'format': format_selector,
+            'outtmpl': output_path,
+            'proxy': proxy,
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+        
+        # Find the converted file
+        converted_files = [f for f in os.listdir(temp_dir) if f.endswith('.mp4')]
+        if not converted_files:
+            raise Exception("No MP4 file found after conversion")
+        
+        converted_file = os.path.join(temp_dir, converted_files[0])
+        file_size = os.path.getsize(converted_file)
+        
+        # Upload to R2 (if configured)
+        filename = f"converted_with_proxy_{int(time.time())}.mp4"
+        download_url = await upload_to_r2(converted_file, filename)
+        
+        return ConversionResult(
+            success=True,
+            file_path=converted_file,
+            file_size=file_size,
+            format='mp4',
+            quality=quality,
+            download_url=download_url or f"/download/{filename}",
+            filename=filename
+        )
 
 @app.post("/test-ytdlp")
 async def test_ytdlp_endpoint(request: dict):
