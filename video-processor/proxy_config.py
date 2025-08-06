@@ -41,7 +41,11 @@ class ProxyManager:
         self.datacenter_proxies = self._load_datacenter_proxies()
         self.free_proxies = self._load_free_proxies()
         self.proxy_stats = {}  # Track success rates
+        self.vpn_conflict_detected = False  # Track VPN conflicts
         logger.info(f"ProxyManager initialized for machine: {self.machine_id}")
+        
+        # Test for VPN conflicts on initialization
+        self._detect_vpn_conflicts()
         
     def _load_residential_proxies(self) -> List[str]:
         """Load residential proxy configurations from environment"""
@@ -53,25 +57,32 @@ class ProxyManager:
         primary_endpoint = os.getenv('RESIDENTIAL_PROXY_ENDPOINT')
 
         if primary_user and primary_pass and primary_endpoint:
-            # Decodo支持多个端口，添加更多端口以提高成功率
-            decodo_ports = [
-                'gate.decodo.com:10001',
-                'gate.decodo.com:10002',
-                'gate.decodo.com:10003',
-                'gate.decodo.com:10004',
-                'gate.decodo.com:10005',
-                'gate.decodo.com:10006',
-                'gate.decodo.com:10007',
-                'gate.decodo.com:10008'
+            # Decodo支持多个端口，使用 IP 地址避免 DNS 问题
+            # 这些是 Decodo 的实际 IP 地址，绕过 DNS 解析问题
+            decodo_endpoints = [
+                '149.102.253.91:10001',
+                '149.102.253.91:10002', 
+                '149.102.253.91:10003',
+                '149.102.253.91:10004',
+                '149.102.253.91:10005',
+                '149.102.253.91:10006',
+                '149.102.253.91:10007',
+                '149.102.253.91:10008',
+                '149.102.253.65:10001',
+                '149.102.253.65:10002',
+                '149.102.253.65:10003',
+                '149.102.253.65:10004',
+                '149.102.253.65:10005',
+                '149.102.253.65:10006',
+                '149.102.253.65:10007',
+                '149.102.253.65:10008'
             ]
 
-            # 为每个端口创建机器特定的session (避免多机器冲突)
-            for port in decodo_ports:
-                for i in range(2):  # 每个端口2个session
-                    # Use machine ID to create unique sessions per machine
-                    session_id = f"{self.machine_id}{i:02d}"
-                    proxy_url = f'http://{primary_user}-session-{session_id}:{primary_pass}@{port}'
-                    proxies.append(proxy_url)
+            # 为每个端点创建代理连接 (使用 IP 地址避免 DNS 问题)
+            for endpoint in decodo_endpoints:
+                # 使用基础格式，直接连接 IP 地址
+                proxy_url = f'http://{primary_user}:{primary_pass}@{endpoint}'
+                proxies.append(proxy_url)
 
         # Smartproxy residential (备用)
         smartproxy_user = os.getenv('SMARTPROXY_USER')
@@ -129,24 +140,33 @@ class ProxyManager:
         """Get ordered list of proxies to try, optimized for YouTube"""
         proxy_list = []
 
-        # For YouTube, skip no-proxy as it's likely to fail
+        # For YouTube MP4 conversion, NEVER use direct connection
         if include_no_proxy and not prioritize_youtube:
             proxy_list.append(None)
 
-        # Prioritize Bright Data for YouTube (better success rate)
+        # Prioritize Decodo IP-based proxies for YouTube (better success rate with VPN)
         if prioritize_youtube:
+            # IP-based Decodo proxies (should work with VPN split tunneling)
+            decodo_ip_proxies = [p for p in self.residential_proxies if '149.102.253.' in p]
+            # Domain-based Decodo proxies (fallback)
+            decodo_domain_proxies = [p for p in self.residential_proxies if 'decodo.com' in p and '149.102.253.' not in p]
+            # Other proxies
             brightdata_proxies = [p for p in self.residential_proxies if 'lum-superproxy.io' in p]
-            decodo_proxies = [p for p in self.residential_proxies if 'decodo.com' in p]
-            other_residential = [p for p in self.residential_proxies if p not in brightdata_proxies and p not in decodo_proxies]
+            other_residential = [p for p in self.residential_proxies 
+                               if p not in decodo_ip_proxies 
+                               and p not in decodo_domain_proxies 
+                               and p not in brightdata_proxies]
 
-            # Order: Bright Data > Other Residential > Decodo (as Decodo seems less effective)
+            # Order: IP-based Decodo > Bright Data > Other > Domain-based Decodo
+            random.shuffle(decodo_ip_proxies)
             random.shuffle(brightdata_proxies)
             random.shuffle(other_residential)
-            random.shuffle(decodo_proxies)
+            random.shuffle(decodo_domain_proxies)
 
+            proxy_list.extend(decodo_ip_proxies)
             proxy_list.extend(brightdata_proxies)
             proxy_list.extend(other_residential)
-            proxy_list.extend(decodo_proxies)
+            proxy_list.extend(decodo_domain_proxies)
         else:
             # Normal priority order
             residential_shuffled = self.residential_proxies.copy()
@@ -158,6 +178,10 @@ class ProxyManager:
 
         # Add free proxies as last resort
         proxy_list.extend(self.free_proxies)
+
+        # For YouTube, only add direct connection as absolute last resort
+        if include_no_proxy and prioritize_youtube:
+            proxy_list.append(None)
 
         return proxy_list
     
@@ -258,6 +282,160 @@ class ProxyManager:
         # Sort by success rate descending
         qualified_proxies.sort(key=lambda x: x[1], reverse=True)
         return [proxy for proxy, _ in qualified_proxies]
+    
+    def _detect_vpn_conflicts(self):
+        """Detect if VPN is interfering with proxy connections"""
+        try:
+            # Test direct connection to Decodo
+            import requests
+            import socket
+            
+            # Check if we can resolve Decodo directly
+            try:
+                socket.gethostbyname('149.102.253.91')
+                logger.info("✅ Decodo DNS resolution successful")
+            except socket.gaierror:
+                logger.warning("⚠️ Decodo DNS resolution failed - possible VPN interference")
+                self.vpn_conflict_detected = True
+                return
+            
+            # Test a simple proxy connection
+            test_proxy = f"http://{os.getenv('RESIDENTIAL_PROXY_USER')}:{os.getenv('RESIDENTIAL_PROXY_PASS')}@149.102.253.91:10001"
+            
+            try:
+                response = requests.get(
+                    'https://httpbin.org/ip', 
+                    proxies={'http': test_proxy, 'https': test_proxy},
+                    timeout=10
+                )
+                if response.status_code == 200:
+                    logger.info("✅ Decodo proxy test successful")
+                    self.vpn_conflict_detected = False
+                else:
+                    logger.warning(f"⚠️ Decodo proxy returned status {response.status_code}")
+                    self.vpn_conflict_detected = True
+            except requests.exceptions.ProxyError as e:
+                if '407' in str(e):
+                    logger.error("❌ 407 Proxy Authentication Required - VPN conflict detected!")
+                    self.vpn_conflict_detected = True
+                else:
+                    logger.warning(f"⚠️ Proxy error: {e}")
+                    self.vpn_conflict_detected = True
+            except Exception as e:
+                logger.warning(f"⚠️ Proxy test failed: {e}")
+                self.vpn_conflict_detected = True
+                
+        except Exception as e:
+            logger.error(f"VPN conflict detection failed: {e}")
+            self.vpn_conflict_detected = True
+    
+    def get_proxy_list_smart(self, include_no_proxy: bool = True, prioritize_youtube: bool = True) -> List[Optional[str]]:
+        """Smart proxy selection that adapts to VPN conflicts"""
+        
+        # If VPN conflict detected, prioritize no-proxy and non-Decodo proxies
+        if self.vpn_conflict_detected:
+            logger.info("🔄 VPN conflict detected, using alternative proxy strategy")
+            proxy_list = []
+            
+            # Start with no proxy (direct connection through VPN)
+            if include_no_proxy:
+                proxy_list.append(None)
+            
+            # Use non-Decodo proxies first
+            non_decodo_proxies = [p for p in self.residential_proxies if 'decodo.com' not in p]
+            random.shuffle(non_decodo_proxies)
+            proxy_list.extend(non_decodo_proxies)
+            
+            # Add datacenter and free proxies
+            proxy_list.extend(self.datacenter_proxies)
+            proxy_list.extend(self.free_proxies)
+            
+            # Add Decodo proxies last (they likely won't work)
+            decodo_proxies = [p for p in self.residential_proxies if 'decodo.com' in p]
+            proxy_list.extend(decodo_proxies)
+            
+            return proxy_list
+        else:
+            # Normal proxy selection
+            return self.get_proxy_list(include_no_proxy, prioritize_youtube)
+    
+    def test_and_fix_vpn_conflict(self) -> Dict[str, Any]:
+        """Test current proxy setup and provide VPN conflict solutions"""
+        results = {
+            'vpn_conflict_detected': False,
+            'working_proxies': [],
+            'failed_proxies': [],
+            'recommendations': []
+        }
+        
+        # Test a few key proxies
+        test_proxies = [
+            None,  # Direct connection
+            f"http://{os.getenv('RESIDENTIAL_PROXY_USER')}:{os.getenv('RESIDENTIAL_PROXY_PASS')}@149.102.253.91:10001",
+            f"http://{os.getenv('RESIDENTIAL_PROXY_USER')}:{os.getenv('RESIDENTIAL_PROXY_PASS')}@149.102.253.91:10002",
+        ]
+        
+        for proxy in test_proxies:
+            try:
+                import requests
+                proxies = {'http': proxy, 'https': proxy} if proxy else None
+                
+                response = requests.get(
+                    'https://httpbin.org/ip',
+                    proxies=proxies,
+                    timeout=15
+                )
+                
+                if response.status_code == 200:
+                    results['working_proxies'].append({
+                        'proxy': proxy or 'direct',
+                        'ip': response.json().get('origin', 'unknown')
+                    })
+                else:
+                    results['failed_proxies'].append({
+                        'proxy': proxy or 'direct',
+                        'error': f'HTTP {response.status_code}'
+                    })
+                    
+            except requests.exceptions.ProxyError as e:
+                if '407' in str(e):
+                    results['vpn_conflict_detected'] = True
+                    results['failed_proxies'].append({
+                        'proxy': proxy or 'direct',
+                        'error': '407 Proxy Authentication Required (VPN conflict)'
+                    })
+                else:
+                    results['failed_proxies'].append({
+                        'proxy': proxy or 'direct',
+                        'error': str(e)
+                    })
+            except Exception as e:
+                results['failed_proxies'].append({
+                    'proxy': proxy or 'direct',
+                    'error': str(e)
+                })
+        
+        # Generate recommendations
+        if results['vpn_conflict_detected']:
+            results['recommendations'] = [
+                "1. 添加 Decodo IP 段到 VPN 直连规则: 149.88.96.0/20, 149.102.253.91",
+                "2. 在 VPN 客户端中添加域名分流: *.decodo.com",
+                "3. 考虑使用其他代理服务商（如 Bright Data）",
+                "4. 临时关闭 VPN 测试代理功能",
+                "5. 使用环境变量: NO_PROXY=149.102.253.91"
+            ]
+        elif not results['working_proxies']:
+            results['recommendations'] = [
+                "1. 检查代理凭据是否正确",
+                "2. 验证网络连接",
+                "3. 尝试不同的代理端口"
+            ]
+        else:
+            results['recommendations'] = [
+                "代理配置正常工作"
+            ]
+        
+        return results
 
 # Global proxy manager instance
 proxy_manager = ProxyManager()
