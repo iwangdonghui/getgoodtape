@@ -90,18 +90,20 @@ export function usePerformanceOptimization(
     }
   }, [componentName, enableLogging, maxRenderCount]);
 
-  // 节流函数
+  // 节流函数 - 使用外部ref避免Hook规则问题
+  const throttleRefs = useRef<Map<string, number>>(new Map());
+
   const throttle = useCallback(
     <T extends (...args: any[]) => any>(
       func: T,
-      delay: number = throttleMs
+      delay: number = throttleMs,
+      key: string = func.name || 'default'
     ): T => {
-      const lastCallRef = useRef<number>(0);
-
       return ((...args: Parameters<T>) => {
         const now = Date.now();
-        if (now - lastCallRef.current >= delay) {
-          lastCallRef.current = now;
+        const lastCall = throttleRefs.current.get(key) || 0;
+        if (now - lastCall >= delay) {
+          throttleRefs.current.set(key, now);
           return func(...args);
         }
       }) as T;
@@ -109,53 +111,57 @@ export function usePerformanceOptimization(
     [throttleMs]
   );
 
-  // 防抖函数
+  // 防抖函数 - 使用外部ref避免Hook规则问题
+  const debounceRefs = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
   const debounce = useCallback(
     <T extends (...args: any[]) => any>(
       func: T,
-      delay: number = debounceMs
+      delay: number = debounceMs,
+      key: string = func.name || 'default'
     ): T => {
-      const timeoutRef = useRef<NodeJS.Timeout>();
-
       return ((...args: Parameters<T>) => {
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
+        const existingTimeout = debounceRefs.current.get(key);
+        if (existingTimeout) {
+          clearTimeout(existingTimeout);
         }
-
-        timeoutRef.current = setTimeout(() => {
-          func(...args);
-        }, delay);
+        const newTimeout = setTimeout(() => func(...args), delay);
+        debounceRefs.current.set(key, newTimeout);
       }) as T;
     },
     [debounceMs]
   );
 
   // 优化的 useMemo，带有依赖项变化检测
+  const memoRefs = useRef<
+    Map<string, { deps: React.DependencyList; value: any }>
+  >(new Map());
+
   const optimizedMemo = useCallback(
     <T>(
       factory: () => T,
       deps: React.DependencyList,
-      debugName?: string
+      debugName: string = 'default'
     ): T => {
-      const prevDepsRef = useRef<React.DependencyList>();
-      const memoizedValueRef = useRef<T>();
+      const cached = memoRefs.current.get(debugName);
 
       // 检查依赖项是否真的发生了变化
       const depsChanged =
-        !prevDepsRef.current ||
-        deps.length !== prevDepsRef.current.length ||
-        deps.some((dep, index) => dep !== prevDepsRef.current![index]);
+        !cached ||
+        deps.length !== cached.deps.length ||
+        deps.some((dep, index) => dep !== cached.deps[index]);
 
       if (depsChanged) {
-        if (enableLogging && debugName && prevDepsRef.current) {
+        if (enableLogging && debugName && cached) {
           console.log(`🔄 ${componentName}.${debugName}: 依赖项变化，重新计算`);
         }
 
-        memoizedValueRef.current = factory();
-        prevDepsRef.current = deps;
+        const newValue = factory();
+        memoRefs.current.set(debugName, { deps, value: newValue });
+        return newValue;
       }
 
-      return memoizedValueRef.current!;
+      return cached.value;
     },
     [componentName, enableLogging]
   );

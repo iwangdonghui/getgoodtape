@@ -24,18 +24,22 @@ export function getApiConfig(): ApiConfig {
   const isDevelopment = process.env.NODE_ENV === 'development';
   const isClient = typeof window !== 'undefined';
 
-  // 开发环境端点
+  // 开发环境端点 - 在开发环境中也使用生产Workers，因为本地没有运行Workers
   const devEndpoints: ApiEndpoints = {
-    workers: 'http://localhost:8787/api',
+    workers:
+      'https://getgoodtape-api-production.wangdonghuiibt-cloudflare.workers.dev/api',
     nextjs: 'http://localhost:3000/api',
-    websocket: 'ws://localhost:8787/api/ws',
+    websocket:
+      'wss://getgoodtape-api-production.wangdonghuiibt-cloudflare.workers.dev/api/ws',
   };
 
   // 生产环境端点
   const prodEndpoints: ApiEndpoints = {
-    workers: 'https://your-workers-domain.workers.dev/api',
+    workers:
+      'https://getgoodtape-api-production.wangdonghuiibt-cloudflare.workers.dev/api',
     nextjs: 'https://your-app-domain.com/api',
-    websocket: 'wss://your-workers-domain.workers.dev/api/ws',
+    websocket:
+      'wss://getgoodtape-api-production.wangdonghuiibt-cloudflare.workers.dev/api/ws',
   };
 
   return {

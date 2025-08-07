@@ -13,6 +13,10 @@ import SystemDiagnostics from '../../components/SystemDiagnostics';
 import APIStatusMonitor from '../../components/APIStatusMonitor';
 import APIHealthChecker from '../../components/APIHealthChecker';
 import StatusSyncDiagnostics from '../../components/StatusSyncDiagnostics';
+import WebSocketStatus from '../../components/WebSocketStatus';
+import WebSocketDiagnostics from '../../components/WebSocketDiagnostics';
+import WebSocketTester from '../../components/WebSocketTester';
+import NetworkSolutionGuide from '../../components/NetworkSolutionGuide';
 
 interface DebugResult {
   test: string;
@@ -166,11 +170,11 @@ export default function DebugPage() {
   // 测试WebSocket连接
   const testWebSocket = async () => {
     try {
+      // 在开发环境中也使用生产Workers URL，因为本地没有运行Workers
       const wsUrl =
-        process.env.NODE_ENV === 'development'
-          ? 'ws://localhost:8787/api/ws'
-          : 'wss://getgoodtape-api-production.wangdonghuiibt-cloudflare.workers.dev/api/ws';
+        'wss://getgoodtape-api-production.wangdonghuiibt-cloudflare.workers.dev/api/ws';
 
+      console.log('🔌 Testing WebSocket connection to:', wsUrl);
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
@@ -308,6 +312,26 @@ export default function DebugPage() {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* WebSocket状态 */}
+          <div className="mb-6">
+            <WebSocketStatus />
+          </div>
+
+          {/* 新的WebSocket测试器 */}
+          <div className="mb-6">
+            <WebSocketTester />
+          </div>
+
+          {/* 网络解决方案指南 */}
+          <div className="mb-6">
+            <NetworkSolutionGuide />
+          </div>
+
+          {/* WebSocket诊断 */}
+          <div className="mb-6">
+            <WebSocketDiagnostics />
           </div>
 
           {/* 主题测试 */}

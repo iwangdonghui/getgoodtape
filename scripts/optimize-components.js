@@ -83,7 +83,7 @@ function fixImportStar(content) {
       );
       if (match) {
         const alias = match[1];
-        const module = match[2];
+        const moduleName = match[2];
 
         // 分析代码中实际使用的导出
         const usedExports = new Set();
@@ -97,7 +97,7 @@ function fixImportStar(content) {
 
         if (usedExports.size > 0) {
           const namedImports = Array.from(usedExports).join(', ');
-          const newImport = `import { ${namedImports} } from '${module}'`;
+          const newImport = `import { ${namedImports} } from '${moduleName}'`;
 
           // 替换import语句
           content = content.replace(importLine, newImport);

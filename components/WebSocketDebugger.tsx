@@ -44,13 +44,12 @@ export default function WebSocketDebugger({
 
   const connectWebSocket = () => {
     try {
-      // Try to determine the WebSocket URL
+      // 在开发环境中直接连接到生产Workers，因为本地没有运行Workers
       const wsUrl =
-        process.env.NODE_ENV === 'development'
-          ? 'ws://localhost:8787/api/ws'
-          : 'wss://your-workers-domain.workers.dev/api/ws';
+        'wss://getgoodtape-api-production.wangdonghuiibt-cloudflare.workers.dev/api/ws';
 
       setConnectionUrl(wsUrl);
+      console.log('🔌 Attempting WebSocket connection to:', wsUrl);
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
