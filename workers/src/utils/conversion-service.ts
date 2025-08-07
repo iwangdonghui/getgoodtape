@@ -14,7 +14,11 @@ export interface ErrorClassification {
   retryable: boolean;
   maxRetries: number;
   backoffStrategy: 'linear' | 'exponential';
-  fallbackAction?: 'use_proxy' | 'reduce_quality' | 'direct_connection' | 'cleanup_files';
+  fallbackAction?:
+    | 'use_proxy'
+    | 'reduce_quality'
+    | 'direct_connection'
+    | 'cleanup_files';
   userMessage: string;
   suggestion?: string;
   alertRequired: boolean;
@@ -265,7 +269,9 @@ export class ConversionService {
    * Start a new conversion job with cache checking
    */
   async startConversion(request: ConvertRequest): Promise<string> {
-    console.log(`🔍 Starting conversion for: ${request.url} (${request.format}/${request.quality})`);
+    console.log(
+      `🔍 Starting conversion for: ${request.url} (${request.format}/${request.quality})`
+    );
 
     // Check cache first
     const cacheResult = await this.checkCache(request);
@@ -303,7 +309,9 @@ export class ConversionService {
       return jobId;
     }
 
-    console.log(`💾 No valid cache found, proceeding with new conversion: ${request.url}`);
+    console.log(
+      `💾 No valid cache found, proceeding with new conversion: ${request.url}`
+    );
 
     // Create job in database for new conversion
     const jobId = await this.jobManager.createJob(
@@ -944,7 +952,9 @@ export class ConversionService {
     // Clean up expired cache entries and orphaned files
     try {
       const cacheCleanupResult = await this.cleanupCache();
-      console.log(`Cache cleanup: ${cacheCleanupResult.deletedEntries} entries, ${cacheCleanupResult.deletedFiles} files`);
+      console.log(
+        `Cache cleanup: ${cacheCleanupResult.deletedEntries} entries, ${cacheCleanupResult.deletedFiles} files`
+      );
     } catch (error) {
       console.error('Cache cleanup failed:', error);
     }
@@ -955,15 +965,29 @@ export class ConversionService {
   /**
    * Handle conversion errors with enhanced error processing and recovery
    */
-  private async handleConversionError(error: Error, jobId: string, request?: ConvertRequest): Promise<void> {
+  private async handleConversionError(
+    error: Error,
+    jobId: string,
+    request?: ConvertRequest
+  ): Promise<void> {
     const errorClassification = this.categorizeError(error);
     const userMessage = this.getUserFriendlyMessage(errorClassification);
 
-    console.log(`🔍 Error classified as: ${errorClassification.type} (severity: ${errorClassification.severity})`);
+    console.log(
+      `🔍 Error classified as: ${errorClassification.type} (severity: ${errorClassification.severity})`
+    );
 
     // Try automatic recovery if possible
-    if (errorClassification.retryable && errorClassification.fallbackAction && request) {
-      const recoveryAttempted = await this.attemptErrorRecovery(jobId, request, errorClassification);
+    if (
+      errorClassification.retryable &&
+      errorClassification.fallbackAction &&
+      request
+    ) {
+      const recoveryAttempted = await this.attemptErrorRecovery(
+        jobId,
+        request,
+        errorClassification
+      );
       if (recoveryAttempted) {
         return; // Recovery was attempted, don't fail the job yet
       }
@@ -985,7 +1009,9 @@ export class ConversionService {
 
     // Log alert if required
     if (errorClassification.alertRequired) {
-      console.error(`🚨 ALERT REQUIRED: ${errorClassification.type} - ${error.message}`);
+      console.error(
+        `🚨 ALERT REQUIRED: ${errorClassification.type} - ${error.message}`
+      );
       // TODO: Send to monitoring/alerting system
     }
   }
@@ -1008,7 +1034,11 @@ export class ConversionService {
 
     // Notify about recovery attempt
     if (this.wsManager) {
-      this.wsManager.sendRecoveryAttempt(jobId, fallbackAction, `正在尝试 ${this.getRecoveryActionName(fallbackAction)}...`);
+      this.wsManager.sendRecoveryAttempt(
+        jobId,
+        fallbackAction,
+        `正在尝试 ${this.getRecoveryActionName(fallbackAction)}...`
+      );
     }
 
     try {
@@ -1039,9 +1069,15 @@ export class ConversionService {
       // Notify about recovery result
       if (this.wsManager) {
         if (success) {
-          this.wsManager.sendRecoverySuccess(jobId, `${this.getRecoveryActionName(fallbackAction)} 成功，继续处理...`);
+          this.wsManager.sendRecoverySuccess(
+            jobId,
+            `${this.getRecoveryActionName(fallbackAction)} 成功，继续处理...`
+          );
         } else {
-          this.wsManager.sendRecoveryFailure(jobId, `${this.getRecoveryActionName(fallbackAction)} 失败`);
+          this.wsManager.sendRecoveryFailure(
+            jobId,
+            `${this.getRecoveryActionName(fallbackAction)} 失败`
+          );
         }
       }
 
@@ -1050,7 +1086,10 @@ export class ConversionService {
       console.error(`❌ Error recovery failed: ${recoveryError}`);
 
       if (this.wsManager) {
-        this.wsManager.sendRecoveryFailure(jobId, `恢复尝试失败: ${recoveryError instanceof Error ? recoveryError.message : '未知错误'}`);
+        this.wsManager.sendRecoveryFailure(
+          jobId,
+          `恢复尝试失败: ${recoveryError instanceof Error ? recoveryError.message : '未知错误'}`
+        );
       }
 
       return false;
@@ -1064,39 +1103,69 @@ export class ConversionService {
     const errorMessage = error.message.toLowerCase();
 
     // YouTube specific errors
-    if (errorMessage.includes('sign in to confirm') || errorMessage.includes('login required')) {
+    if (
+      errorMessage.includes('sign in to confirm') ||
+      errorMessage.includes('login required')
+    ) {
       return ERROR_HANDLING_STRATEGIES.YOUTUBE_SIGN_IN_REQUIRED;
     }
 
-    if (errorMessage.includes('youtube') && (errorMessage.includes('blocked') || errorMessage.includes('access denied'))) {
+    if (
+      errorMessage.includes('youtube') &&
+      (errorMessage.includes('blocked') ||
+        errorMessage.includes('access denied'))
+    ) {
       return ERROR_HANDLING_STRATEGIES.YOUTUBE_ACCESS_DENIED;
     }
 
     // Network and timeout errors
-    if (errorMessage.includes('timeout') || errorMessage.includes('timed out')) {
+    if (
+      errorMessage.includes('timeout') ||
+      errorMessage.includes('timed out')
+    ) {
       return ERROR_HANDLING_STRATEGIES.CONVERSION_TIMEOUT;
     }
 
-    if (errorMessage.includes('network') || errorMessage.includes('connection') || errorMessage.includes('fetch')) {
+    if (
+      errorMessage.includes('network') ||
+      errorMessage.includes('connection') ||
+      errorMessage.includes('fetch')
+    ) {
       return ERROR_HANDLING_STRATEGIES.NETWORK_ERROR;
     }
 
     // Storage errors
-    if (errorMessage.includes('storage') || errorMessage.includes('quota') || errorMessage.includes('space')) {
+    if (
+      errorMessage.includes('storage') ||
+      errorMessage.includes('quota') ||
+      errorMessage.includes('space')
+    ) {
       return ERROR_HANDLING_STRATEGIES.STORAGE_QUOTA_EXCEEDED;
     }
 
     // Video processing errors
-    if (errorMessage.includes('not found') || errorMessage.includes('unavailable') || errorMessage.includes('deleted')) {
+    if (
+      errorMessage.includes('not found') ||
+      errorMessage.includes('unavailable') ||
+      errorMessage.includes('deleted')
+    ) {
       return ERROR_HANDLING_STRATEGIES.VIDEO_NOT_FOUND;
     }
 
-    if (errorMessage.includes('format') || errorMessage.includes('codec') || errorMessage.includes('unsupported')) {
+    if (
+      errorMessage.includes('format') ||
+      errorMessage.includes('codec') ||
+      errorMessage.includes('unsupported')
+    ) {
       return ERROR_HANDLING_STRATEGIES.UNSUPPORTED_FORMAT;
     }
 
     // Rate limiting
-    if (errorMessage.includes('rate limit') || errorMessage.includes('too many requests') || errorMessage.includes('429')) {
+    if (
+      errorMessage.includes('rate limit') ||
+      errorMessage.includes('too many requests') ||
+      errorMessage.includes('429')
+    ) {
       return ERROR_HANDLING_STRATEGIES.RATE_LIMIT_EXCEEDED;
     }
 
@@ -1119,7 +1188,10 @@ export class ConversionService {
   /**
    * Calculate backoff delay based on strategy
    */
-  calculateBackoffDelay(strategy: 'linear' | 'exponential', attempt: number): number {
+  calculateBackoffDelay(
+    strategy: 'linear' | 'exponential',
+    attempt: number
+  ): number {
     const baseDelay = 1000; // 1 second
 
     if (strategy === 'exponential') {
@@ -1132,9 +1204,12 @@ export class ConversionService {
   /**
    * Attempt quality reduction recovery
    */
-  private async attemptQualityReduction(jobId: string, request: ConvertRequest): Promise<boolean> {
+  private async attemptQualityReduction(
+    jobId: string,
+    request: ConvertRequest
+  ): Promise<boolean> {
     const qualityMap: Record<string, string> = {
-      'high': 'medium',
+      high: 'medium',
       '1080': '720',
       '720': '360',
       '320': '192',
@@ -1147,7 +1222,9 @@ export class ConversionService {
       return false;
     }
 
-    console.log(`🔄 Reducing quality from ${request.quality} to ${lowerQuality}`);
+    console.log(
+      `🔄 Reducing quality from ${request.quality} to ${lowerQuality}`
+    );
 
     // Update progress with recovery message
     await this.updateProgressWithNotification(jobId, 30, 'processing', {
@@ -1173,7 +1250,10 @@ export class ConversionService {
   /**
    * Attempt proxy retry recovery
    */
-  private async attemptProxyRetry(jobId: string, request: ConvertRequest): Promise<boolean> {
+  private async attemptProxyRetry(
+    jobId: string,
+    request: ConvertRequest
+  ): Promise<boolean> {
     console.log(`🔄 Attempting proxy retry for: ${request.url}`);
 
     // Update progress with recovery message
@@ -1189,7 +1269,8 @@ export class ConversionService {
 
     try {
       // Call processing service with proxy flag
-      const processingServiceUrl = this.env.PROCESSING_SERVICE_URL || 'http://localhost:8000';
+      const processingServiceUrl =
+        this.env.PROCESSING_SERVICE_URL || 'http://localhost:8000';
 
       const response = await fetch(`${processingServiceUrl}/convert`, {
         method: 'POST',
@@ -1218,7 +1299,10 @@ export class ConversionService {
   /**
    * Attempt direct connection recovery
    */
-  private async attemptDirectConnection(jobId: string, request: ConvertRequest): Promise<boolean> {
+  private async attemptDirectConnection(
+    jobId: string,
+    request: ConvertRequest
+  ): Promise<boolean> {
     console.log(`🔄 Attempting direct connection for: ${request.url}`);
 
     // Update progress with recovery message
@@ -1228,7 +1312,8 @@ export class ConversionService {
 
     try {
       // Call processing service without proxy
-      const processingServiceUrl = this.env.PROCESSING_SERVICE_URL || 'http://localhost:8000';
+      const processingServiceUrl =
+        this.env.PROCESSING_SERVICE_URL || 'http://localhost:8000';
 
       const response = await fetch(`${processingServiceUrl}/convert`, {
         method: 'POST',
@@ -1259,10 +1344,10 @@ export class ConversionService {
    */
   private getRecoveryActionName(action: string): string {
     const actionNames: Record<string, string> = {
-      'reduce_quality': '降低质量',
-      'use_proxy': '代理访问',
-      'direct_connection': '直接连接',
-      'cleanup_files': '清理文件',
+      reduce_quality: '降低质量',
+      use_proxy: '代理访问',
+      direct_connection: '直接连接',
+      cleanup_files: '清理文件',
     };
 
     return actionNames[action] || action;
@@ -1303,9 +1388,10 @@ export class ConversionService {
         return { isValid: false, reason: 'Cached file not found in storage' };
       }
 
-      console.log(`✅ Valid cache entry found for: ${request.url} (accessed ${entry.accessCount} times)`);
+      console.log(
+        `✅ Valid cache entry found for: ${request.url} (accessed ${entry.accessCount} times)`
+      );
       return { isValid: true, entry };
-
     } catch (error) {
       console.error('Error checking cache:', error);
       return { isValid: false, reason: 'Cache check error' };
@@ -1345,7 +1431,10 @@ export class ConversionService {
       const cleanUrl = `${parsedUrl.protocol}//${parsedUrl.host}${parsedUrl.pathname}`;
 
       // Extract video ID for YouTube URLs for more consistent caching
-      if (parsedUrl.host.includes('youtube.com') || parsedUrl.host.includes('youtu.be')) {
+      if (
+        parsedUrl.host.includes('youtube.com') ||
+        parsedUrl.host.includes('youtu.be')
+      ) {
         const videoId = this.extractYouTubeVideoId(url);
         if (videoId) {
           return `https://www.youtube.com/watch?v=${videoId}`;
@@ -1384,7 +1473,7 @@ export class ConversionService {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash; // Convert to 32-bit integer
     }
     return Math.abs(hash).toString(36);
@@ -1393,7 +1482,9 @@ export class ConversionService {
   /**
    * Validate that cached file still exists in R2 storage
    */
-  private async validateCachedFile(entry: ConversionCacheEntry): Promise<boolean> {
+  private async validateCachedFile(
+    entry: ConversionCacheEntry
+  ): Promise<boolean> {
     try {
       const object = await this.env.STORAGE.head(entry.r2Key);
       return object !== null;
@@ -1422,7 +1513,9 @@ export class ConversionService {
         expirationTtl: Math.floor((entry.expiresAt - Date.now()) / 1000),
       });
 
-      console.log(`📊 Updated cache access count for ${entry.url}: ${entry.accessCount}`);
+      console.log(
+        `📊 Updated cache access count for ${entry.url}: ${entry.accessCount}`
+      );
     } catch (error) {
       console.error('Failed to update cache access:', error);
     }
@@ -1465,7 +1558,9 @@ export class ConversionService {
         expirationTtl: Math.floor(this.CACHE_DURATION / 1000),
       });
 
-      console.log(`💾 Cached conversion result for: ${request.url} (key: ${cacheKey})`);
+      console.log(
+        `💾 Cached conversion result for: ${request.url} (key: ${cacheKey})`
+      );
     } catch (error) {
       console.error('Failed to cache conversion result:', error);
     }
@@ -1474,7 +1569,10 @@ export class ConversionService {
   /**
    * Clean up expired cache entries and orphaned files
    */
-  async cleanupCache(): Promise<{ deletedEntries: number; deletedFiles: number }> {
+  async cleanupCache(): Promise<{
+    deletedEntries: number;
+    deletedFiles: number;
+  }> {
     console.log('🧹 Starting cache cleanup...');
 
     let deletedEntries = 0;
@@ -1503,18 +1601,23 @@ export class ConversionService {
             deletedEntries++;
 
             // Check if file should be deleted from R2
-            const shouldDeleteFile = await this.shouldDeleteCachedFile(entry);
+            const shouldDeleteFile = this.shouldDeleteCachedFile();
             if (shouldDeleteFile) {
               try {
                 await this.env.STORAGE.delete(entry.r2Key);
                 deletedFiles++;
                 console.log(`🗑️ Deleted orphaned file: ${entry.r2Key}`);
               } catch (deleteError) {
-                console.warn(`Failed to delete file ${entry.r2Key}:`, deleteError);
+                console.warn(
+                  `Failed to delete file ${entry.r2Key}:`,
+                  deleteError
+                );
               }
             }
 
-            console.log(`🧹 Cleaned up cache entry: ${key} (${isExpired ? 'expired' : 'over limit'})`);
+            console.log(
+              `🧹 Cleaned up cache entry: ${key} (${isExpired ? 'expired' : 'over limit'})`
+            );
           }
         } catch (entryError) {
           console.warn(`Error processing cache entry ${key}:`, entryError);
@@ -1524,8 +1627,9 @@ export class ConversionService {
         }
       }
 
-      console.log(`✅ Cache cleanup completed: ${deletedEntries} entries, ${deletedFiles} files deleted`);
-
+      console.log(
+        `✅ Cache cleanup completed: ${deletedEntries} entries, ${deletedFiles} files deleted`
+      );
     } catch (error) {
       console.error('Cache cleanup failed:', error);
     }
@@ -1550,7 +1654,7 @@ export class ConversionService {
   /**
    * Determine if a cached file should be deleted from R2
    */
-  private async shouldDeleteCachedFile(_entry: ConversionCacheEntry): Promise<boolean> {
+  private shouldDeleteCachedFile(): boolean {
     // Check if any other cache entries reference this file
     // This is a simplified check - in production, you might want to maintain
     // a reference count for each file

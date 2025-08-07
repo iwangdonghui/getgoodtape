@@ -188,7 +188,8 @@ export class UrlValidator {
 
     try {
       // Call video processing service for metadata extraction
-      const processingServiceUrl = env?.PROCESSING_SERVICE_URL || 'http://localhost:8000';
+      const processingServiceUrl =
+        env?.PROCESSING_SERVICE_URL || 'http://localhost:8000';
 
       console.log(`🔍 Extracting metadata for validation: ${url}`);
 
@@ -199,20 +200,48 @@ export class UrlValidator {
         },
         body: JSON.stringify({
           url: url,
-          validate_only: true,
         }),
         signal: AbortSignal.timeout(30000), // 30 second timeout
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        return this.handleValidationError(new Error(`Metadata extraction failed: ${errorText}`), basicValidation);
+        return this.handleValidationError(
+          new Error(`Metadata extraction failed: ${errorText}`),
+          basicValidation
+        );
       }
 
-      const metadata = await response.json();
+      const data = await response.json();
+      console.log(`📊 Metadata response:`, {
+        success: data.success,
+        hasMetadata: !!data.metadata,
+      });
+
+      // Check if metadata extraction was successful
+      if (!data.success || !data.metadata) {
+        console.warn(
+          `⚠️ Metadata extraction failed: ${data.error || 'No metadata returned'}`
+        );
+
+        // Fall back to basic validation with warning
+        if (basicValidation.isValid) {
+          return {
+            isValid: true,
+            warning: '无法获取视频详细信息，但链接格式正确。转换可能仍然成功。',
+            platform: basicValidation.platform,
+            metadata: basicValidation.metadata,
+          };
+        }
+
+        return basicValidation;
+      }
 
       // Enhanced validation with metadata
-      const enhancedResult = await this.validateWithMetadata(basicValidation, metadata);
+      const enhancedResult = await this.validateWithMetadata(
+        basicValidation,
+        data.metadata
+      );
 
       // Cache the result if cache is available
       if (env?.VALIDATION_CACHE) {
@@ -220,7 +249,6 @@ export class UrlValidator {
       }
 
       return enhancedResult;
-
     } catch (error) {
       console.warn(`⚠️ Metadata validation failed for ${url}:`, error);
       return this.handleValidationError(error as Error, basicValidation);
@@ -533,7 +561,10 @@ export class UrlValidator {
     }
 
     // YouTube specific errors
-    if (errorMessage.includes('sign in to confirm') || errorMessage.includes('private')) {
+    if (
+      errorMessage.includes('sign in to confirm') ||
+      errorMessage.includes('private')
+    ) {
       return {
         isValid: false,
         error: {
@@ -545,7 +576,10 @@ export class UrlValidator {
     }
 
     // Video not found
-    if (errorMessage.includes('not found') || errorMessage.includes('unavailable')) {
+    if (
+      errorMessage.includes('not found') ||
+      errorMessage.includes('unavailable')
+    ) {
       return {
         isValid: false,
         error: {
@@ -557,7 +591,10 @@ export class UrlValidator {
     }
 
     // Geo-blocking
-    if (errorMessage.includes('not available') || errorMessage.includes('region')) {
+    if (
+      errorMessage.includes('not available') ||
+      errorMessage.includes('region')
+    ) {
       return {
         isValid: false,
         error: {
@@ -581,7 +618,10 @@ export class UrlValidator {
     }
 
     // Copyright issues
-    if (errorMessage.includes('copyright') || errorMessage.includes('blocked')) {
+    if (
+      errorMessage.includes('copyright') ||
+      errorMessage.includes('blocked')
+    ) {
       return {
         isValid: false,
         error: {
@@ -593,7 +633,10 @@ export class UrlValidator {
     }
 
     // Rate limiting
-    if (errorMessage.includes('rate limit') || errorMessage.includes('too many requests')) {
+    if (
+      errorMessage.includes('rate limit') ||
+      errorMessage.includes('too many requests')
+    ) {
       return {
         isValid: false,
         error: {
@@ -617,15 +660,22 @@ export class UrlValidator {
     }
 
     // Fallback to basic validation if metadata extraction fails
-    console.warn(`Metadata validation failed, falling back to basic validation: ${error.message}`);
-    return {
-      ...basicValidation,
-      error: {
-        type: ErrorType.VALIDATION_WARNING,
-        message: '无法获取视频详细信息，但链接格式正确。转换可能仍然成功。',
-        retryable: true,
-      },
-    };
+    console.warn(
+      `Metadata validation failed, falling back to basic validation: ${error.message}`
+    );
+
+    // If basic validation passed, allow the URL to proceed with a warning
+    if (basicValidation.isValid) {
+      return {
+        isValid: true,
+        warning: '无法获取视频详细信息，但链接格式正确。转换可能仍然成功。',
+        platform: basicValidation.platform,
+        metadata: basicValidation.metadata,
+      };
+    }
+
+    // If basic validation also failed, return the basic validation error
+    return basicValidation;
   }
 
   /**
@@ -708,7 +758,9 @@ export class UrlValidator {
     } else if (seconds < 3600) {
       const minutes = Math.floor(seconds / 60);
       const remainingSeconds = seconds % 60;
-      return remainingSeconds > 0 ? `${minutes}分${remainingSeconds}秒` : `${minutes}分钟`;
+      return remainingSeconds > 0
+        ? `${minutes}分${remainingSeconds}秒`
+        : `${minutes}分钟`;
     } else {
       const hours = Math.floor(seconds / 3600);
       const minutes = Math.floor((seconds % 3600) / 60);
@@ -740,7 +792,9 @@ export class UrlValidator {
       case ErrorType.DURATION_TOO_LONG:
         suggestions.push('选择时长较短的视频');
         if (platform) {
-          suggestions.push(`${platform.name} 平台限制：最长 ${this.formatDuration(platform.maxDuration)}`);
+          suggestions.push(
+            `${platform.name} 平台限制：最长 ${this.formatDuration(platform.maxDuration)}`
+          );
         }
         suggestions.push('考虑分段下载长视频');
         break;
