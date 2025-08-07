@@ -71,6 +71,77 @@ export function useConversionWebSocket(): ConversionState & ConversionActions {
   const robustWsRef = useRef<RobustWebSocket | null>(null);
   const validationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  const handleWebSocketMessage = useCallback((message: any) => {
+    const { type, payload } = message;
+
+    switch (type) {
+      case 'conversion_started':
+        setState(prev => ({
+          ...prev,
+          jobId: payload.jobId,
+          status: payload.status,
+          progress: payload.progress,
+        }));
+        break;
+
+      case 'conversion_progress':
+        setState(prev => ({
+          ...prev,
+          progress: payload.progress,
+          status: payload.status,
+        }));
+        break;
+
+      case 'conversion_complete':
+        setState(prev => ({
+          ...prev,
+          status: 'completed',
+          progress: 100,
+          result: {
+            downloadUrl: payload.downloadUrl,
+            filename: payload.filename,
+            fileSize: payload.fileSize,
+          },
+        }));
+        break;
+
+      case 'conversion_error':
+        setState(prev => ({
+          ...prev,
+          status: 'failed',
+          error: payload.error,
+        }));
+        break;
+
+      case 'recovery_attempt':
+        setState(prev => ({
+          ...prev,
+          status: 'processing',
+          error: null,
+        }));
+        break;
+
+      case 'recovery_success':
+        setState(prev => ({
+          ...prev,
+          status: 'processing',
+          error: null,
+        }));
+        break;
+
+      case 'recovery_failure':
+        setState(prev => ({
+          ...prev,
+          status: 'failed',
+          error: payload.message || 'Recovery failed',
+        }));
+        break;
+
+      default:
+        console.log('Unknown WebSocket message type:', type);
+    }
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -206,91 +277,9 @@ export function useConversionWebSocket(): ConversionState & ConversionActions {
         isConnected: false
       }));
     }
-  }, []);
+  }, [handleWebSocketMessage]);
 
-  const handleWebSocketMessage = useCallback((message: any) => {
-    const { type, payload } = message;
 
-    switch (type) {
-      case 'conversion_started':
-        setState(prev => ({
-          ...prev,
-          jobId: payload.jobId,
-          status: payload.status,
-          progress: payload.progress,
-          isConverting: true,
-          error: null,
-        }));
-        break;
-
-      case 'progress_update':
-        setState(prev => ({
-          ...prev,
-          progress: payload.progress,
-          status: payload.status,
-          currentStep: payload.currentStep,
-          queuePosition: payload.queuePosition,
-          estimatedTimeRemaining: payload.estimatedTimeRemaining,
-        }));
-        break;
-
-      case 'conversion_completed':
-        setState(prev => ({
-          ...prev,
-          status: 'completed',
-          progress: 100,
-          isConverting: false,
-          result: {
-            downloadUrl: payload.downloadUrl,
-            filename: payload.filename,
-            metadata: payload.metadata,
-          },
-        }));
-        break;
-
-      case 'conversion_failed':
-        setState(prev => ({
-          ...prev,
-          status: 'failed',
-          isConverting: false,
-          error: payload.error,
-        }));
-        break;
-
-      case 'job_status':
-        setState(prev => ({
-          ...prev,
-          jobId: payload.jobId,
-          status: payload.status,
-          progress: payload.progress,
-          result: payload.downloadUrl
-            ? {
-                downloadUrl: payload.downloadUrl,
-                filename: payload.filename,
-                metadata: payload.metadata,
-              }
-            : null,
-          isConverting:
-            payload.status === 'processing' || payload.status === 'queued',
-        }));
-        break;
-
-      case 'pong':
-        // Keep-alive response
-        break;
-
-      case 'error':
-        console.error('WebSocket error:', payload.error);
-        setState(prev => ({
-          ...prev,
-          error: payload.error,
-        }));
-        break;
-
-      default:
-        console.warn('Unknown WebSocket message type:', type);
-    }
-  }, []);
 
   const setUrl = useCallback((url: string) => {
     setState(prev => ({ ...prev, url }));
@@ -382,9 +371,9 @@ export function useConversionWebSocket(): ConversionState & ConversionActions {
 
   const reset = useCallback(() => {
     setState(INITIAL_STATE);
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
+    if (robustWsRef.current) {
+      robustWsRef.current.disconnect();
+      robustWsRef.current = null;
     }
   }, []);
 

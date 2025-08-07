@@ -1550,20 +1550,15 @@ export class ConversionService {
   /**
    * Determine if a cached file should be deleted from R2
    */
-  private async shouldDeleteCachedFile(entry: ConversionCacheEntry): Promise<boolean> {
-    try {
-      // Check if any other cache entries reference this file
-      // This is a simplified check - in production, you might want to maintain
-      // a reference count for each file
+  private async shouldDeleteCachedFile(_entry: ConversionCacheEntry): Promise<boolean> {
+    // Check if any other cache entries reference this file
+    // This is a simplified check - in production, you might want to maintain
+    // a reference count for each file
 
-      // For now, we'll be conservative and not delete files automatically
-      // to avoid accidentally deleting files that might be referenced elsewhere
+    // For now, we'll be conservative and not delete files automatically
+    // to avoid accidentally deleting files that might be referenced elsewhere
 
-      return false;
-    } catch (error) {
-      console.warn('Error checking file references:', error);
-      return false;
-    }
+    return false;
   }
 
   /**

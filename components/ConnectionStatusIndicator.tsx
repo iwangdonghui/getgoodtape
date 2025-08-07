@@ -83,16 +83,19 @@ const ConnectionStatusIndicator = memo(function ConnectionStatusIndicator({
 
   const formatLastConnected = (date?: Date) => {
     if (!date) return '从未连接';
-    
+
     const now = new Date();
     const diff = now.getTime() - date.getTime();
-    
-    if (diff < 60000) { // Less than 1 minute
+
+    if (diff < 60000) {
+      // Less than 1 minute
       return '刚刚连接';
-    } else if (diff < 3600000) { // Less than 1 hour
+    } else if (diff < 3600000) {
+      // Less than 1 hour
       const minutes = Math.floor(diff / 60000);
       return `${minutes}分钟前连接`;
-    } else if (diff < 86400000) { // Less than 1 day
+    } else if (diff < 86400000) {
+      // Less than 1 day
       const hours = Math.floor(diff / 3600000);
       return `${hours}小时前连接`;
     } else {
@@ -102,7 +105,7 @@ const ConnectionStatusIndicator = memo(function ConnectionStatusIndicator({
 
   const formatLatency = (latency?: number) => {
     if (!latency) return '未知';
-    
+
     if (latency < 100) {
       return `${latency}ms (优秀)`;
     } else if (latency < 300) {
@@ -118,11 +121,14 @@ const ConnectionStatusIndicator = memo(function ConnectionStatusIndicator({
     // Simple indicator
     return (
       <div className={`flex items-center space-x-2 ${className}`}>
-        <div className={`w-3 h-3 rounded-full ${config.color} ${
-          connectionState.status === 'connecting' || connectionState.status === 'reconnecting' 
-            ? 'animate-pulse' 
-            : ''
-        }`} />
+        <div
+          className={`w-3 h-3 rounded-full ${config.color} ${
+            connectionState.status === 'connecting' ||
+            connectionState.status === 'reconnecting'
+              ? 'animate-pulse'
+              : ''
+          }`}
+        />
         <span className={`text-sm font-medium ${config.textColor}`}>
           {config.text}
         </span>
@@ -132,19 +138,24 @@ const ConnectionStatusIndicator = memo(function ConnectionStatusIndicator({
 
   // Detailed indicator
   return (
-    <div className={`${config.bgColor} ${config.borderColor} border rounded-lg p-3 ${className}`}>
+    <div
+      className={`${config.bgColor} ${config.borderColor} border rounded-lg p-3 ${className}`}
+    >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center space-x-2">
-          <div className={`w-4 h-4 rounded-full ${config.color} ${
-            connectionState.status === 'connecting' || connectionState.status === 'reconnecting' 
-              ? 'animate-pulse' 
-              : ''
-          }`} />
+          <div
+            className={`w-4 h-4 rounded-full ${config.color} ${
+              connectionState.status === 'connecting' ||
+              connectionState.status === 'reconnecting'
+                ? 'animate-pulse'
+                : ''
+            }`}
+          />
           <span className={`font-semibold ${config.textColor}`}>
             {config.icon} {config.text}
           </span>
         </div>
-        
+
         {connectionState.latency && (
           <span className="text-xs text-gray-500">
             延迟: {formatLatency(connectionState.latency)}
@@ -152,9 +163,7 @@ const ConnectionStatusIndicator = memo(function ConnectionStatusIndicator({
         )}
       </div>
 
-      <p className={`text-sm ${config.textColor} mb-2`}>
-        {config.description}
-      </p>
+      <p className={`text-sm ${config.textColor} mb-2`}>{config.description}</p>
 
       <div className="space-y-1 text-xs text-gray-600">
         {connectionState.lastConnected && (
@@ -162,13 +171,11 @@ const ConnectionStatusIndicator = memo(function ConnectionStatusIndicator({
             上次连接: {formatLastConnected(connectionState.lastConnected)}
           </div>
         )}
-        
+
         {connectionState.reconnectAttempts > 0 && (
-          <div>
-            重连次数: {connectionState.reconnectAttempts}
-          </div>
+          <div>重连次数: {connectionState.reconnectAttempts}</div>
         )}
-        
+
         {connectionState.status === 'failed' && connectionState.lastError && (
           <div className="text-red-600 mt-2">
             错误: {connectionState.lastError}
@@ -182,16 +189,16 @@ const ConnectionStatusIndicator = memo(function ConnectionStatusIndicator({
           <div className="flex items-center justify-between text-xs">
             <span className="text-gray-500">连接质量:</span>
             <div className="flex space-x-1">
-              {[1, 2, 3, 4, 5].map((bar) => (
+              {[1, 2, 3, 4, 5].map(bar => (
                 <div
                   key={bar}
                   className={`w-1 h-3 rounded-sm ${
                     connectionState.latency! < bar * 100
-                      ? connectionState.latency! < 200 
-                        ? 'bg-green-500' 
-                        : connectionState.latency! < 400 
-                        ? 'bg-yellow-500' 
-                        : 'bg-red-500'
+                      ? connectionState.latency! < 200
+                        ? 'bg-green-500'
+                        : connectionState.latency! < 400
+                          ? 'bg-yellow-500'
+                          : 'bg-red-500'
                       : 'bg-gray-300'
                   }`}
                 />

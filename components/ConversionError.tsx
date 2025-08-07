@@ -179,28 +179,51 @@ const ConversionError = memo(function ConversionError({
   };
 
   const severityColors = getSeverityColor(errorInfo.severity || 'medium');
-  const bgColor = errorInfo.severity === 'critical' ? 'bg-red-100' :
-                  errorInfo.severity === 'high' ? 'bg-red-50' :
-                  errorInfo.severity === 'low' ? 'bg-yellow-50' : 'bg-orange-50';
-  const borderColor = errorInfo.severity === 'critical' ? 'border-red-300' :
-                      errorInfo.severity === 'high' ? 'border-red-200' :
-                      errorInfo.severity === 'low' ? 'border-yellow-200' : 'border-orange-200';
-  const textColor = errorInfo.severity === 'critical' ? 'text-red-900' :
-                    errorInfo.severity === 'high' ? 'text-red-800' :
-                    errorInfo.severity === 'low' ? 'text-yellow-800' : 'text-orange-800';
+  const bgColor =
+    errorInfo.severity === 'critical'
+      ? 'bg-red-100'
+      : errorInfo.severity === 'high'
+        ? 'bg-red-50'
+        : errorInfo.severity === 'low'
+          ? 'bg-yellow-50'
+          : 'bg-orange-50';
+  const borderColor =
+    errorInfo.severity === 'critical'
+      ? 'border-red-300'
+      : errorInfo.severity === 'high'
+        ? 'border-red-200'
+        : errorInfo.severity === 'low'
+          ? 'border-yellow-200'
+          : 'border-orange-200';
+  const textColor =
+    errorInfo.severity === 'critical'
+      ? 'text-red-900'
+      : errorInfo.severity === 'high'
+        ? 'text-red-800'
+        : errorInfo.severity === 'low'
+          ? 'text-yellow-800'
+          : 'text-orange-800';
 
   return (
     <div className={`mt-6 ${bgColor} border ${borderColor} rounded-xl p-6`}>
       {/* Error Header */}
       <div className="flex items-center space-x-3 mb-4">
-        <div className={`w-12 h-12 ${severityColors} rounded-full flex items-center justify-center`}>
+        <div
+          className={`w-12 h-12 ${severityColors} rounded-full flex items-center justify-center`}
+        >
           <span className="text-2xl text-white">{errorInfo.icon}</span>
         </div>
         <div>
-          <h3 className={`text-xl font-bold ${textColor}`}>{errorInfo.title}</h3>
-          <p className={`${textColor.replace('800', '600')}`}>{errorInfo.description}</p>
+          <h3 className={`text-xl font-bold ${textColor}`}>
+            {errorInfo.title}
+          </h3>
+          <p className={`${textColor.replace('800', '600')}`}>
+            {errorInfo.description}
+          </p>
           {suggestion && (
-            <p className={`text-sm mt-1 ${textColor.replace('800', '700')} italic`}>
+            <p
+              className={`text-sm mt-1 ${textColor.replace('800', '700')} italic`}
+            >
               💡 {suggestion}
             </p>
           )}

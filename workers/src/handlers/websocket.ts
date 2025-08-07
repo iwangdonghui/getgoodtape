@@ -494,17 +494,7 @@ export class WebSocketManager {
     }
   }
 
-  /**
-   * Remove connection
-   */
-  private removeConnection(websocket: WebSocket) {
-    for (const [jobId, connection] of activeConnections.entries()) {
-      if (connection.websocket === websocket) {
-        activeConnections.delete(jobId);
-        break;
-      }
-    }
-  }
+
 
   /**
    * Remove connection by job ID

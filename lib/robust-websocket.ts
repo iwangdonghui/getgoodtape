@@ -13,7 +13,12 @@ export interface RobustWebSocketOptions {
 }
 
 export interface ConnectionState {
-  status: 'connecting' | 'connected' | 'disconnected' | 'reconnecting' | 'failed';
+  status:
+    | 'connecting'
+    | 'connected'
+    | 'disconnected'
+    | 'reconnecting'
+    | 'failed';
   reconnectAttempts: number;
   lastConnected?: Date;
   lastError?: string;
@@ -85,12 +90,12 @@ export class RobustWebSocket {
   disconnect(): void {
     this.isManualClose = true;
     this.clearTimers();
-    
+
     if (this.ws) {
       this.ws.close(1000, 'Manual disconnect');
       this.ws = null;
     }
-    
+
     this.updateState({ status: 'disconnected', reconnectAttempts: 0 });
     this.log('Manually disconnected');
   }
@@ -187,7 +192,7 @@ export class RobustWebSocket {
       this.startHeartbeat();
     };
 
-    this.ws.onmessage = (event) => {
+    this.ws.onmessage = event => {
       try {
         const data = JSON.parse(event.data);
         this.handleMessage(data);
@@ -196,7 +201,7 @@ export class RobustWebSocket {
       }
     };
 
-    this.ws.onclose = (event) => {
+    this.ws.onclose = event => {
       this.clearTimers();
       this.log('Connection closed', { code: event.code, reason: event.reason });
 
@@ -205,7 +210,7 @@ export class RobustWebSocket {
       }
     };
 
-    this.ws.onerror = (error) => {
+    this.ws.onerror = error => {
       this.log('WebSocket error', error);
       this.handleConnectionError(new Error('WebSocket error'));
     };
@@ -258,9 +263,9 @@ export class RobustWebSocket {
     }
 
     if (this.state.reconnectAttempts >= this.options.maxReconnectAttempts) {
-      this.updateState({ 
+      this.updateState({
         status: 'failed',
-        lastError: `Max reconnection attempts (${this.options.maxReconnectAttempts}) exceeded`
+        lastError: `Max reconnection attempts (${this.options.maxReconnectAttempts}) exceeded`,
       });
       this.log('Max reconnection attempts exceeded');
       return;
@@ -274,12 +279,15 @@ export class RobustWebSocket {
    */
   private handleConnectionError(error: Error): void {
     this.clearTimers();
-    this.updateState({ 
+    this.updateState({
       status: 'disconnected',
-      lastError: error.message 
+      lastError: error.message,
     });
 
-    if (!this.isManualClose && this.state.reconnectAttempts < this.options.maxReconnectAttempts) {
+    if (
+      !this.isManualClose &&
+      this.state.reconnectAttempts < this.options.maxReconnectAttempts
+    ) {
       this.scheduleReconnection();
     }
   }
@@ -290,13 +298,14 @@ export class RobustWebSocket {
   private scheduleReconnection(): void {
     const attempt = this.state.reconnectAttempts + 1;
     const delay = Math.min(
-      this.options.reconnectInterval * Math.pow(this.options.reconnectDecay, attempt - 1),
+      this.options.reconnectInterval *
+        Math.pow(this.options.reconnectDecay, attempt - 1),
       this.options.maxReconnectInterval
     );
 
-    this.updateState({ 
+    this.updateState({
       status: 'reconnecting',
-      reconnectAttempts: attempt 
+      reconnectAttempts: attempt,
     });
 
     this.log(`Scheduling reconnection attempt ${attempt} in ${delay}ms`);
