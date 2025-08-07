@@ -9,8 +9,8 @@ export async function POST(request: NextRequest) {
     const requestData = JSON.parse(body);
     console.log('🔍 Validate API called with URL:', requestData.url);
 
-    // 使用Workers的 extract-metadata 端点来验证 URL
-    const response = await fetch(`${WORKERS_URL}/api/extract-metadata`, {
+    // 使用Workers的 validate 端点来验证 URL
+    const response = await fetch(`${WORKERS_URL}/api/validate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -21,26 +21,20 @@ export async function POST(request: NextRequest) {
     const data = await response.json();
 
     // 转换后端响应为前端期望的格式
-    if (data.success && data.metadata) {
+    if (data.isValid) {
       return Response.json({
         isValid: true,
-        platform: 'youtube', // 根据 URL 检测平台
-        metadata: {
-          title: data.metadata.title,
-          duration: data.metadata.duration,
-          thumbnail: data.metadata.thumbnail,
-          uploader: data.metadata.uploader,
-          channelTitle: data.metadata.uploader,
-          videoId: data.metadata.id,
-          platform: 'youtube',
-        },
+        platform: data.platform,
+        metadata: data.metadata,
+        videoId: data.videoId,
+        normalizedUrl: data.normalizedUrl,
       });
     } else {
       return Response.json({
         isValid: false,
-        error: {
+        error: data.error || {
           type: 'VALIDATION_ERROR',
-          message: data.error || 'Unable to validate video URL',
+          message: 'Unable to validate video URL',
           retryable: true,
         },
       });
