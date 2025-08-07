@@ -9,18 +9,33 @@ interface WebSocketConnection {
   userId?: string;
 }
 
+interface ConnectionHealth {
+  lastPing: number;
+  lastPong: number;
+  pingCount: number;
+  isHealthy: boolean;
+  connectionId: string;
+}
+
 // Store active WebSocket connections
 const activeConnections = new Map<string, WebSocketConnection>();
+const connectionHealth = new Map<WebSocket, ConnectionHealth>();
 
 export class WebSocketManager {
   private env: Env;
   private conversionService: ConversionService;
   private jobManager: JobManager;
+  private connections = new Map<string, WebSocket>();
+  private jobSubscriptions = new Map<string, Set<WebSocket>>();
+  private healthCheckInterval: NodeJS.Timeout | null = null;
+  private readonly HEALTH_CHECK_INTERVAL = 60000; // 1 minute
+  private readonly PING_TIMEOUT = 30000; // 30 seconds
 
   constructor(env: Env) {
     this.env = env;
     this.conversionService = new ConversionService(env);
     this.jobManager = new JobManager(env);
+    this.startHealthCheck();
   }
 
   /**
@@ -57,25 +72,57 @@ export class WebSocketManager {
    * Set up WebSocket event handlers
    */
   private setupWebSocketHandlers(websocket: WebSocket) {
+    // Generate unique connection ID for tracking
+    const connectionId = this.generateConnectionId();
+
     websocket.addEventListener('message', async event => {
       try {
         const data = JSON.parse(event.data as string);
         await this.handleWebSocketMessage(websocket, data);
       } catch (error) {
-        console.error('WebSocket message error:', error);
+        console.error(`WebSocket message error [${connectionId}]:`, error);
         this.sendError(websocket, 'Invalid message format');
+
+        // Log error details for debugging
+        this.logConnectionError(connectionId, 'MESSAGE_PARSE_ERROR', error as Error);
       }
     });
 
     websocket.addEventListener('close', event => {
-      console.log('WebSocket closed:', event.code, event.reason);
+      console.log(`WebSocket closed [${connectionId}]:`, event.code, event.reason);
+
+      // Log close reason for analysis
+      this.logConnectionClose(connectionId, event.code, event.reason);
+
+      // Clean up resources
       this.removeConnection(websocket);
+      this.cleanupConnectionResources(websocket, connectionId);
     });
 
     websocket.addEventListener('error', event => {
-      console.error('WebSocket error:', event);
+      console.error(`WebSocket error [${connectionId}]:`, event);
+
+      // Log error details
+      this.logConnectionError(connectionId, 'WEBSOCKET_ERROR', new Error('WebSocket error occurred'));
+
+      // Clean up resources
       this.removeConnection(websocket);
+      this.cleanupConnectionResources(websocket, connectionId);
     });
+
+    // Store connection ID for tracking
+    (websocket as any).__connectionId = connectionId;
+
+    // Initialize connection health tracking
+    connectionHealth.set(websocket, {
+      lastPing: 0,
+      lastPong: Date.now(),
+      pingCount: 0,
+      isHealthy: true,
+      connectionId,
+    });
+
+    console.log(`WebSocket connection established [${connectionId}]`);
   }
 
   /**
@@ -94,7 +141,16 @@ export class WebSocketManager {
         break;
 
       case 'ping':
-        this.sendMessage(websocket, { type: 'pong', timestamp: Date.now() });
+        // Respond to ping with pong and include server timestamp
+        this.sendMessage(websocket, {
+          type: 'pong',
+          timestamp: Date.now(),
+          serverTime: new Date().toISOString(),
+          clientTimestamp: payload?.timestamp // Echo back client timestamp for latency calculation
+        });
+
+        // Update connection health
+        this.updateConnectionHealth(websocket);
         break;
 
       default:
@@ -302,21 +358,139 @@ export class WebSocketManager {
   }
 
   /**
-   * Send error message
+   * Send error message (simple version for backward compatibility)
    */
   private sendError(websocket: WebSocket, error: string) {
-    this.sendMessage(websocket, {
-      type: 'error',
-      payload: { error },
+    try {
+      if (websocket.readyState === WebSocket.READY_STATE_OPEN) {
+        this.sendMessage(websocket, {
+          type: 'error',
+          payload: { error },
+        });
+      } else {
+        console.warn('Cannot send error - WebSocket not open:', error);
+      }
+    } catch (sendError) {
+      console.error('Failed to send error message:', sendError);
+      // Try to close the connection if sending fails
+      try {
+        websocket.close(1011, 'Error sending message');
+      } catch (closeError) {
+        console.error('Failed to close WebSocket after send error:', closeError);
+      }
+    }
+  }
+
+  /**
+   * Send enhanced error message with details and suggestions
+   */
+  sendEnhancedError(jobId: string, errorDetails: {
+    message: string;
+    suggestion?: string;
+    canRetry?: boolean;
+    severity?: 'low' | 'medium' | 'high' | 'critical';
+    errorType?: string;
+    retryDelay?: number;
+  }) {
+    this.broadcastToJob(jobId, {
+      type: 'conversion_error',
+      payload: {
+        jobId,
+        error: errorDetails.message,
+        suggestion: errorDetails.suggestion,
+        canRetry: errorDetails.canRetry || false,
+        severity: errorDetails.severity || 'medium',
+        errorType: errorDetails.errorType,
+        retryDelay: errorDetails.retryDelay,
+        timestamp: Date.now(),
+      },
     });
   }
 
   /**
-   * Send message to WebSocket
+   * Send recovery attempt notification
+   */
+  sendRecoveryAttempt(jobId: string, recoveryAction: string, message: string) {
+    this.broadcastToJob(jobId, {
+      type: 'recovery_attempt',
+      payload: {
+        jobId,
+        action: recoveryAction,
+        message,
+        timestamp: Date.now(),
+      },
+    });
+  }
+
+  /**
+   * Send recovery success notification
+   */
+  sendRecoverySuccess(jobId: string, message: string) {
+    this.broadcastToJob(jobId, {
+      type: 'recovery_success',
+      payload: {
+        jobId,
+        message,
+        timestamp: Date.now(),
+      },
+    });
+  }
+
+  /**
+   * Send recovery failure notification
+   */
+  sendRecoveryFailure(jobId: string, message: string) {
+    this.broadcastToJob(jobId, {
+      type: 'recovery_failure',
+      payload: {
+        jobId,
+        message,
+        timestamp: Date.now(),
+      },
+    });
+  }
+
+  /**
+   * Send message to WebSocket with enhanced error handling
    */
   private sendMessage(websocket: WebSocket, message: any) {
-    if (websocket.readyState === WebSocket.READY_STATE_OPEN) {
-      websocket.send(JSON.stringify(message));
+    const connectionId = (websocket as any).__connectionId || 'unknown';
+
+    try {
+      if (websocket.readyState === WebSocket.READY_STATE_OPEN) {
+        const messageStr = JSON.stringify(message);
+        websocket.send(messageStr);
+
+        // Log message for debugging (only in development)
+        if (this.env.ENVIRONMENT === 'development') {
+          console.log(`📤 Sent message [${connectionId}]:`, message.type);
+        }
+      } else {
+        console.warn(`Cannot send message - WebSocket not open [${connectionId}]. State: ${websocket.readyState}`);
+
+        // Clean up connection if it's in a bad state
+        if (websocket.readyState === WebSocket.READY_STATE_CLOSED ||
+            websocket.readyState === WebSocket.READY_STATE_CLOSING) {
+          this.removeConnection(websocket);
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to send message [${connectionId}]:`, error);
+
+      // Log the error for monitoring
+      this.logConnectionError(connectionId, 'MESSAGE_SEND_ERROR', error as Error);
+
+      // Try to close the connection gracefully
+      try {
+        if (websocket.readyState === WebSocket.READY_STATE_OPEN) {
+          websocket.close(1011, 'Message send error');
+        }
+      } catch (closeError) {
+        console.error(`Failed to close WebSocket after send error [${connectionId}]:`, closeError);
+      }
+
+      // Clean up the connection
+      this.removeConnection(websocket);
     }
   }
 
@@ -360,8 +534,264 @@ export class WebSocketManager {
     for (const [jobId, connection] of activeConnections.entries()) {
       if (connection.websocket.readyState !== WebSocket.READY_STATE_OPEN) {
         activeConnections.delete(jobId);
+        connectionHealth.delete(connection.websocket);
       }
     }
+  }
+
+  /**
+   * Update connection health when receiving ping
+   */
+  private updateConnectionHealth(websocket: WebSocket) {
+    const health = connectionHealth.get(websocket);
+    if (health) {
+      health.lastPong = Date.now();
+      health.pingCount++;
+      health.isHealthy = true;
+    } else {
+      // Initialize health tracking for new connection
+      connectionHealth.set(websocket, {
+        lastPing: 0,
+        lastPong: Date.now(),
+        pingCount: 1,
+        isHealthy: true,
+        connectionId: this.generateConnectionId(),
+      });
+    }
+  }
+
+  /**
+   * Start periodic health check
+   */
+  private startHealthCheck() {
+    this.healthCheckInterval = setInterval(() => {
+      this.performHealthCheck();
+    }, this.HEALTH_CHECK_INTERVAL);
+  }
+
+  /**
+   * Perform health check on all connections
+   */
+  private performHealthCheck() {
+    const now = Date.now();
+    const unhealthyConnections: WebSocket[] = [];
+
+    for (const [websocket, health] of connectionHealth.entries()) {
+      // Check if connection is stale (no pong received within timeout)
+      if (now - health.lastPong > this.PING_TIMEOUT) {
+        health.isHealthy = false;
+        unhealthyConnections.push(websocket);
+      }
+    }
+
+    // Close unhealthy connections
+    for (const websocket of unhealthyConnections) {
+      console.log('🔌 Closing unhealthy WebSocket connection');
+      try {
+        websocket.close(1000, 'Health check failed');
+      } catch (error) {
+        console.error('Error closing unhealthy connection:', error);
+      }
+      connectionHealth.delete(websocket);
+    }
+
+    // Log health statistics
+    const totalConnections = connectionHealth.size;
+    const healthyConnections = Array.from(connectionHealth.values()).filter(h => h.isHealthy).length;
+
+    if (totalConnections > 0) {
+      console.log(`📊 WebSocket Health: ${healthyConnections}/${totalConnections} healthy connections`);
+    }
+  }
+
+  /**
+   * Generate unique connection ID
+   */
+  private generateConnectionId(): string {
+    return `conn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  /**
+   * Get connection health statistics
+   */
+  getHealthStats() {
+    const stats = {
+      totalConnections: connectionHealth.size,
+      healthyConnections: 0,
+      unhealthyConnections: 0,
+      averagePingCount: 0,
+    };
+
+    let totalPings = 0;
+    for (const health of connectionHealth.values()) {
+      if (health.isHealthy) {
+        stats.healthyConnections++;
+      } else {
+        stats.unhealthyConnections++;
+      }
+      totalPings += health.pingCount;
+    }
+
+    if (stats.totalConnections > 0) {
+      stats.averagePingCount = Math.round(totalPings / stats.totalConnections);
+    }
+
+    return stats;
+  }
+
+  /**
+   * Log connection errors for monitoring
+   */
+  private logConnectionError(connectionId: string, errorType: string, error: Error) {
+    const errorLog = {
+      timestamp: new Date().toISOString(),
+      connectionId,
+      errorType,
+      message: error.message,
+      stack: error.stack,
+    };
+
+    console.error('🚨 WebSocket Connection Error:', errorLog);
+
+    // TODO: Send to monitoring service
+    // await this.sendToMonitoring('websocket_error', errorLog);
+  }
+
+  /**
+   * Log connection close events
+   */
+  private logConnectionClose(connectionId: string, code: number, reason: string) {
+    const closeLog = {
+      timestamp: new Date().toISOString(),
+      connectionId,
+      code,
+      reason,
+      isNormalClose: code === 1000,
+    };
+
+    console.log('📊 WebSocket Connection Closed:', closeLog);
+
+    // TODO: Send to analytics
+    // await this.sendToAnalytics('websocket_close', closeLog);
+  }
+
+  /**
+   * Clean up connection-specific resources
+   */
+  private cleanupConnectionResources(websocket: WebSocket, connectionId: string) {
+    try {
+      // Remove from health tracking
+      connectionHealth.delete(websocket);
+
+      // Remove from active connections
+      for (const [jobId, connection] of activeConnections.entries()) {
+        if (connection.websocket === websocket) {
+          activeConnections.delete(jobId);
+          console.log(`🧹 Cleaned up job subscription: ${jobId} [${connectionId}]`);
+          break;
+        }
+      }
+
+      // Clean up any job subscriptions
+      for (const [jobId, subscribers] of this.jobSubscriptions.entries()) {
+        if (subscribers.has(websocket)) {
+          subscribers.delete(websocket);
+          console.log(`🧹 Removed WebSocket from job ${jobId} subscribers [${connectionId}]`);
+
+          // Remove empty subscription sets
+          if (subscribers.size === 0) {
+            this.jobSubscriptions.delete(jobId);
+            console.log(`🧹 Removed empty subscription set for job ${jobId}`);
+          }
+        }
+      }
+
+      console.log(`✅ Connection resources cleaned up [${connectionId}]`);
+
+    } catch (error) {
+      console.error(`❌ Error cleaning up connection resources [${connectionId}]:`, error);
+    }
+  }
+
+  /**
+   * Enhanced connection removal with better error handling
+   */
+  private removeConnection(websocket: WebSocket) {
+    const connectionId = (websocket as any).__connectionId || 'unknown';
+
+    try {
+      // Close WebSocket if still open
+      if (websocket.readyState === WebSocket.READY_STATE_OPEN) {
+        websocket.close(1000, 'Server cleanup');
+      }
+
+      // Remove from connections map
+      for (const [id, ws] of this.connections.entries()) {
+        if (ws === websocket) {
+          this.connections.delete(id);
+          console.log(`🧹 Removed connection ${id} [${connectionId}]`);
+          break;
+        }
+      }
+
+    } catch (error) {
+      console.error(`❌ Error removing connection [${connectionId}]:`, error);
+    }
+  }
+
+  /**
+   * Graceful shutdown of all connections
+   */
+  async gracefulShutdown() {
+    console.log('🔄 Starting graceful WebSocket shutdown...');
+
+    const shutdownPromises: Promise<void>[] = [];
+
+    // Close all active connections
+    for (const [id, websocket] of this.connections.entries()) {
+      shutdownPromises.push(
+        new Promise<void>((resolve) => {
+          try {
+            if (websocket.readyState === WebSocket.READY_STATE_OPEN) {
+              websocket.close(1001, 'Server shutdown');
+            }
+            resolve();
+          } catch (error) {
+            console.error(`Error closing connection ${id}:`, error);
+            resolve();
+          }
+        })
+      );
+    }
+
+    // Wait for all connections to close (with timeout)
+    await Promise.race([
+      Promise.all(shutdownPromises),
+      new Promise(resolve => setTimeout(resolve, 5000)) // 5 second timeout
+    ]);
+
+    // Clean up resources
+    this.destroy();
+
+    console.log('✅ WebSocket graceful shutdown completed');
+  }
+
+  /**
+   * Cleanup on shutdown
+   */
+  destroy() {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = null;
+    }
+
+    // Clear all tracking data
+    connectionHealth.clear();
+    activeConnections.clear();
+    this.connections.clear();
+    this.jobSubscriptions.clear();
+
+    console.log('🧹 WebSocketManager destroyed');
   }
 }
 

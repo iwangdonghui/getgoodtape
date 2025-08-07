@@ -106,7 +106,7 @@ export const router = new Hono<{ Bindings: Env }>();
 // URL validation endpoint
 router.post('/validate', async c => {
   try {
-    const body = (await c.req.json()) as { url: string };
+    const body = (await c.req.json()) as { url: string; enhanced?: boolean };
 
     if (!body.url) {
       return c.json(
@@ -121,28 +121,24 @@ router.post('/validate', async c => {
       );
     }
 
-    // Check cache first (only if CACHE is available)
-    let cachedValidation = null;
-    if (c.env.CACHE) {
+    console.log(`🔍 Validating URL: ${body.url} (enhanced: ${body.enhanced !== false})`);
+
+    // Use enhanced validation by default, fallback to basic if requested
+    let validation: any;
+
+    if (body.enhanced !== false) {
+      // Enhanced validation with metadata extraction
       try {
-        const cache = new CacheManager(c.env);
-        cachedValidation = await cache.getUrlValidation(body.url);
-
-        if (cachedValidation) {
-          return c.json({
-            isValid: cachedValidation.isValid,
-            platform: cachedValidation.platform,
-            cached: true,
-            timestamp: cachedValidation.timestamp,
-          });
-        }
+        validation = await UrlValidator.validateUrlWithMetadata(body.url, c.env);
+        console.log(`✅ Enhanced validation completed for: ${body.url}`);
       } catch (error) {
-        console.warn('Cache error (continuing without cache):', error);
+        console.warn(`⚠️ Enhanced validation failed, falling back to basic: ${error}`);
+        validation = UrlValidator.validateUrl(body.url);
       }
+    } else {
+      // Basic validation only
+      validation = UrlValidator.validateUrl(body.url);
     }
-
-    // Validate URL
-    const validation = UrlValidator.validateUrl(body.url);
 
     if (!validation.isValid) {
       return c.json(
@@ -150,13 +146,30 @@ router.post('/validate', async c => {
           isValid: false,
           error: validation.error,
         },
-        400
+        validation.error?.type === ErrorType.VALIDATION_WARNING ? 200 : 400
       );
     }
 
-    // Try to get metadata immediately for all platforms
+    // If enhanced validation was used, metadata is already included
+    if (body.enhanced !== false && validation.metadata) {
+      console.log('✅ Enhanced validation completed with metadata:', {
+        title: validation.metadata.title,
+        duration: validation.metadata.duration,
+      });
+
+      return c.json({
+        isValid: true,
+        platform: validation.platform,
+        metadata: validation.metadata,
+        videoId: validation.videoId,
+        normalizedUrl: validation.normalizedUrl,
+        enhanced: true,
+      });
+    }
+
+    // Fallback: Try to get metadata for basic validation
     let videoMetadata = null;
-    console.log('🔍 Attempting to fetch metadata for platform:', {
+    console.log('🔍 Basic validation - attempting to fetch metadata for platform:', {
       platformName: validation.platform?.name,
       url: body.url,
     });
@@ -275,6 +288,7 @@ router.post('/validate', async c => {
       metadata: videoMetadata, // Include metadata if available
       videoId: validation.videoId,
       normalizedUrl: validation.normalizedUrl,
+      enhanced: false, // Basic validation was used
     });
   } catch (error) {
     console.error('URL validation error:', error);
@@ -444,15 +458,22 @@ router.post('/convert', async c => {
       );
     }
 
-    // Validate URL and detect platform
-    const validation = UrlValidator.validateUrl(body.url);
+    // Validate URL and detect platform with enhanced validation
+    let validation: any;
+    try {
+      validation = await UrlValidator.validateUrlWithMetadata(body.url, c.env);
+      console.log(`✅ Enhanced validation for conversion: ${body.url}`);
+    } catch (error) {
+      console.warn(`⚠️ Enhanced validation failed, using basic validation: ${error}`);
+      validation = UrlValidator.validateUrl(body.url);
+    }
 
     if (!validation.isValid) {
       return c.json(
         {
           error: validation.error,
         },
-        400
+        validation.error?.type === ErrorType.VALIDATION_WARNING ? 200 : 400
       );
     }
 

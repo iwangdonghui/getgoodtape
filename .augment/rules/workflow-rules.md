@@ -1,7 +1,7 @@
 ---
-type: 'manual'
+type: "agent_requested"
+description: "Example description"
 ---
-
 # My Augment Code Global Guidelines
 
 ## 1. General Rules

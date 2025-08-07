@@ -8,6 +8,9 @@ interface ConversionErrorProps {
   onRetry: () => void;
   onReset: () => void;
   jobId?: string | null;
+  suggestion?: string;
+  severity?: 'low' | 'medium' | 'high' | 'critical';
+  errorType?: string;
 }
 
 const ConversionError = memo(function ConversionError({
@@ -18,24 +21,69 @@ const ConversionError = memo(function ConversionError({
   onRetry,
   onReset,
   jobId,
+  suggestion,
+  severity = 'medium',
+  errorType,
 }: ConversionErrorProps) {
   const [showDetails, setShowDetails] = useState(false);
 
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
+      case 'critical':
+        return 'bg-red-600 border-red-300';
+      case 'high':
+        return 'bg-red-500 border-red-200';
+      case 'medium':
+        return 'bg-orange-500 border-orange-200';
+      case 'low':
+        return 'bg-yellow-500 border-yellow-200';
+      default:
+        return 'bg-red-500 border-red-200';
+    }
+  };
+
+  const getSeverityIcon = (severity: string) => {
+    switch (severity) {
+      case 'critical':
+        return '🚨';
+      case 'high':
+        return '❌';
+      case 'medium':
+        return '⚠️';
+      case 'low':
+        return '💡';
+      default:
+        return '❌';
+    }
+  };
+
   const getErrorType = (errorMessage: string) => {
     const message = errorMessage.toLowerCase();
+
+    // 优先使用后端提供的错误类型和建议
+    if (errorType || suggestion) {
+      return {
+        type: errorType || 'backend',
+        icon: getSeverityIcon(severity),
+        title: '转换失败',
+        description: errorMessage,
+        suggestions: suggestion ? [suggestion] : ['请重试或联系技术支持'],
+        severity,
+      };
+    }
 
     if (message.includes('network') || message.includes('连接')) {
       return {
         type: 'network',
         icon: '🌐',
-        title: 'Network Connection Error',
-        description:
-          'Unable to connect to server, please check your network connection',
+        title: '网络连接错误',
+        description: '无法连接到服务器，请检查网络连接',
         suggestions: [
-          'Check if your network connection is working',
-          'Try refreshing the page',
-          'If the problem persists, please try again later',
+          '检查网络连接是否正常',
+          '尝试刷新页面',
+          '如果问题持续存在，请稍后重试',
         ],
+        severity: 'medium',
       };
     }
 
@@ -110,13 +158,14 @@ const ConversionError = memo(function ConversionError({
     return {
       type: 'unknown',
       icon: '❌',
-      title: 'Conversion Failed',
-      description: 'An unknown error occurred during conversion',
+      title: '转换失败',
+      description: '转换过程中发生未知错误',
       suggestions: [
-        'Please retry the conversion',
-        'If the problem persists, contact support',
-        'Try using a different video link',
+        '请重试转换',
+        '如果问题持续存在，请联系技术支持',
+        '尝试使用其他视频链接',
       ],
+      severity: 'medium',
     };
   };
 
@@ -129,16 +178,32 @@ const ConversionError = memo(function ConversionError({
     return `Retry (${retryCount}/${maxRetries})`;
   };
 
+  const severityColors = getSeverityColor(errorInfo.severity || 'medium');
+  const bgColor = errorInfo.severity === 'critical' ? 'bg-red-100' :
+                  errorInfo.severity === 'high' ? 'bg-red-50' :
+                  errorInfo.severity === 'low' ? 'bg-yellow-50' : 'bg-orange-50';
+  const borderColor = errorInfo.severity === 'critical' ? 'border-red-300' :
+                      errorInfo.severity === 'high' ? 'border-red-200' :
+                      errorInfo.severity === 'low' ? 'border-yellow-200' : 'border-orange-200';
+  const textColor = errorInfo.severity === 'critical' ? 'text-red-900' :
+                    errorInfo.severity === 'high' ? 'text-red-800' :
+                    errorInfo.severity === 'low' ? 'text-yellow-800' : 'text-orange-800';
+
   return (
-    <div className="mt-6 bg-red-50 border border-red-200 rounded-xl p-6">
+    <div className={`mt-6 ${bgColor} border ${borderColor} rounded-xl p-6`}>
       {/* Error Header */}
       <div className="flex items-center space-x-3 mb-4">
-        <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center">
+        <div className={`w-12 h-12 ${severityColors} rounded-full flex items-center justify-center`}>
           <span className="text-2xl text-white">{errorInfo.icon}</span>
         </div>
         <div>
-          <h3 className="text-xl font-bold text-red-800">{errorInfo.title}</h3>
-          <p className="text-red-600">{errorInfo.description}</p>
+          <h3 className={`text-xl font-bold ${textColor}`}>{errorInfo.title}</h3>
+          <p className={`${textColor.replace('800', '600')}`}>{errorInfo.description}</p>
+          {suggestion && (
+            <p className={`text-sm mt-1 ${textColor.replace('800', '700')} italic`}>
+              💡 {suggestion}
+            </p>
+          )}
         </div>
       </div>
 

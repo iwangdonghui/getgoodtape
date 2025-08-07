@@ -39,9 +39,17 @@ bucket_name = "getgoodtape-files-dev"
 binding = "CACHE"
 id = "cabbed24ed1f42df994bb05b4cdc543a"
 
+[[env.production.kv_namespaces]]
+binding = "VALIDATION_CACHE"
+id = "validation-cache-prod-id"
+
 [[env.development.kv_namespaces]]
 binding = "CACHE"
 id = "your-dev-kv-namespace-id"
+
+[[env.development.kv_namespaces]]
+binding = "VALIDATION_CACHE"
+id = "validation-cache-dev-id"
 
 # Cron triggers for queue processing
 [triggers]

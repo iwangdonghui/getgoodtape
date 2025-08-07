@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { apiClient, ValidationResponse } from '../lib/api-client';
+import { RobustWebSocket, ConnectionState } from '../lib/robust-websocket';
 
 interface ConversionState {
   // URL validation
@@ -30,7 +31,8 @@ interface ConversionState {
   error: string | null;
 
   // WebSocket connection
-  isConnected: boolean;
+  connectionState: ConnectionState;
+  isConnected: boolean; // Legacy compatibility
 }
 
 interface ConversionActions {
@@ -55,27 +57,25 @@ const INITIAL_STATE: ConversionState = {
   status: 'idle',
   result: null,
   error: null,
+  connectionState: {
+    status: 'disconnected',
+    reconnectAttempts: 0,
+  },
   isConnected: false,
 };
 
-const WS_RECONNECT_INTERVAL = 3000; // 3 seconds
-const WS_MAX_RECONNECT_ATTEMPTS = 5;
+// Constants moved to RobustWebSocket configuration
 
 export function useConversionWebSocket(): ConversionState & ConversionActions {
   const [state, setState] = useState<ConversionState>(INITIAL_STATE);
-  const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const reconnectAttemptsRef = useRef<number>(0);
+  const robustWsRef = useRef<RobustWebSocket | null>(null);
   const validationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
+      if (robustWsRef.current) {
+        robustWsRef.current.disconnect();
       }
       if (validationTimeoutRef.current) {
         clearTimeout(validationTimeoutRef.current);
@@ -123,66 +123,88 @@ export function useConversionWebSocket(): ConversionState & ConversionActions {
   }, [state.url]);
 
   const connectWebSocket = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      return; // Already connected
+    // Don't connect if already connected
+    if (robustWsRef.current?.isConnected()) {
+      return;
     }
 
     try {
-      // 🔧 FIX: Connect directly to Workers WebSocket
       const wsUrl =
         'wss://getgoodtape-api-production.wangdonghuiibt-cloudflare.workers.dev/api/ws';
 
-      console.log('🔌 Connecting to Workers WebSocket:', wsUrl);
+      console.log('🔌 Connecting to Workers WebSocket with RobustWebSocket:', wsUrl);
 
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
+      // Create new RobustWebSocket instance
+      const robustWs = new RobustWebSocket(wsUrl, {
+        maxReconnectAttempts: 5,
+        reconnectInterval: 1000,
+        maxReconnectInterval: 30000,
+        reconnectDecay: 1.5,
+        heartbeatInterval: 30000,
+        connectionTimeout: 10000,
+        debug: true,
+      });
 
-      ws.onopen = () => {
-        console.log('✅ WebSocket connected');
-        setState(prev => ({ ...prev, isConnected: true }));
-        reconnectAttemptsRef.current = 0;
+      robustWsRef.current = robustWs;
 
-        // Send ping to keep connection alive
-        ws.send(JSON.stringify({ type: 'ping' }));
-      };
+      // Handle state changes
+      robustWs.onStateChange((connectionState) => {
+        setState(prev => ({
+          ...prev,
+          connectionState,
+          isConnected: connectionState.status === 'connected',
+        }));
+      });
 
-      ws.onmessage = event => {
-        try {
-          const message = JSON.parse(event.data);
-          handleWebSocketMessage(message);
-        } catch (error) {
-          console.error('Failed to parse WebSocket message:', error);
-        }
-      };
+      // Handle all WebSocket messages
+      robustWs.on('*', handleWebSocketMessage);
 
-      ws.onclose = event => {
-        console.log('🔌 WebSocket closed:', event.code, event.reason);
-        setState(prev => ({ ...prev, isConnected: false }));
-        wsRef.current = null;
+      // Handle specific message types for better logging
+      robustWs.on('pong', (data) => {
+        console.log('🏓 Pong received', data);
+      });
 
-        // Attempt to reconnect if not a normal closure
-        if (
-          event.code !== 1000 &&
-          reconnectAttemptsRef.current < WS_MAX_RECONNECT_ATTEMPTS
-        ) {
-          reconnectAttemptsRef.current++;
-          console.log(
-            `🔄 Attempting to reconnect (${reconnectAttemptsRef.current}/${WS_MAX_RECONNECT_ATTEMPTS})`
-          );
+      robustWs.on('conversion_progress', (data) => {
+        handleWebSocketMessage(data);
+      });
 
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connectWebSocket();
-          }, WS_RECONNECT_INTERVAL);
-        }
-      };
+      robustWs.on('conversion_complete', (data) => {
+        handleWebSocketMessage(data);
+      });
 
-      ws.onerror = error => {
-        console.error('❌ WebSocket error:', error);
-        setState(prev => ({ ...prev, isConnected: false }));
-      };
+      robustWs.on('conversion_error', (data) => {
+        handleWebSocketMessage(data);
+      });
+
+      robustWs.on('recovery_attempt', (data) => {
+        console.log('🔄 Recovery attempt:', data);
+        handleWebSocketMessage(data);
+      });
+
+      robustWs.on('recovery_success', (data) => {
+        console.log('✅ Recovery success:', data);
+        handleWebSocketMessage(data);
+      });
+
+      robustWs.on('recovery_failure', (data) => {
+        console.log('❌ Recovery failure:', data);
+        handleWebSocketMessage(data);
+      });
+
+      // Start connection
+      robustWs.connect();
+
     } catch (error) {
-      console.error('Failed to create WebSocket connection:', error);
-      setState(prev => ({ ...prev, isConnected: false }));
+      console.error('Failed to create RobustWebSocket connection:', error);
+      setState(prev => ({
+        ...prev,
+        connectionState: {
+          status: 'failed',
+          reconnectAttempts: 0,
+          lastError: error instanceof Error ? error.message : 'Unknown error',
+        },
+        isConnected: false
+      }));
     }
   }, []);
 
@@ -296,18 +318,16 @@ export function useConversionWebSocket(): ConversionState & ConversionActions {
     }
 
     // Send conversion request via WebSocket
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(
-        JSON.stringify({
-          type: 'start_conversion',
-          payload: {
-            url: state.url,
-            format: state.format,
-            quality: state.quality,
-            platform: state.detectedPlatform,
-          },
-        })
-      );
+    if (robustWsRef.current?.isConnected()) {
+      robustWsRef.current.send({
+        type: 'start_conversion',
+        payload: {
+          url: state.url,
+          format: state.format,
+          quality: state.quality,
+          platform: state.detectedPlatform,
+        },
+      });
     } else {
       // Fallback to HTTP API if WebSocket is not available
       console.warn('WebSocket not available, falling back to HTTP API');
@@ -329,13 +349,11 @@ export function useConversionWebSocket(): ConversionState & ConversionActions {
           }));
 
           // Subscribe to job updates via WebSocket
-          if (wsRef.current?.readyState === WebSocket.OPEN) {
-            wsRef.current.send(
-              JSON.stringify({
-                type: 'subscribe_job',
-                payload: { jobId: response.jobId },
-              })
-            );
+          if (robustWsRef.current?.isConnected()) {
+            robustWsRef.current.send({
+              type: 'subscribe_job',
+              payload: { jobId: response.jobId },
+            });
           }
         } else {
           setState(prev => ({

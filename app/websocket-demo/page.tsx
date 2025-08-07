@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import ConversionProgressWebSocket from '../../components/ConversionProgressWebSocket';
 import ConversionResult from '../../components/ConversionResult';
 import VideoPreview from '../../components/VideoPreview';
+import ConnectionStatusIndicator from '../../components/ConnectionStatusIndicator';
 import { useConversionWebSocket } from '../../hooks/useConversionWebSocket';
 
 export default function WebSocketDemoPage() {
@@ -76,21 +77,13 @@ export default function WebSocketDemoPage() {
               </div>
             </div>
 
-            {/* Connection Status */}
-            <div className="mb-6 flex items-center justify-center gap-4">
-              <div className="flex items-center gap-2">
-                <div
-                  className={`w-3 h-3 rounded-full ${
-                    conversion.isConnected
-                      ? 'bg-green-500 animate-pulse'
-                      : 'bg-red-500'
-                  }`}
-                />
-                <span className="text-sm font-medium">
-                  WebSocket:{' '}
-                  {conversion.isConnected ? 'Connected' : 'Disconnected'}
-                </span>
-              </div>
+            {/* Enhanced Connection Status */}
+            <div className="mb-6 flex justify-center">
+              <ConnectionStatusIndicator
+                connectionState={conversion.connectionState}
+                showDetails={true}
+                className="max-w-md"
+              />
             </div>
 
             {/* Conversion Form */}

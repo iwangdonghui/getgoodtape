@@ -11,11 +11,14 @@ import ConversionResult from '../../components/ConversionResult';
 import SupportedPlatforms from '../../components/SupportedPlatforms';
 import BrandFeatures from '../../components/BrandFeatures';
 import VideoPreview from '../../components/VideoPreview';
+import ConnectionStatusIndicator from '../../components/ConnectionStatusIndicator';
 import { useConversion } from '../../hooks/useConversion';
+import { useConversionWebSocket } from '../../hooks/useConversionWebSocket';
 import { apiClient, ValidationResponse } from '../../lib/api-client';
 
 export default function AppPage() {
   const conversion = useConversion();
+  const wsConversion = useConversionWebSocket(); // For connection status
   const [urlValidation, setUrlValidation] = useState<ValidationResponse>({
     isValid: false,
   });
@@ -85,9 +88,19 @@ export default function AppPage() {
               <h1 className="text-4xl lg:text-6xl font-bold text-foreground mb-4 leading-tight">
                 YouTube to MP3 Converter
               </h1>
-              <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
+              <p className="text-lg text-muted-foreground mb-6 max-w-2xl mx-auto">
                 Clean, fast, and reliable conversions by GetGoodTape
               </p>
+
+              {/* Connection Status */}
+              {isMounted && (
+                <div className="mb-6 flex justify-center">
+                  <ConnectionStatusIndicator
+                    connectionState={wsConversion.connectionState}
+                    className="text-sm"
+                  />
+                </div>
+              )}
 
               {/* Conversion Form */}
               {(conversion.status === 'idle' ||
