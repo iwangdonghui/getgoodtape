@@ -1,12 +1,14 @@
 import { NextRequest } from 'next/server';
 
-const BACKEND_URL = 'https://getgoodtape-video-proc.fly.dev';
+const WORKERS_URL =
+  'https://getgoodtape-api-production.wangdonghuiibt-cloudflare.workers.dev';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.text();
+    console.log('🔄 Proxying convert request to Workers API');
 
-    const response = await fetch(`${BACKEND_URL}/convert`, {
+    const response = await fetch(`${WORKERS_URL}/api/convert`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

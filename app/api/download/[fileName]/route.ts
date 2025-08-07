@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 
-const BACKEND_URL = 'https://getgoodtape-video-proc.fly.dev';
+const WORKERS_URL =
+  'https://getgoodtape-api-production.wangdonghuiibt-cloudflare.workers.dev';
 
 export async function GET(
   request: NextRequest,
@@ -10,7 +11,7 @@ export async function GET(
     const { fileName } = params;
     console.log('🔗 Download request for:', fileName);
 
-    const response = await fetch(`${BACKEND_URL}/download/${fileName}`, {
+    const response = await fetch(`${WORKERS_URL}/api/download/${fileName}`, {
       method: 'GET',
     });
 

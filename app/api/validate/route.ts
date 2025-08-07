@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 
-const BACKEND_URL = 'https://getgoodtape-video-proc.fly.dev'; // 强制使用生产环境
+const WORKERS_URL =
+  'https://getgoodtape-api-production.wangdonghuiibt-cloudflare.workers.dev';
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,8 +9,8 @@ export async function POST(request: NextRequest) {
     const requestData = JSON.parse(body);
     console.log('🔍 Validate API called with URL:', requestData.url);
 
-    // 使用后端的 extract-metadata 端点来验证 URL
-    const response = await fetch(`${BACKEND_URL}/extract-metadata`, {
+    // 使用Workers的 extract-metadata 端点来验证 URL
+    const response = await fetch(`${WORKERS_URL}/api/extract-metadata`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

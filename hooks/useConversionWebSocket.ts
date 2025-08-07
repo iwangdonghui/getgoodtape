@@ -128,12 +128,11 @@ export function useConversionWebSocket(): ConversionState & ConversionActions {
     }
 
     try {
-      // Determine WebSocket URL
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = window.location.host;
-      const wsUrl = `${protocol}//${host}/api/ws`;
+      // 🔧 FIX: Connect directly to Workers WebSocket
+      const wsUrl =
+        'wss://getgoodtape-api-production.wangdonghuiibt-cloudflare.workers.dev/api/ws';
 
-      console.log('🔌 Connecting to WebSocket:', wsUrl);
+      console.log('🔌 Connecting to Workers WebSocket:', wsUrl);
 
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
