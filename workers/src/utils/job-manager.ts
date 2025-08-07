@@ -72,7 +72,8 @@ export class JobManager {
   ): Promise<boolean> {
     try {
       // Calculate download URL expiration (24 hours from now if not provided)
-      const expirationTime = downloadExpiresAt || (Date.now() + 24 * 60 * 60 * 1000);
+      const expirationTime =
+        downloadExpiresAt || Date.now() + 24 * 60 * 60 * 1000;
 
       // Atomic update: only complete if status is still 'processing'
       const result = await this.db.updateConversionJobAtomic(
@@ -91,7 +92,9 @@ export class JobManager {
       );
 
       if (result) {
-        console.log(`✅ Job ${jobId} completed successfully (atomic) with download expiration: ${new Date(expirationTime).toISOString()}`);
+        console.log(
+          `✅ Job ${jobId} completed successfully (atomic) with download expiration: ${new Date(expirationTime).toISOString()}`
+        );
         if (r2Key) {
           console.log(`📁 R2 key stored: ${r2Key}`);
         }

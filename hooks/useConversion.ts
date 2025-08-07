@@ -54,6 +54,8 @@ export interface ConversionActions {
   startConversion: () => Promise<void>;
   reset: () => void;
   retry: () => Promise<void>;
+  forceRefresh: () => Promise<void>;
+  checkHealth: () => Promise<boolean>;
 }
 
 const INITIAL_STATE: ConversionState = {
@@ -75,10 +77,12 @@ const INITIAL_STATE: ConversionState = {
 };
 
 const MAX_RETRIES = 3;
-const POLLING_INTERVAL = 2000; // 2 seconds
-const STUCK_PROGRESS_TIMEOUT = 30000; // 30 seconds
+const POLLING_INTERVAL = 1000; // 1 second (更频繁的轮询)
+const STUCK_PROGRESS_TIMEOUT = 15000; // 15 seconds (更快检测卡住)
 const STUCK_PROGRESS_THRESHOLD = 75; // If progress > 75% and stuck, check for completion
-const MAX_POLLING_ATTEMPTS = 150; // Maximum polling attempts (5 minutes at 2s intervals)
+const MAX_POLLING_ATTEMPTS = 300; // Maximum polling attempts (5 minutes at 1s intervals)
+const HEALTH_CHECK_INTERVAL = 5000; // 5 seconds (健康检查间隔)
+const FORCE_REFRESH_THRESHOLD = 60000; // 1 minute (强制刷新阈值)
 
 export function useConversion(): ConversionState & ConversionActions {
   const [state, setState] = useState<ConversionState>(INITIAL_STATE);
@@ -87,6 +91,9 @@ export function useConversion(): ConversionState & ConversionActions {
   const lastProgressUpdateRef = useRef<number>(Date.now());
   const stuckProgressCheckRef = useRef<NodeJS.Timeout | null>(null);
   const pollingAttemptsRef = useRef<number>(0);
+  const healthCheckRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSuccessfulPollRef = useRef<number>(Date.now());
+  const forceRefreshRef = useRef<NodeJS.Timeout | null>(null);
 
   // Cleanup polling on unmount
   useEffect(() => {
@@ -181,6 +188,29 @@ export function useConversion(): ConversionState & ConversionActions {
     setState(prev => ({ ...prev, quality }));
   }, []);
 
+  // 健康检查函数
+  const checkAPIHealth = useCallback(async () => {
+    try {
+      const response = await fetch('/api/health', {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+        },
+      });
+
+      if (response.ok) {
+        console.log('✅ API健康检查通过');
+        return true;
+      } else {
+        console.warn('⚠️ API健康检查失败:', response.status);
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ API健康检查错误:', error);
+      return false;
+    }
+  }, []);
+
   const pollJobStatus = useCallback(async (jobId: string) => {
     try {
       // Check if polling should continue
@@ -206,6 +236,29 @@ export function useConversion(): ConversionState & ConversionActions {
         return;
       }
 
+      // 检查是否需要强制刷新
+      const timeSinceLastSuccess = Date.now() - lastSuccessfulPollRef.current;
+      if (timeSinceLastSuccess > FORCE_REFRESH_THRESHOLD) {
+        console.log('🔄 触发强制刷新 - 距离上次成功轮询已超过1分钟');
+        try {
+          const healthResponse = await fetch('/api/health', {
+            headers: { 'Cache-Control': 'no-cache' },
+          });
+          const isHealthy = healthResponse.ok;
+
+          if (!isHealthy) {
+            console.warn('⚠️ API不健康，尝试恢复连接...');
+            // 等待一段时间后重试
+            setTimeout(() => pollJobStatus(jobId), 5000);
+            return;
+          }
+        } catch (error) {
+          console.error('❌ 健康检查失败:', error);
+          setTimeout(() => pollJobStatus(jobId), 5000);
+          return;
+        }
+      }
+
       console.log(
         `📡 Polling status for job: ${jobId} (attempt ${pollingAttemptsRef.current}/${MAX_POLLING_ATTEMPTS})`
       );
@@ -223,6 +276,9 @@ export function useConversion(): ConversionState & ConversionActions {
 
       const data = await response.json();
       console.log(`📊 Status response (cache-busted):`, data);
+
+      // 更新最后成功轮询时间
+      lastSuccessfulPollRef.current = Date.now();
 
       if (data.success) {
         // API returns flat structure, not nested under 'status'
@@ -432,6 +488,8 @@ export function useConversion(): ConversionState & ConversionActions {
     }
   }, []);
 
+
+
   const startConversion = useCallback(async () => {
     if (!state.url.trim() || !state.detectedPlatform) {
       setState(prev => ({ ...prev, error: 'Please enter a valid URL' }));
@@ -597,6 +655,31 @@ export function useConversion(): ConversionState & ConversionActions {
     };
   }, []);
 
+  // 手动刷新状态
+  const forceRefresh = useCallback(async () => {
+    if (state.jobId) {
+      console.log('🔄 手动强制刷新状态:', state.jobId);
+
+      // 先检查API健康状态
+      try {
+        const healthResponse = await fetch('/api/health', {
+          headers: { 'Cache-Control': 'no-cache' },
+        });
+
+        if (!healthResponse.ok) {
+          console.warn('⚠️ API不健康，跳过状态刷新');
+          return;
+        }
+      } catch (error) {
+        console.error('❌ 健康检查失败:', error);
+        return;
+      }
+
+      // 强制获取最新状态
+      await pollJobStatus(state.jobId);
+    }
+  }, [state.jobId, pollJobStatus]);
+
   return {
     ...state,
     setUrl,
@@ -606,5 +689,7 @@ export function useConversion(): ConversionState & ConversionActions {
     startConversion,
     reset,
     retry,
+    forceRefresh,
+    checkHealth: checkAPIHealth,
   };
 }

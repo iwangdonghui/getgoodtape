@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 
 interface ConversionErrorProps {
   error: string;
@@ -10,7 +10,7 @@ interface ConversionErrorProps {
   jobId?: string | null;
 }
 
-export default function ConversionError({
+const ConversionError = memo(function ConversionError({
   error,
   canRetry,
   retryCount,
@@ -246,4 +246,6 @@ export default function ConversionError({
       )}
     </div>
   );
-}
+});
+
+export default ConversionError;

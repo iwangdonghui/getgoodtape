@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sun, Moon, Monitor } from 'lucide-react';
 
 type Theme = 'light' | 'dark' | 'system';
 
-export default function ThemeToggle() {
+const ThemeToggle = memo(function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>('system');
   const [mounted, setMounted] = useState(false);
 
@@ -108,4 +108,6 @@ export default function ThemeToggle() {
       <span className="hidden sm:inline ml-2">{getLabel()}</span>
     </Button>
   );
-}
+});
+
+export default ThemeToggle;

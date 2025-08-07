@@ -1,9 +1,7 @@
 import { NextRequest } from 'next/server';
 
 const WORKERS_URL =
-  process.env.NODE_ENV === 'development'
-    ? 'http://localhost:8000' // 本地开发时使用本地 Workers
-    : 'https://getgoodtape-video-proc.fly.dev';
+  'https://getgoodtape-api-production.wangdonghuiibt-cloudflare.workers.dev';
 
 export async function GET(request: NextRequest) {
   try {

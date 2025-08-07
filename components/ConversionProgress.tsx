@@ -1,4 +1,66 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo, useMemo, useCallback } from 'react';
+
+// 将状态信息移到组件外部以避免重复创建
+const getStatusInfo = (status: string, currentStep?: string) => {
+  switch (status) {
+    case 'validating':
+      return {
+        label: 'Validating',
+        color: 'text-blue-600',
+        bgColor: 'bg-blue-50',
+        borderColor: 'border-blue-200',
+        icon: '🔍',
+        description:
+          'Validating your video URL and preparing for conversion...',
+      };
+    case 'queued':
+      return {
+        label: 'Queued',
+        color: 'text-yellow-600',
+        bgColor: 'bg-yellow-50',
+        borderColor: 'border-yellow-200',
+        icon: '⏳',
+        description:
+          'Your conversion task has been added to the queue, please wait...',
+      };
+    case 'processing':
+      return {
+        label: 'Processing',
+        color: 'text-blue-600',
+        bgColor: 'bg-blue-50',
+        borderColor: 'border-blue-200',
+        icon: '⚡',
+        description: currentStep || 'Converting your video...',
+      };
+    case 'completed':
+      return {
+        label: 'Completed',
+        color: 'text-green-600',
+        bgColor: 'bg-green-50',
+        borderColor: 'border-green-200',
+        icon: '✅',
+        description: 'Your video has been successfully converted!',
+      };
+    case 'failed':
+      return {
+        label: 'Failed',
+        color: 'text-red-600',
+        bgColor: 'bg-red-50',
+        borderColor: 'border-red-200',
+        icon: '❌',
+        description: 'Conversion failed. Please try again.',
+      };
+    default:
+      return {
+        label: 'Idle',
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-50',
+        borderColor: 'border-gray-200',
+        icon: '⏸️',
+        description: 'Ready to start conversion...',
+      };
+  }
+};
 
 interface ConversionProgressProps {
   status:
@@ -14,9 +76,11 @@ interface ConversionProgressProps {
   currentStep?: string;
   error?: string | null;
   queuePosition?: number;
+  onForceRefresh?: () => Promise<void>;
+  onCheckHealth?: () => Promise<boolean>;
 }
 
-export default function ConversionProgress({
+const ConversionProgress = memo(function ConversionProgress({
   status,
   progress,
   jobId,
@@ -24,8 +88,14 @@ export default function ConversionProgress({
   currentStep,
   error,
   queuePosition,
+  onForceRefresh,
+  onCheckHealth,
 }: ConversionProgressProps) {
   const [animatedProgress, setAnimatedProgress] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [healthStatus, setHealthStatus] = useState<
+    'unknown' | 'healthy' | 'unhealthy'
+  >('unknown');
 
   // Animate progress changes
   useEffect(() => {
@@ -33,85 +103,73 @@ export default function ConversionProgress({
       // Ensure progress is a valid number
       const validProgress =
         typeof progress === 'number' && !isNaN(progress) ? progress : 0;
-      console.log(
-        `🎯 ConversionProgress: progress=${progress}, validProgress=${validProgress}, status=${status}`
-      );
+
+      // Only log in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log(
+          `🎯 ConversionProgress: progress=${progress}, validProgress=${validProgress}, status=${status}`
+        );
+      }
+
       setAnimatedProgress(validProgress);
     }, 100);
     return () => clearTimeout(timer);
   }, [progress, status]);
 
-  const getStatusInfo = () => {
-    switch (status) {
-      case 'validating':
-        return {
-          label: 'Validating',
-          color: 'text-blue-600',
-          bgColor: 'bg-blue-50',
-          borderColor: 'border-blue-200',
-          icon: '🔍',
-          description:
-            'Validating your video URL and preparing for conversion...',
-        };
-      case 'queued':
-        return {
-          label: 'Queued',
-          color: 'text-yellow-600',
-          bgColor: 'bg-yellow-50',
-          borderColor: 'border-yellow-200',
-          icon: '⏳',
-          description:
-            'Your conversion task has been added to the queue, please wait...',
-        };
-      case 'processing':
-        return {
-          label: 'Processing',
-          color: 'text-blue-600',
-          bgColor: 'bg-blue-50',
-          borderColor: 'border-blue-200',
-          icon: '⚡',
-          description: currentStep || 'Converting your video...',
-        };
-      case 'completed':
-        return {
-          label: 'Conversion Complete',
-          color: 'text-green-600',
-          bgColor: 'bg-green-50',
-          borderColor: 'border-green-200',
-          icon: '✅',
-          description:
-            'Conversion completed successfully! You can download the file now.',
-        };
-      case 'failed':
-        return {
-          label: 'Conversion Failed',
-          color: 'text-red-600',
-          bgColor: 'bg-red-50',
-          borderColor: 'border-red-200',
-          icon: '❌',
-          description:
-            error || 'An error occurred during conversion, please try again.',
-        };
-      default:
-        return {
-          label: 'Preparing',
-          color: 'text-gray-600',
-          bgColor: 'bg-gray-50',
-          borderColor: 'border-gray-200',
-          icon: '⚪',
-          description: 'Preparing to start conversion...',
-        };
+  // 手动刷新处理
+  const handleForceRefresh = useCallback(async () => {
+    if (!onForceRefresh || isRefreshing) return;
+
+    setIsRefreshing(true);
+    try {
+      await onForceRefresh();
+      console.log('🔄 手动刷新完成');
+    } catch (error) {
+      console.error('❌ 手动刷新失败:', error);
+    } finally {
+      setIsRefreshing(false);
     }
-  };
+  }, [onForceRefresh, isRefreshing]);
 
-  const statusInfo = getStatusInfo();
+  // 健康检查处理
+  const handleHealthCheck = useCallback(async () => {
+    if (!onCheckHealth) return;
 
-  const formatTime = (seconds: number): string => {
+    try {
+      const isHealthy = await onCheckHealth();
+      setHealthStatus(isHealthy ? 'healthy' : 'unhealthy');
+      console.log('🏥 健康检查结果:', isHealthy ? '健康' : '不健康');
+    } catch (error) {
+      console.error('❌ 健康检查失败:', error);
+      setHealthStatus('unhealthy');
+    }
+  }, [onCheckHealth]);
+
+  // 定期健康检查
+  useEffect(() => {
+    if (status === 'processing' && onCheckHealth) {
+      const interval = setInterval(handleHealthCheck, 10000); // 每10秒检查一次
+      return () => clearInterval(interval);
+    }
+  }, [status, onCheckHealth, handleHealthCheck]);
+
+  // 使用useMemo优化状态信息计算
+  const statusInfo = useMemo(() => {
+    const info = getStatusInfo(status, currentStep);
+    // 如果是失败状态，使用传入的错误信息
+    if (status === 'failed' && error) {
+      return { ...info, description: error };
+    }
+    return info;
+  }, [status, currentStep, error]);
+
+  // 使用useCallback优化格式化函数
+  const formatTime = useCallback((seconds: number): string => {
     if (seconds < 60) return `${Math.round(seconds)}s`;
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = Math.round(seconds % 60);
     return `${minutes}m ${remainingSeconds}s`;
-  };
+  }, []);
 
   const getProgressSteps = () => {
     const steps = [
@@ -236,11 +294,42 @@ export default function ConversionProgress({
             )}
         </div>
 
-        {/* Live indicator */}
+        {/* Live indicator and controls */}
         {status === 'processing' && (
-          <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-xs">Live updates</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-xs">Live updates</span>
+              {healthStatus === 'healthy' && (
+                <span className="text-xs text-green-600">✅ API健康</span>
+              )}
+              {healthStatus === 'unhealthy' && (
+                <span className="text-xs text-red-600">❌ API异常</span>
+              )}
+            </div>
+
+            {/* 控制按钮 */}
+            <div className="flex items-center space-x-2">
+              {onForceRefresh && (
+                <button
+                  onClick={handleForceRefresh}
+                  disabled={isRefreshing}
+                  className="px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded transition-colors disabled:opacity-50"
+                  title="手动刷新状态"
+                >
+                  {isRefreshing ? '🔄' : '🔄 刷新'}
+                </button>
+              )}
+              {onCheckHealth && (
+                <button
+                  onClick={handleHealthCheck}
+                  className="px-2 py-1 text-xs bg-green-100 hover:bg-green-200 text-green-700 rounded transition-colors"
+                  title="检查API健康状态"
+                >
+                  🏥 检查
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -267,4 +356,6 @@ export default function ConversionProgress({
       )}
     </div>
   );
-}
+});
+
+export default ConversionProgress;

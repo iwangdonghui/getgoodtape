@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import Head from 'next/head';
 
 interface SEOHeadProps {
@@ -38,7 +39,7 @@ const defaultSEO = {
   twitterCard: 'summary_large_image' as const,
 };
 
-export default function SEOHead({
+const SEOHead = memo(function SEOHead({
   title = defaultSEO.title,
   description = defaultSEO.description,
   keywords = defaultSEO.keywords,
@@ -175,7 +176,7 @@ export default function SEOHead({
       <link rel="dns-prefetch" href="//www.instagram.com" />
     </Head>
   );
-}
+});
 
 // 预定义的页面 SEO 配置
 export const pageSEO = {
@@ -221,3 +222,5 @@ export const pageSEO = {
     ],
   },
 };
+
+export default SEOHead;

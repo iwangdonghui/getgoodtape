@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, memo } from 'react';
 
 interface PerformanceMetrics {
   pageLoadTime: number;
@@ -15,7 +15,7 @@ interface PerformanceMonitorProps {
   enableLogging?: boolean;
 }
 
-export default function PerformanceMonitor({
+const PerformanceMonitor = memo(function PerformanceMonitor({
   onMetrics,
   enableLogging = false,
 }: PerformanceMonitorProps) {
@@ -127,7 +127,8 @@ export default function PerformanceMonitor({
         };
 
         if (enableLogging) {
-          console.log('📊 Basic Performance Metrics:', metrics);
+          if (process.env.NODE_ENV === 'development')
+            console.log('📊 Basic Performance Metrics:', metrics);
         }
       }
     };
@@ -142,7 +143,7 @@ export default function PerformanceMonitor({
   }, [enableLogging]);
 
   return null; // 这是一个无UI的监控组件
-}
+});
 
 // 性能优化建议函数
 export function getPerformanceRecommendations(
@@ -248,3 +249,5 @@ export function getWebVitalsScore(metrics: Partial<PerformanceMetrics>): {
 
   return { score: averageScore, grade, details };
 }
+
+export default PerformanceMonitor;

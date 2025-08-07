@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { formatDuration } from '../lib/api-client';
 
 interface VideoMetadata {
@@ -18,7 +19,7 @@ interface FilePreviewCardProps {
   downloadError?: string | null;
 }
 
-export default function FilePreviewCard({
+const FilePreviewCard = memo(function FilePreviewCard({
   metadata,
   filename,
   format,
@@ -168,4 +169,6 @@ export default function FilePreviewCard({
       </div>
     </div>
   );
-}
+});
+
+export default FilePreviewCard;

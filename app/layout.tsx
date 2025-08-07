@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import QueryProvider from '../components/QueryProvider';
+import MemoryOptimizer from '../components/MemoryOptimizer';
+import MobilePerformanceOptimizer from '../components/MobilePerformanceOptimizer';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://getgoodtape.com'),
@@ -70,7 +72,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="font-brand antialiased">
-        <QueryProvider>{children}</QueryProvider>
+        <MemoryOptimizer enableGarbageCollection={true} memoryThreshold={120}>
+          <MobilePerformanceOptimizer>
+            <QueryProvider>{children}</QueryProvider>
+          </MobilePerformanceOptimizer>
+        </MemoryOptimizer>
       </body>
     </html>
   );

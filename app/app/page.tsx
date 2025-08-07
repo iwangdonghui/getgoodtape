@@ -294,6 +294,8 @@ export default function AppPage() {
                     jobId={conversion.jobId}
                     estimatedTimeRemaining={conversion.estimatedTimeRemaining}
                     queuePosition={conversion.queuePosition}
+                    onForceRefresh={conversion.forceRefresh}
+                    onCheckHealth={conversion.checkHealth}
                   />
                 </div>
               )}

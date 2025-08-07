@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo, useCallback, useMemo } from 'react';
 import { formatDuration } from '../lib/api-client';
 import FilePreviewCard from './FilePreviewCard';
 
@@ -19,7 +19,7 @@ interface ConversionResultProps {
   onNewConversion: () => void;
 }
 
-export default function ConversionResult({
+const ConversionResult = memo(function ConversionResult({
   downloadUrl,
   filename,
   metadata,
@@ -33,7 +33,7 @@ export default function ConversionResult({
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
 
-  const handleDownload = async () => {
+  const handleDownload = useCallback(async () => {
     if (!downloadUrl) return;
 
     setIsDownloading(true);
@@ -51,17 +51,23 @@ export default function ConversionResult({
       if (isDirectR2Url) {
         // Direct R2 download - no API needed!
         fullDownloadUrl = downloadUrl;
-        console.log('🚀 Using direct R2 download:', fullDownloadUrl);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🚀 Using direct R2 download:', fullDownloadUrl);
+        }
       } else {
         // Fallback to API route for compatibility
         fullDownloadUrl = downloadUrl.startsWith('http')
           ? downloadUrl
           : downloadUrl;
-        console.log('🔄 Using API fallback download:', fullDownloadUrl);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🔄 Using API fallback download:', fullDownloadUrl);
+        }
       }
 
-      console.log('Download filename:', filename);
-      console.log('Download format:', format);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Download filename:', filename);
+        console.log('Download format:', format);
+      }
 
       // Faster progress for direct downloads
       setDownloadProgress(isDirectR2Url ? 30 : 10);
@@ -84,7 +90,9 @@ export default function ConversionResult({
         const filenameMatch = contentDisposition.match(/filename="([^"]+)"/);
         if (filenameMatch) {
           serverFilename = filenameMatch[1];
-          console.log('Server filename from header:', serverFilename);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Server filename from header:', serverFilename);
+          }
         }
       }
 
@@ -140,7 +148,9 @@ export default function ConversionResult({
       setDownloadProgress(100);
 
       // Track download
-      console.log('Download completed:', filename);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Download completed:', filename);
+      }
     } catch (error) {
       console.error('Download failed:', error);
       setDownloadError(
@@ -153,13 +163,13 @@ export default function ConversionResult({
         setDownloadError(null);
       }, 2000);
     }
-  };
+  }, [downloadUrl, filename, format]);
 
-  const getFileIcon = () => {
+  const fileIcon = useMemo(() => {
     return format === 'mp3' ? '🎵' : '🎬';
-  };
+  }, [format]);
 
-  const getFileSizeEstimate = () => {
+  const fileSizeEstimate = useMemo(() => {
     if (!metadata?.duration) return 'Unknown';
 
     // Rough estimates based on format and quality
@@ -183,7 +193,7 @@ export default function ConversionResult({
     } else {
       return `~${(totalSizeKB / 1024).toFixed(1)} MB`;
     }
-  };
+  }, [metadata?.duration, format, quality]);
 
   return (
     <div className="mt-4 sm:mt-6 bg-gradient-to-br from-cream to-mint-green/20 border border-mint-green/30 rounded-xl p-4 sm:p-6">
@@ -338,4 +348,6 @@ export default function ConversionResult({
       </div>
     </div>
   );
-}
+});
+
+export default ConversionResult;

@@ -233,7 +233,7 @@ export function withCache<T extends any[], R>(
 // 自动清理过期缓存
 if (typeof window !== 'undefined') {
   // 每10分钟清理一次过期缓存
-  setInterval(
+  const cleanupInterval = setInterval(
     () => {
       apiCache.cleanup();
       platformCache.cleanup();
@@ -242,10 +242,24 @@ if (typeof window !== 'undefined') {
     10 * 60 * 1000
   );
 
-  // 页面卸载时清理内存缓存
-  window.addEventListener('beforeunload', () => {
+  // 页面卸载时清理内存缓存和定时器
+  const handleBeforeUnload = () => {
     apiCache.clear();
-  });
+    clearInterval(cleanupInterval);
+  };
+
+  window.addEventListener('beforeunload', handleBeforeUnload);
+
+  // 页面可见性变化时也清理（用户切换标签页时）
+  const handleVisibilityChange = () => {
+    if (document.hidden) {
+      apiCache.cleanup();
+      platformCache.cleanup();
+      userPrefsCache.cleanup();
+    }
+  };
+
+  document.addEventListener('visibilitychange', handleVisibilityChange);
 }
 
 export default CacheManager;
