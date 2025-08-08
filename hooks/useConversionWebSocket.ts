@@ -200,26 +200,58 @@ export function useConversionWebSocket(): ConversionState & ConversionActions {
     }
 
     try {
-      const wsUrl =
-        'wss://getgoodtape-api-production.wangdonghuiibt-cloudflare.workers.dev/api/ws';
+      // Determine WebSocket URL based on environment
+      const isProduction =
+        typeof window !== 'undefined' &&
+        (window.location.hostname === 'getgoodtape.com' ||
+          window.location.hostname === 'www.getgoodtape.com');
 
-      console.log('🔌 Connecting to Workers WebSocket with RobustWebSocket:', wsUrl);
+      const wsUrl = isProduction
+        ? 'wss://getgoodtape-api-production.wangdonghuiibt-cloudflare.workers.dev/api/ws'
+        : 'wss://getgoodtape-api-production.wangdonghuiibt-cloudflare.workers.dev/api/ws';
 
-      // Create new RobustWebSocket instance
+      console.log(
+        '🔌 Connecting to Workers WebSocket with RobustWebSocket:',
+        wsUrl
+      );
+      console.log(
+        '🌍 Environment:',
+        isProduction ? 'production' : 'development'
+      );
+
+      // Create new RobustWebSocket instance with enhanced configuration
       const robustWs = new RobustWebSocket(wsUrl, {
-        maxReconnectAttempts: 5,
-        reconnectInterval: 1000,
-        maxReconnectInterval: 30000,
-        reconnectDecay: 1.5,
-        heartbeatInterval: 30000,
-        connectionTimeout: 10000,
+        maxReconnectAttempts: 8, // Increased attempts
+        reconnectInterval: 2000, // Longer initial interval
+        maxReconnectInterval: 60000, // Longer max interval
+        reconnectDecay: 1.3, // Slower decay
+        heartbeatInterval: 25000, // More frequent heartbeat
+        connectionTimeout: 15000, // Longer timeout
         debug: true,
       });
 
       robustWsRef.current = robustWs;
 
-      // Handle state changes
-      robustWs.onStateChange((connectionState) => {
+      // Handle state changes with detailed logging
+      robustWs.onStateChange(connectionState => {
+        console.log('🔄 WebSocket state change:', connectionState);
+
+        // Log specific state transitions
+        if (connectionState.status === 'connected') {
+          console.log('✅ WebSocket connected successfully');
+        } else if (connectionState.status === 'disconnected') {
+          console.log('❌ WebSocket disconnected');
+        } else if (connectionState.status === 'reconnecting') {
+          console.log(
+            `🔄 WebSocket reconnecting (attempt ${connectionState.reconnectAttempts})`
+          );
+        } else if (connectionState.status === 'failed') {
+          console.log(
+            '💥 WebSocket connection failed:',
+            connectionState.lastError
+          );
+        }
+
         setState(prev => ({
           ...prev,
           connectionState,
@@ -231,55 +263,68 @@ export function useConversionWebSocket(): ConversionState & ConversionActions {
       robustWs.on('*', handleWebSocketMessage);
 
       // Handle specific message types for better logging
-      robustWs.on('pong', (data) => {
+      robustWs.on('pong', data => {
         console.log('🏓 Pong received', data);
       });
 
-      robustWs.on('conversion_progress', (data) => {
+      robustWs.on('conversion_progress', data => {
         handleWebSocketMessage(data);
       });
 
-      robustWs.on('conversion_complete', (data) => {
+      robustWs.on('conversion_complete', data => {
         handleWebSocketMessage(data);
       });
 
-      robustWs.on('conversion_error', (data) => {
+      robustWs.on('conversion_error', data => {
         handleWebSocketMessage(data);
       });
 
-      robustWs.on('recovery_attempt', (data) => {
+      robustWs.on('recovery_attempt', data => {
         console.log('🔄 Recovery attempt:', data);
         handleWebSocketMessage(data);
       });
 
-      robustWs.on('recovery_success', (data) => {
+      robustWs.on('recovery_success', data => {
         console.log('✅ Recovery success:', data);
         handleWebSocketMessage(data);
       });
 
-      robustWs.on('recovery_failure', (data) => {
+      robustWs.on('recovery_failure', data => {
         console.log('❌ Recovery failure:', data);
         handleWebSocketMessage(data);
       });
 
       // Start connection
       robustWs.connect();
-
     } catch (error) {
       console.error('Failed to create RobustWebSocket connection:', error);
+
+      // Enhanced error reporting
+      let errorMessage = 'Unknown error';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+
+        // Provide specific guidance for common errors
+        if (error.message.includes('SecurityError')) {
+          errorMessage = 'Security error - check CORS/HTTPS settings';
+        } else if (error.message.includes('NetworkError')) {
+          errorMessage = 'Network error - check firewall/proxy settings';
+        } else if (error.message.includes('InvalidStateError')) {
+          errorMessage = 'Invalid state - WebSocket not supported';
+        }
+      }
+
       setState(prev => ({
         ...prev,
         connectionState: {
           status: 'failed',
           reconnectAttempts: 0,
-          lastError: error instanceof Error ? error.message : 'Unknown error',
+          lastError: errorMessage,
         },
-        isConnected: false
+        isConnected: false,
       }));
     }
   }, [handleWebSocketMessage]);
-
-
 
   const setUrl = useCallback((url: string) => {
     setState(prev => ({ ...prev, url }));

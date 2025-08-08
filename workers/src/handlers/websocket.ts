@@ -1,5 +1,27 @@
 import { Context } from 'hono';
 import { Env } from '../types';
+
+/**
+ * Check if origin is allowed for WebSocket connections
+ */
+function isOriginAllowed(origin: string): boolean {
+  const allowedPatterns = [
+    'https://getgoodtape.com',
+    'https://www.getgoodtape.com',
+    'http://localhost:3000',
+    'http://localhost:8787',
+    /^https:\/\/getgoodtape-.*\.vercel\.app$/,
+  ];
+
+  return allowedPatterns.some(pattern => {
+    if (typeof pattern === 'string') {
+      return pattern === origin;
+    } else {
+      return pattern.test(origin);
+    }
+  });
+}
+
 import { ConversionService } from '../utils/conversion-service';
 import { JobManager } from '../utils/job-manager';
 
@@ -48,6 +70,16 @@ export class WebSocketManager {
         return c.json({ error: 'Expected Upgrade: websocket' }, 426);
       }
 
+      // Get origin for CORS validation
+      const origin = c.req.header('Origin');
+      console.log('WebSocket upgrade request from origin:', origin);
+
+      // Validate origin for security
+      if (origin && !isOriginAllowed(origin)) {
+        console.warn('WebSocket connection rejected - invalid origin:', origin);
+        return c.json({ error: 'Origin not allowed' }, 403);
+      }
+
       // Create WebSocket pair
       const [client, server] = Object.values(new WebSocketPair());
 
@@ -57,10 +89,17 @@ export class WebSocketManager {
       // Set up event handlers
       this.setupWebSocketHandlers(server);
 
-      // Return the client WebSocket to the browser
+      // Return the client WebSocket to the browser with proper headers
+      const headers: Record<string, string> = {};
+
+      if (origin && isOriginAllowed(origin)) {
+        headers['Access-Control-Allow-Origin'] = origin;
+      }
+
       return new Response(null, {
         status: 101,
         webSocket: client,
+        headers,
       });
     } catch (error) {
       console.error('WebSocket upgrade error:', error);
@@ -84,12 +123,20 @@ export class WebSocketManager {
         this.sendError(websocket, 'Invalid message format');
 
         // Log error details for debugging
-        this.logConnectionError(connectionId, 'MESSAGE_PARSE_ERROR', error as Error);
+        this.logConnectionError(
+          connectionId,
+          'MESSAGE_PARSE_ERROR',
+          error as Error
+        );
       }
     });
 
     websocket.addEventListener('close', event => {
-      console.log(`WebSocket closed [${connectionId}]:`, event.code, event.reason);
+      console.log(
+        `WebSocket closed [${connectionId}]:`,
+        event.code,
+        event.reason
+      );
 
       // Log close reason for analysis
       this.logConnectionClose(connectionId, event.code, event.reason);
@@ -103,7 +150,11 @@ export class WebSocketManager {
       console.error(`WebSocket error [${connectionId}]:`, event);
 
       // Log error details
-      this.logConnectionError(connectionId, 'WEBSOCKET_ERROR', new Error('WebSocket error occurred'));
+      this.logConnectionError(
+        connectionId,
+        'WEBSOCKET_ERROR',
+        new Error('WebSocket error occurred')
+      );
 
       // Clean up resources
       this.removeConnection(websocket);
@@ -146,7 +197,7 @@ export class WebSocketManager {
           type: 'pong',
           timestamp: Date.now(),
           serverTime: new Date().toISOString(),
-          clientTimestamp: payload?.timestamp // Echo back client timestamp for latency calculation
+          clientTimestamp: payload?.timestamp, // Echo back client timestamp for latency calculation
         });
 
         // Update connection health
@@ -376,7 +427,10 @@ export class WebSocketManager {
       try {
         websocket.close(1011, 'Error sending message');
       } catch (closeError) {
-        console.error('Failed to close WebSocket after send error:', closeError);
+        console.error(
+          'Failed to close WebSocket after send error:',
+          closeError
+        );
       }
     }
   }
@@ -384,14 +438,17 @@ export class WebSocketManager {
   /**
    * Send enhanced error message with details and suggestions
    */
-  sendEnhancedError(jobId: string, errorDetails: {
-    message: string;
-    suggestion?: string;
-    canRetry?: boolean;
-    severity?: 'low' | 'medium' | 'high' | 'critical';
-    errorType?: string;
-    retryDelay?: number;
-  }) {
+  sendEnhancedError(
+    jobId: string,
+    errorDetails: {
+      message: string;
+      suggestion?: string;
+      canRetry?: boolean;
+      severity?: 'low' | 'medium' | 'high' | 'critical';
+      errorType?: string;
+      retryDelay?: number;
+    }
+  ) {
     this.broadcastToJob(jobId, {
       type: 'conversion_error',
       payload: {
@@ -466,11 +523,15 @@ export class WebSocketManager {
           console.log(`📤 Sent message [${connectionId}]:`, message.type);
         }
       } else {
-        console.warn(`Cannot send message - WebSocket not open [${connectionId}]. State: ${websocket.readyState}`);
+        console.warn(
+          `Cannot send message - WebSocket not open [${connectionId}]. State: ${websocket.readyState}`
+        );
 
         // Clean up connection if it's in a bad state
-        if (websocket.readyState === WebSocket.READY_STATE_CLOSED ||
-            websocket.readyState === WebSocket.READY_STATE_CLOSING) {
+        if (
+          websocket.readyState === WebSocket.READY_STATE_CLOSED ||
+          websocket.readyState === WebSocket.READY_STATE_CLOSING
+        ) {
           this.removeConnection(websocket);
         }
       }
@@ -478,7 +539,11 @@ export class WebSocketManager {
       console.error(`Failed to send message [${connectionId}]:`, error);
 
       // Log the error for monitoring
-      this.logConnectionError(connectionId, 'MESSAGE_SEND_ERROR', error as Error);
+      this.logConnectionError(
+        connectionId,
+        'MESSAGE_SEND_ERROR',
+        error as Error
+      );
 
       // Try to close the connection gracefully
       try {
@@ -486,15 +551,16 @@ export class WebSocketManager {
           websocket.close(1011, 'Message send error');
         }
       } catch (closeError) {
-        console.error(`Failed to close WebSocket after send error [${connectionId}]:`, closeError);
+        console.error(
+          `Failed to close WebSocket after send error [${connectionId}]:`,
+          closeError
+        );
       }
 
       // Clean up the connection
       this.removeConnection(websocket);
     }
   }
-
-
 
   /**
    * Remove connection by job ID
@@ -587,10 +653,14 @@ export class WebSocketManager {
 
     // Log health statistics
     const totalConnections = connectionHealth.size;
-    const healthyConnections = Array.from(connectionHealth.values()).filter(h => h.isHealthy).length;
+    const healthyConnections = Array.from(connectionHealth.values()).filter(
+      h => h.isHealthy
+    ).length;
 
     if (totalConnections > 0) {
-      console.log(`📊 WebSocket Health: ${healthyConnections}/${totalConnections} healthy connections`);
+      console.log(
+        `📊 WebSocket Health: ${healthyConnections}/${totalConnections} healthy connections`
+      );
     }
   }
 
@@ -632,7 +702,11 @@ export class WebSocketManager {
   /**
    * Log connection errors for monitoring
    */
-  private logConnectionError(connectionId: string, errorType: string, error: Error) {
+  private logConnectionError(
+    connectionId: string,
+    errorType: string,
+    error: Error
+  ) {
     const errorLog = {
       timestamp: new Date().toISOString(),
       connectionId,
@@ -650,7 +724,11 @@ export class WebSocketManager {
   /**
    * Log connection close events
    */
-  private logConnectionClose(connectionId: string, code: number, reason: string) {
+  private logConnectionClose(
+    connectionId: string,
+    code: number,
+    reason: string
+  ) {
     const closeLog = {
       timestamp: new Date().toISOString(),
       connectionId,
@@ -668,7 +746,10 @@ export class WebSocketManager {
   /**
    * Clean up connection-specific resources
    */
-  private cleanupConnectionResources(websocket: WebSocket, connectionId: string) {
+  private cleanupConnectionResources(
+    websocket: WebSocket,
+    connectionId: string
+  ) {
     try {
       // Remove from health tracking
       connectionHealth.delete(websocket);
@@ -677,7 +758,9 @@ export class WebSocketManager {
       for (const [jobId, connection] of activeConnections.entries()) {
         if (connection.websocket === websocket) {
           activeConnections.delete(jobId);
-          console.log(`🧹 Cleaned up job subscription: ${jobId} [${connectionId}]`);
+          console.log(
+            `🧹 Cleaned up job subscription: ${jobId} [${connectionId}]`
+          );
           break;
         }
       }
@@ -686,7 +769,9 @@ export class WebSocketManager {
       for (const [jobId, subscribers] of this.jobSubscriptions.entries()) {
         if (subscribers.has(websocket)) {
           subscribers.delete(websocket);
-          console.log(`🧹 Removed WebSocket from job ${jobId} subscribers [${connectionId}]`);
+          console.log(
+            `🧹 Removed WebSocket from job ${jobId} subscribers [${connectionId}]`
+          );
 
           // Remove empty subscription sets
           if (subscribers.size === 0) {
@@ -697,9 +782,11 @@ export class WebSocketManager {
       }
 
       console.log(`✅ Connection resources cleaned up [${connectionId}]`);
-
     } catch (error) {
-      console.error(`❌ Error cleaning up connection resources [${connectionId}]:`, error);
+      console.error(
+        `❌ Error cleaning up connection resources [${connectionId}]:`,
+        error
+      );
     }
   }
 
@@ -723,7 +810,6 @@ export class WebSocketManager {
           break;
         }
       }
-
     } catch (error) {
       console.error(`❌ Error removing connection [${connectionId}]:`, error);
     }
@@ -740,7 +826,7 @@ export class WebSocketManager {
     // Close all active connections
     for (const [id, websocket] of this.connections.entries()) {
       shutdownPromises.push(
-        new Promise<void>((resolve) => {
+        new Promise<void>(resolve => {
           try {
             if (websocket.readyState === WebSocket.READY_STATE_OPEN) {
               websocket.close(1001, 'Server shutdown');
@@ -757,7 +843,7 @@ export class WebSocketManager {
     // Wait for all connections to close (with timeout)
     await Promise.race([
       Promise.all(shutdownPromises),
-      new Promise(resolve => setTimeout(resolve, 5000)) // 5 second timeout
+      new Promise(resolve => setTimeout(resolve, 5000)), // 5 second timeout
     ]);
 
     // Clean up resources

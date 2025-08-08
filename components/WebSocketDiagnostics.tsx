@@ -55,13 +55,19 @@ const WebSocketDiagnostics = memo(function WebSocketDiagnostics() {
     // 2. 测试Workers API连接
     updateTest('Workers API', 'running', '测试Workers API连接...');
     try {
-      const response = await fetch(
-        'https://getgoodtape-api-production.wangdonghuiibt-cloudflare.workers.dev/api/health',
-        {
-          method: 'GET',
-          headers: { 'Cache-Control': 'no-cache' },
-        }
-      );
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
+
+      const response = await fetch('/api/health-check', {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache',
+          Accept: 'application/json',
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const data = await response.json();
@@ -75,16 +81,33 @@ const WebSocketDiagnostics = memo(function WebSocketDiagnostics() {
         updateTest(
           'Workers API',
           'fail',
-          `Workers API错误 (${response.status})`
+          `Workers API错误 (${response.status})`,
+          `状态码: ${response.status}, 状态文本: ${response.statusText}`
         );
       }
     } catch (error) {
-      updateTest(
-        'Workers API',
-        'fail',
-        'Workers API连接失败',
-        error instanceof Error ? error.message : '未知错误'
-      );
+      let errorMessage = 'Workers API连接失败';
+      let errorDetails = '';
+
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          errorMessage = 'Workers API连接超时';
+          errorDetails = '连接超时 (10秒) - 可能是网络问题或服务器响应慢';
+        } else if (error.message.includes('Failed to fetch')) {
+          errorMessage = 'Workers API网络错误';
+          errorDetails =
+            '网络连接失败 - 可能是CORS问题、防火墙限制或服务器不可达';
+        } else if (error.message.includes('NetworkError')) {
+          errorMessage = 'Workers API网络错误';
+          errorDetails = '网络错误 - 检查网络连接和防火墙设置';
+        } else {
+          errorDetails = error.message;
+        }
+      } else {
+        errorDetails = '未知错误';
+      }
+
+      updateTest('Workers API', 'fail', errorMessage, errorDetails);
     }
 
     // 3. 测试WebSocket支持
@@ -143,12 +166,16 @@ const WebSocketDiagnostics = memo(function WebSocketDiagnostics() {
       ws.onerror = error => {
         clearTimeout(timeout);
         console.error('WebSocket错误:', error);
-        updateTest(
-          'WebSocket连接',
-          'fail',
-          'WebSocket连接错误',
-          '可能是CORS、防火墙或网络问题'
-        );
+
+        // 提供更详细的错误信息
+        let errorDetails = '可能原因:\n';
+        errorDetails += '• 网络连接问题\n';
+        errorDetails += '• 防火墙阻止WebSocket连接\n';
+        errorDetails += '• CORS策略限制\n';
+        errorDetails += '• 代理服务器不支持WebSocket\n';
+        errorDetails += '• 服务器暂时不可用';
+
+        updateTest('WebSocket连接', 'fail', 'WebSocket连接错误', errorDetails);
       };
 
       ws.onclose = event => {

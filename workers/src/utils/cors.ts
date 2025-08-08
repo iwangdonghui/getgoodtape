@@ -14,6 +14,10 @@ const DEFAULT_ALLOWED_ORIGINS = [
   'https://www.getgoodtape.com',
   'http://localhost:3000',
   'http://localhost:8787',
+  'https://getgoodtape-git-main-donghuis-projects.vercel.app',
+  'https://getgoodtape.vercel.app',
+  // 支持所有 Vercel 预览部署
+  /^https:\/\/getgoodtape-.*\.vercel\.app$/,
 ];
 
 export function corsHeaders(origin?: string): Record<string, string> {
@@ -27,14 +31,36 @@ export function corsHeaders(origin?: string): Record<string, string> {
     'Access-Control-Allow-Credentials': 'false',
   };
 
-  // Check if origin is allowed
-  if (origin && allowedOrigins.includes(origin)) {
+  // Check if origin is allowed (support both strings and regex patterns)
+  if (origin && isOriginAllowed(origin, allowedOrigins)) {
     headers['Access-Control-Allow-Origin'] = origin;
   } else {
-    headers['Access-Control-Allow-Origin'] = allowedOrigins[0];
+    // Use the first string origin as fallback
+    const fallbackOrigin = allowedOrigins.find(
+      o => typeof o === 'string'
+    ) as string;
+    headers['Access-Control-Allow-Origin'] =
+      fallbackOrigin || 'https://getgoodtape.com';
   }
 
   return headers;
+}
+
+/**
+ * Check if origin is allowed (supports regex patterns)
+ */
+function isOriginAllowed(
+  origin: string,
+  allowedOrigins: (string | RegExp)[]
+): boolean {
+  return allowedOrigins.some(allowed => {
+    if (typeof allowed === 'string') {
+      return allowed === origin;
+    } else if (allowed instanceof RegExp) {
+      return allowed.test(origin);
+    }
+    return false;
+  });
 }
 
 export function handleCors(request: Request): Response | null {

@@ -205,6 +205,27 @@ export class RobustWebSocket {
       this.clearTimers();
       this.log('Connection closed', { code: event.code, reason: event.reason });
 
+      // Enhanced error handling for specific close codes
+      if (event.code === 1006) {
+        this.log(
+          'Connection closed abnormally (1006) - possible network/CORS issue'
+        );
+        this.updateState({
+          lastError:
+            'Connection closed abnormally - check network/firewall settings',
+        });
+      } else if (event.code === 1002) {
+        this.log('Protocol error (1002)');
+        this.updateState({
+          lastError: 'WebSocket protocol error',
+        });
+      } else if (event.code === 1011) {
+        this.log('Server error (1011)');
+        this.updateState({
+          lastError: 'Server encountered an error',
+        });
+      }
+
       if (!this.isManualClose) {
         this.handleConnectionLoss(event);
       }
@@ -212,7 +233,10 @@ export class RobustWebSocket {
 
     this.ws.onerror = error => {
       this.log('WebSocket error', error);
-      this.handleConnectionError(new Error('WebSocket error'));
+      this.updateState({
+        lastError: 'WebSocket connection error - check network connectivity',
+      });
+      this.handleConnectionError(new Error('WebSocket connection error'));
     };
   }
 
