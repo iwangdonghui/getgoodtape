@@ -171,7 +171,7 @@ export class ConversionService {
   private storage: StorageManager;
   private dbManager: DatabaseManager;
   private presignedUrlManager: PresignedUrlManager;
-  private wsManager: any = null; // WebSocketManager - using any to avoid circular dependency
+  private wsManager: unknown = null; // WebSocketManager - using unknown to avoid circular dependency
 
   // Cache configuration
   private readonly CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
@@ -189,7 +189,7 @@ export class ConversionService {
   /**
    * Set WebSocket manager for real-time updates
    */
-  setWebSocketManager(wsManager: any): void {
+  setWebSocketManager(wsManager: unknown): void {
     this.wsManager = wsManager;
   }
 
@@ -254,30 +254,41 @@ export class ConversionService {
     try {
       // 🐛 FIX: Ensure progress is within valid range
       const validProgress = Math.min(100, Math.max(0, Math.round(progress)));
-      
-      console.log(`📊 Updating progress for job ${jobId}: ${validProgress}% (${status || 'processing'})`);
-      
+
+      console.log(
+        `📊 Updating progress for job ${jobId}: ${validProgress}% (${status || 'processing'})`
+      );
+
       // 🐛 FIX: Use atomic database update with retry logic
       let updateSuccess = false;
       let retryCount = 0;
       const maxRetries = 3;
-      
+
       while (!updateSuccess && retryCount < maxRetries) {
         try {
           // Update database with atomic operation
           await this.jobManager.updateProgress(jobId, validProgress);
           updateSuccess = true;
-          console.log(`✅ Database progress update successful for job ${jobId}: ${validProgress}%`);
+          console.log(
+            `✅ Database progress update successful for job ${jobId}: ${validProgress}%`
+          );
         } catch (dbError) {
           retryCount++;
-          console.error(`❌ Database progress update failed (attempt ${retryCount}/${maxRetries}) for job ${jobId}:`, dbError);
-          
+          console.error(
+            `❌ Database progress update failed (attempt ${retryCount}/${maxRetries}) for job ${jobId}:`,
+            dbError
+          );
+
           if (retryCount < maxRetries) {
             // Wait before retry with exponential backoff
-            await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 100));
+            await new Promise(resolve =>
+              setTimeout(resolve, Math.pow(2, retryCount) * 100)
+            );
           } else {
             // Log final failure but don't throw - continue with WebSocket notification
-            console.error(`🚨 Final database progress update failure for job ${jobId} after ${maxRetries} attempts`);
+            console.error(
+              `🚨 Final database progress update failure for job ${jobId} after ${maxRetries} attempts`
+            );
           }
         }
       }
@@ -292,15 +303,22 @@ export class ConversionService {
             {
               ...additionalData,
               dbUpdateSuccess: updateSuccess,
-              timestamp: Date.now()
+              timestamp: Date.now(),
             }
           );
-          console.log(`📤 WebSocket progress notification sent for job ${jobId}: ${validProgress}%`);
+          console.log(
+            `📤 WebSocket progress notification sent for job ${jobId}: ${validProgress}%`
+          );
         } catch (wsError) {
-          console.error(`❌ WebSocket progress notification failed for job ${jobId}:`, wsError);
+          console.error(
+            `❌ WebSocket progress notification failed for job ${jobId}:`,
+            wsError
+          );
         }
       } else {
-        console.warn(`⚠️ WebSocket manager not available for job ${jobId} progress update`);
+        console.warn(
+          `⚠️ WebSocket manager not available for job ${jobId} progress update`
+        );
       }
 
       // 🐛 FIX: Verify the update was persisted correctly
@@ -308,22 +326,31 @@ export class ConversionService {
         try {
           const verificationJob = await this.jobManager.getJob(jobId);
           if (verificationJob && verificationJob.progress !== validProgress) {
-            console.warn(`⚠️ Progress verification failed for job ${jobId}: expected ${validProgress}%, got ${verificationJob.progress}%`);
-            
+            console.warn(
+              `⚠️ Progress verification failed for job ${jobId}: expected ${validProgress}%, got ${verificationJob.progress}%`
+            );
+
             // Attempt one more update
             await this.jobManager.updateProgress(jobId, validProgress);
             console.log(`🔄 Progress re-update attempted for job ${jobId}`);
           } else if (verificationJob) {
-            console.log(`✅ Progress verification successful for job ${jobId}: ${verificationJob.progress}%`);
+            console.log(
+              `✅ Progress verification successful for job ${jobId}: ${verificationJob.progress}%`
+            );
           }
         } catch (verifyError) {
-          console.error(`❌ Progress verification failed for job ${jobId}:`, verifyError);
+          console.error(
+            `❌ Progress verification failed for job ${jobId}:`,
+            verifyError
+          );
         }
       }
-      
     } catch (error) {
-      console.error(`🚨 Critical error in updateProgressWithNotification for job ${jobId}:`, error);
-      
+      console.error(
+        `🚨 Critical error in updateProgressWithNotification for job ${jobId}:`,
+        error
+      );
+
       // 🐛 FIX: Send error notification via WebSocket as fallback
       if (this.wsManager) {
         try {
@@ -331,13 +358,16 @@ export class ConversionService {
             message: 'Progress update failed, but conversion continues',
             suggestion: 'The conversion is still running in the background',
             severity: 'low',
-            canRetry: false
+            canRetry: false,
           });
         } catch (wsError) {
-          console.error(`❌ Failed to send error notification for job ${jobId}:`, wsError);
+          console.error(
+            `❌ Failed to send error notification for job ${jobId}:`,
+            wsError
+          );
         }
       }
-      
+
       // Don't throw the error - allow conversion to continue
     }
   }
@@ -368,7 +398,10 @@ export class ConversionService {
         jobId,
         cacheResult.entry.downloadUrl,
         cacheResult.entry.filename,
-        cacheResult.entry.fileSize
+        undefined, // metadata
+        undefined, // r2Key
+        undefined, // downloadExpiresAt
+        undefined // lockId
       );
 
       // Update cache access statistics
@@ -485,12 +518,17 @@ export class ConversionService {
     try {
       // Race between conversion process and timeout
       await Promise.race([
-        this.performActualConversion(jobId, request),
+        this.performActualConversion(jobId, request, 'legacy'),
         timeoutPromise,
       ]);
     } catch (error) {
       console.error(`Conversion failed for job ${jobId}:`, error);
-      await this.handleConversionError(error as Error, jobId, request);
+      await this.handleConversionError(
+        error as Error,
+        jobId,
+        request,
+        'legacy'
+      );
       throw error;
     }
   }
@@ -500,7 +538,8 @@ export class ConversionService {
    */
   private async performActualConversion(
     jobId: string,
-    request: ConvertRequest
+    request: ConvertRequest,
+    lockId: string
   ): Promise<void> {
     try {
       // Check current job status first
@@ -525,14 +564,9 @@ export class ConversionService {
         }
       }
 
-      // Try to lock job for processing (atomic operation)
-      const lockAcquired = await this.jobManager.startProcessing(jobId);
-      if (!lockAcquired && currentJob.status === 'queued') {
-        console.log(`⚠️ Job ${jobId} could not be locked (race condition)`);
-        return; // Exit gracefully - another instance won the race
-      }
-      console.log(`✅ Job ${jobId} locked for processing`);
-      
+      // Job should already be locked by the caller
+      console.log(`✅ Processing job ${jobId} with lock ID ${lockId}`);
+
       // 🐛 FIX: Send initial progress update to confirm job is starting
       await this.updateProgressWithNotification(jobId, 10, 'processing', {
         currentStep: 'Job started, initializing conversion',
@@ -551,7 +585,10 @@ export class ConversionService {
           recentConversion.file_path || '',
           recentConversion.metadata
             ? JSON.parse(recentConversion.metadata)
-            : undefined
+            : undefined,
+          undefined, // r2Key
+          undefined, // downloadExpiresAt
+          lockId
         );
         return;
       }
@@ -695,14 +732,7 @@ export class ConversionService {
 
       const presignedUpload = await this.presignedUrlManager.generateUploadUrl(
         fileName,
-        contentType,
-        {
-          originalTitle: metadata.title || '',
-          platform: metadata.platform || '',
-          duration: metadata.duration?.toString() || '',
-          format: request.format,
-          quality: request.quality,
-        }
+        contentType
       );
 
       console.log(`✅ Generated presigned upload URL for: ${fileName}`);
@@ -818,8 +848,12 @@ export class ConversionService {
           isYouTube &&
           conversionResponse.error &&
           (String(conversionResponse.error).includes('Sign in to confirm') ||
-            String(conversionResponse.error).includes('temporarily restricted') ||
-            String(conversionResponse.error).includes('This video is not available') ||
+            String(conversionResponse.error).includes(
+              'temporarily restricted'
+            ) ||
+            String(conversionResponse.error).includes(
+              'This video is not available'
+            ) ||
             String(conversionResponse.error).includes('anti-bot'))
         ) {
           console.log('YouTube access restricted, trying bypass endpoint...');
@@ -901,6 +935,7 @@ export class ConversionService {
         });
       } else {
         // 🐛 FIX: Use traditional R2 upload, generate key from filename
+        finalFileName = fileName;
         const r2Key = `converted/${Date.now()}_${finalFileName}`;
         console.log(`✅ File uploaded to R2 with traditional method: ${r2Key}`);
 
@@ -909,7 +944,8 @@ export class ConversionService {
         });
 
         // 🐛 FIX: Use the download URL from conversion response
-        downloadUrl = (resultObj.download_url as string) || `/download/${finalFileName}`;
+        downloadUrl =
+          (resultObj.download_url as string) || `/download/${finalFileName}`;
         console.log(`✅ Using download URL from conversion: ${downloadUrl}`);
 
         await this.updateProgressWithNotification(jobId, 95, 'processing', {
@@ -932,7 +968,8 @@ export class ConversionService {
         finalFileName, // Use the final filename from R2
         metadata,
         r2Key, // Store R2 key for future reference
-        downloadExpiresAt // Store expiration time
+        downloadExpiresAt, // Store expiration time
+        lockId
       );
 
       // Send WebSocket completion notification
@@ -1074,7 +1111,8 @@ export class ConversionService {
   private async handleConversionError(
     error: Error,
     jobId: string,
-    request?: ConvertRequest
+    request?: ConvertRequest,
+    lockId?: string
   ): Promise<void> {
     const errorClassification = this.categorizeError(error);
     const userMessage = this.getUserFriendlyMessage(errorClassification);
@@ -1111,7 +1149,7 @@ export class ConversionService {
     }
 
     // Fail the job with user-friendly message
-    await this.jobManager.failJob(jobId, userMessage);
+    await this.jobManager.failJob(jobId, userMessage, lockId);
 
     // Log alert if required
     if (errorClassification.alertRequired) {
@@ -1345,7 +1383,7 @@ export class ConversionService {
 
     // Retry conversion with lower quality
     try {
-      await this.performActualConversion(jobId, recoveryRequest);
+      await this.performActualConversion(jobId, recoveryRequest, 'recovery');
       return true;
     } catch (error) {
       console.error(`❌ Quality reduction recovery failed: ${error}`);

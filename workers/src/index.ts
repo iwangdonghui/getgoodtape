@@ -6,6 +6,8 @@ import { ConversionService } from './utils/conversion-service';
 import { QueueManager } from './utils/queue-manager';
 import { getWebSocketManager } from './handlers/websocket';
 import { createProgressMonitor } from './utils/progress-monitor';
+import { JobCleanupService } from './utils/job-cleanup-service';
+import { createJobManagementRoutes } from './routes/admin/job-management';
 import type { Env } from './types';
 
 const app = new Hono<{ Bindings: Env }>();
@@ -66,6 +68,12 @@ app.get('/health', c => {
 // API routes
 app.route('/api', router);
 
+// Admin routes for job management
+app.all('/admin/job-management/*', async c => {
+  const jobManagementRoutes = createJobManagementRoutes(c.env);
+  return await jobManagementRoutes.handleRequest(c.req.raw);
+});
+
 // 404 handler
 app.notFound(c => {
   return c.json({ error: 'Not Found' }, 404);
@@ -91,19 +99,39 @@ async function processQueue(env: Env): Promise<void> {
   const conversionService = new ConversionService(env);
   const wsManager = getWebSocketManager(env);
   const progressMonitor = createProgressMonitor(env);
+  const cleanupService = new JobCleanupService(env);
 
   // Set WebSocket manager for real-time updates
   conversionService.setWebSocketManager(wsManager);
 
   try {
-    // 🐛 FIX: Run progress monitoring first to detect and recover stuck jobs
-    console.log('🔍 Running progress monitoring check...');
+    // 🚀 NEW: Run comprehensive job state cleanup first
+    console.log('🧹 Running comprehensive job state cleanup...');
+    const cleanupReport = await cleanupService.performCleanup();
+
+    if (
+      cleanupReport.stuckJobsRecovered > 0 ||
+      cleanupReport.expiredJobsDeleted > 0
+    ) {
+      console.log(
+        `✅ Cleanup completed: ${cleanupReport.stuckJobsRecovered} stuck jobs recovered, ${cleanupReport.expiredJobsDeleted} expired jobs deleted`
+      );
+    }
+
+    if (cleanupReport.errors.length > 0) {
+      console.warn(`⚠️ Cleanup completed with errors:`, cleanupReport.errors);
+    }
+
+    // 🐛 FIX: Run legacy progress monitoring as backup (will be deprecated)
+    console.log('🔍 Running legacy progress monitoring check...');
     const monitoringStats = await progressMonitor.getMonitoringStats();
-    
+
     if (monitoringStats.stuckJobs > 0) {
-      console.log(`🚨 Found ${monitoringStats.stuckJobs} stuck jobs, attempting recovery...`);
+      console.log(
+        `🚨 Legacy monitor found ${monitoringStats.stuckJobs} additional stuck jobs, attempting recovery...`
+      );
       const recoveredJobs = await progressMonitor.forceRecoveryAll();
-      console.log(`✅ Recovered ${recoveredJobs} stuck jobs`);
+      console.log(`✅ Legacy recovery completed: ${recoveredJobs} jobs`);
     }
 
     // Handle timeout jobs first
@@ -146,8 +174,9 @@ async function processQueue(env: Env): Promise<void> {
 
     // 🐛 FIX: Log final monitoring stats after processing
     const finalStats = await progressMonitor.getMonitoringStats();
-    console.log(`📊 Final stats: ${finalStats.processingJobs} processing, ${finalStats.queuedJobs} queued, ${finalStats.stuckJobs} stuck`);
-    
+    console.log(
+      `📊 Final stats: ${finalStats.processingJobs} processing, ${finalStats.queuedJobs} queued, ${finalStats.stuckJobs} stuck`
+    );
   } catch (error) {
     console.error('Queue processing error:', error);
   }
