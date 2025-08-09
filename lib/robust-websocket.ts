@@ -41,6 +41,15 @@ export class RobustWebSocket {
   private lastPingTime: number = 0;
   private isManualClose = false;
 
+  // 🐛 FIX: Enhanced connection recovery and message delivery
+  private messageQueue: any[] = [];
+  private readonly MAX_QUEUE_SIZE = 100;
+  private connectionId: string;
+  private consecutiveFailures = 0;
+  private readonly MAX_CONSECUTIVE_FAILURES = 3;
+  private lastSuccessfulConnection: number = 0;
+  private healthCheckTimer: NodeJS.Timeout | null = null;
+
   constructor(url: string, options: RobustWebSocketOptions = {}) {
     this.url = url;
     this.options = {
@@ -58,7 +67,17 @@ export class RobustWebSocket {
       reconnectAttempts: 0,
     };
 
-    this.log('RobustWebSocket initialized', { url, options: this.options });
+    // 🐛 FIX: Generate unique connection ID for tracking
+    this.connectionId = this.generateConnectionId();
+
+    this.log('RobustWebSocket initialized', {
+      url,
+      options: this.options,
+      connectionId: this.connectionId,
+    });
+
+    // 🐛 FIX: Start periodic health checks
+    this.startHealthCheck();
   }
 
   /**
@@ -89,33 +108,68 @@ export class RobustWebSocket {
    */
   disconnect(): void {
     this.isManualClose = true;
-    this.clearTimers();
+    this.clearAllTimers();
 
     if (this.ws) {
       this.ws.close(1000, 'Manual disconnect');
       this.ws = null;
     }
 
+    // 🐛 FIX: Clear message queue on manual disconnect
+    this.messageQueue = [];
+
     this.updateState({ status: 'disconnected', reconnectAttempts: 0 });
     this.log('Manually disconnected');
   }
 
   /**
-   * Send message
+   * Send message with enhanced error handling and queuing
    */
   send(data: any): boolean {
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      try {
+    try {
+      if (this.ws?.readyState === WebSocket.OPEN) {
         const message = typeof data === 'string' ? data : JSON.stringify(data);
         this.ws.send(message);
-        this.log('Message sent', data);
+        this.log('Message sent successfully', { type: data.type || 'unknown' });
+
+        // 🐛 FIX: Reset consecutive failures on successful send
+        this.consecutiveFailures = 0;
+
+        // 🐛 FIX: Process any queued messages
+        this.processMessageQueue();
+
         return true;
-      } catch (error) {
-        this.log('Failed to send message', error);
-        return false;
+      } else {
+        // 🐛 FIX: Queue message if not connected but connection is being attempted
+        if (
+          this.state.status === 'connecting' ||
+          this.state.status === 'reconnecting'
+        ) {
+          this.queueMessage(data);
+          this.log('Message queued - connection in progress', {
+            type: data.type || 'unknown',
+          });
+          return true; // Return true as message is queued
+        } else {
+          this.log('Cannot send message - not connected', {
+            status: this.state.status,
+            readyState: this.ws?.readyState,
+          });
+          return false;
+        }
       }
-    } else {
-      this.log('Cannot send message - not connected');
+    } catch (error) {
+      this.log('Failed to send message', error);
+      this.consecutiveFailures++;
+
+      // 🐛 FIX: If too many consecutive failures, trigger reconnection
+      if (this.consecutiveFailures >= this.MAX_CONSECUTIVE_FAILURES) {
+        this.log('Too many consecutive send failures, triggering reconnection');
+        this.handleConnectionError(
+          new Error('Multiple send failures detected')
+        );
+      }
+
       return false;
     }
   }
@@ -182,14 +236,23 @@ export class RobustWebSocket {
 
     this.ws.onopen = () => {
       this.clearConnectionTimeout();
+
+      // 🐛 FIX: Record successful connection time
+      this.lastSuccessfulConnection = Date.now();
+      this.consecutiveFailures = 0;
+
       this.updateState({
         status: 'connected',
         reconnectAttempts: 0,
         lastConnected: new Date(),
         lastError: undefined,
       });
+
       this.log('Connected successfully');
       this.startHeartbeat();
+
+      // 🐛 FIX: Process any queued messages
+      this.processMessageQueue();
     };
 
     this.ws.onmessage = event => {
@@ -403,11 +466,151 @@ export class RobustWebSocket {
   }
 
   /**
+   * 🐛 FIX: Queue message for later delivery
+   */
+  private queueMessage(data: any): void {
+    if (this.messageQueue.length >= this.MAX_QUEUE_SIZE) {
+      // Remove oldest message to make room
+      this.messageQueue.shift();
+      this.log('Message queue full, removed oldest message');
+    }
+
+    this.messageQueue.push({
+      data,
+      timestamp: Date.now(),
+      attempts: 0,
+    });
+  }
+
+  /**
+   * 🐛 FIX: Process queued messages when connection is restored
+   */
+  private processMessageQueue(): void {
+    if (
+      this.messageQueue.length === 0 ||
+      this.ws?.readyState !== WebSocket.OPEN
+    ) {
+      return;
+    }
+
+    this.log(`Processing ${this.messageQueue.length} queued messages`);
+
+    const messagesToProcess = [...this.messageQueue];
+    this.messageQueue = [];
+
+    for (const queuedMessage of messagesToProcess) {
+      try {
+        const message =
+          typeof queuedMessage.data === 'string'
+            ? queuedMessage.data
+            : JSON.stringify(queuedMessage.data);
+
+        this.ws!.send(message);
+        this.log('Queued message sent', {
+          type: queuedMessage.data.type || 'unknown',
+        });
+      } catch (error) {
+        this.log('Failed to send queued message', error);
+
+        // 🐛 FIX: Re-queue message if it failed and hasn't exceeded max attempts
+        queuedMessage.attempts++;
+        if (queuedMessage.attempts < 3) {
+          this.messageQueue.push(queuedMessage);
+        } else {
+          this.log('Dropping message after max attempts', queuedMessage.data);
+        }
+      }
+    }
+  }
+
+  /**
+   * 🐛 FIX: Start periodic health checks
+   */
+  private startHealthCheck(): void {
+    this.healthCheckTimer = setInterval(() => {
+      this.performHealthCheck();
+    }, 60000); // Check every minute
+  }
+
+  /**
+   * 🐛 FIX: Perform connection health check
+   */
+  private performHealthCheck(): void {
+    const now = Date.now();
+
+    // Check if connection has been down for too long
+    if (
+      this.state.status === 'disconnected' &&
+      this.lastSuccessfulConnection > 0 &&
+      now - this.lastSuccessfulConnection > 300000
+    ) {
+      // 5 minutes
+      this.log('Connection has been down for too long, attempting recovery');
+      if (!this.isManualClose) {
+        this.connect();
+      }
+    }
+
+    // Check for stale connections
+    if (
+      this.ws?.readyState === WebSocket.OPEN &&
+      this.state.latency &&
+      this.state.latency > 10000
+    ) {
+      // 10 seconds latency
+      this.log('High latency detected, checking connection health');
+      this.send({ type: 'ping', timestamp: Date.now() });
+    }
+  }
+
+  /**
+   * 🐛 FIX: Generate unique connection ID
+   */
+  private generateConnectionId(): string {
+    return `ws_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  /**
+   * 🐛 FIX: Enhanced cleanup method
+   */
+  destroy(): void {
+    this.isManualClose = true;
+    this.clearAllTimers();
+
+    if (this.ws) {
+      this.ws.close(1000, 'Client cleanup');
+      this.ws = null;
+    }
+
+    // Clear all handlers and queues
+    this.messageHandlers.clear();
+    this.stateChangeHandlers = [];
+    this.messageQueue = [];
+
+    this.log('RobustWebSocket destroyed');
+  }
+
+  /**
+   * 🐛 FIX: Clear all timers including health check
+   */
+  private clearAllTimers(): void {
+    this.clearTimers();
+
+    if (this.healthCheckTimer) {
+      clearInterval(this.healthCheckTimer);
+      this.healthCheckTimer = null;
+    }
+  }
+
+  /**
    * Log debug information
    */
   private log(message: string, data?: any): void {
     if (this.options.debug) {
-      console.log(`[RobustWebSocket] ${message}`, data || '');
+      console.log(
+        `[RobustWebSocket:${this.connectionId}] ${message}`,
+        data || ''
+      );
     }
   }
 }

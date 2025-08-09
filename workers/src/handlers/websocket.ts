@@ -327,16 +327,77 @@ export class WebSocketManager {
    */
   broadcastToJob(jobId: string, message: any) {
     const connection = activeConnections.get(jobId);
-    if (
-      connection &&
-      connection.websocket.readyState === WebSocket.OPEN
-    ) {
+    if (connection && connection.websocket.readyState === WebSocket.OPEN) {
       this.sendMessage(connection.websocket, message);
     }
   }
 
   /**
-   * Send progress update to connected clients (FIXED: More robust with error handling)
+   * 🐛 FIX: Send message with retry logic and enhanced error handling
+   */
+  private sendMessageWithRetry(
+    jobId: string,
+    message: any,
+    maxRetries: number = 3
+  ): boolean {
+    const connection = activeConnections.get(jobId);
+
+    if (!connection) {
+      console.warn(`⚠️ WebSocket: No active connection found for job ${jobId}`);
+      return false;
+    }
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Check connection state
+        if (connection.websocket.readyState !== WebSocket.OPEN) {
+          console.warn(
+            `⚠️ WebSocket: Connection not open for job ${jobId} (state: ${connection.websocket.readyState}), attempt ${attempt}/${maxRetries}`
+          );
+
+          // If connection is closing or closed, clean up and return false
+          if (
+            connection.websocket.readyState === WebSocket.CLOSED ||
+            connection.websocket.readyState === WebSocket.CLOSING
+          ) {
+            this.removeConnectionByJobId(jobId);
+            return false;
+          }
+
+          // Skip to next attempt if connecting
+          if (attempt < maxRetries) {
+            continue;
+          }
+
+          return false;
+        }
+
+        // Try to send the message
+        this.sendMessage(connection.websocket, message);
+
+        // Update connection health on successful send
+        this.updateConnectionHealth(connection.websocket);
+
+        return true;
+      } catch (error) {
+        console.error(
+          `❌ WebSocket: Send attempt ${attempt}/${maxRetries} failed for job ${jobId}:`,
+          error
+        );
+
+        // If this is the last attempt, clean up the connection
+        if (attempt === maxRetries) {
+          this.removeConnectionByJobId(jobId);
+          return false;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Send progress update to connected clients (ENHANCED: More robust with retry logic)
    */
   sendProgressUpdate(
     jobId: string,
@@ -347,7 +408,7 @@ export class WebSocketManager {
     try {
       // 🐛 FIX: Validate progress value
       const validProgress = Math.min(100, Math.max(0, Math.round(progress)));
-      
+
       // 🐛 FIX: Add detailed logging for progress updates
       console.log(
         `📊 WebSocket: Sending progress update for job ${jobId}: ${validProgress}% (${status})`
@@ -365,45 +426,38 @@ export class WebSocketManager {
         },
       };
 
-      // 🐛 FIX: Check if connection exists before broadcasting
-      const connection = activeConnections.get(jobId);
-      if (!connection) {
-        console.warn(`⚠️ WebSocket: No active connection found for job ${jobId}`);
-        return;
-      }
+      // 🐛 FIX: Enhanced connection validation and retry logic
+      const success = this.sendMessageWithRetry(jobId, message, 3);
 
-      // 🐛 FIX: Check connection state before sending
-      if (connection.websocket.readyState !== WebSocket.OPEN) {
-        console.warn(`⚠️ WebSocket: Connection not open for job ${jobId} (state: ${connection.websocket.readyState})`);
-        // Clean up stale connection
-        this.removeConnectionByJobId(jobId);
-        return;
+      if (success) {
+        console.log(
+          `📤 WebSocket: Progress update sent successfully for job ${jobId}: ${validProgress}%`
+        );
+      } else {
+        console.warn(
+          `⚠️ WebSocket: Failed to send progress update for job ${jobId} after retries`
+        );
       }
-
-      // Send the message
-      this.broadcastToJob(jobId, message);
-      
-      console.log(
-        `📤 WebSocket: Progress update sent successfully for job ${jobId}: ${validProgress}%`
-      );
-      
-      // 🐛 FIX: Update connection health after successful message
-      this.updateConnectionHealth(connection.websocket);
-      
     } catch (error) {
-      console.error(`❌ WebSocket: Failed to send progress update for job ${jobId}:`, error);
-      
+      console.error(
+        `❌ WebSocket: Failed to send progress update for job ${jobId}:`,
+        error
+      );
+
       // 🐛 FIX: Clean up connection on error
       try {
         this.removeConnectionByJobId(jobId);
       } catch (cleanupError) {
-        console.error(`❌ WebSocket: Failed to cleanup connection for job ${jobId}:`, cleanupError);
+        console.error(
+          `❌ WebSocket: Failed to cleanup connection for job ${jobId}:`,
+          cleanupError
+        );
       }
     }
   }
 
   /**
-   * Send completion notification
+   * Send completion notification (ENHANCED: With retry logic)
    */
   sendCompletion(
     jobId: string,
@@ -430,10 +484,18 @@ export class WebSocketManager {
       },
     };
 
-    this.broadcastToJob(jobId, message);
-    console.log(
-      `📤 WebSocket: Completion notification sent to ${this.getConnectionCountForJob(jobId)} clients`
-    );
+    // 🐛 FIX: Use retry logic for completion notification
+    const success = this.sendMessageWithRetry(jobId, message, 5); // More retries for completion
+
+    if (success) {
+      console.log(
+        `📤 WebSocket: Completion notification sent successfully for job ${jobId}`
+      );
+    } else {
+      console.warn(
+        `⚠️ WebSocket: Failed to send completion notification for job ${jobId}`
+      );
+    }
 
     // 🐛 FIX: Extend cleanup delay to ensure message delivery
     setTimeout(() => {
@@ -441,7 +503,7 @@ export class WebSocketManager {
         `🧹 WebSocket: Cleaning up connections for completed job ${jobId}`
       );
       this.removeConnectionByJobId(jobId);
-    }, 10000); // Keep connection for 10 seconds after completion to ensure message delivery
+    }, 15000); // Keep connection for 15 seconds after completion to ensure message delivery
   }
 
   /**
@@ -472,7 +534,7 @@ export class WebSocketManager {
   }
 
   /**
-   * Send enhanced error message with details and suggestions
+   * Send enhanced error message with details and suggestions (ENHANCED: With retry logic)
    */
   sendEnhancedError(
     jobId: string,
@@ -485,7 +547,7 @@ export class WebSocketManager {
       retryDelay?: number;
     }
   ) {
-    this.broadcastToJob(jobId, {
+    const message = {
       type: 'conversion_error',
       payload: {
         jobId,
@@ -497,14 +559,25 @@ export class WebSocketManager {
         retryDelay: errorDetails.retryDelay,
         timestamp: Date.now(),
       },
-    });
+    };
+
+    // 🐛 FIX: Use retry logic for error notifications
+    const success = this.sendMessageWithRetry(jobId, message, 3);
+
+    if (success) {
+      console.log(`📤 WebSocket: Error notification sent for job ${jobId}`);
+    } else {
+      console.warn(
+        `⚠️ WebSocket: Failed to send error notification for job ${jobId}`
+      );
+    }
   }
 
   /**
-   * Send recovery attempt notification
+   * Send recovery attempt notification (ENHANCED: With retry logic)
    */
   sendRecoveryAttempt(jobId: string, recoveryAction: string, message: string) {
-    this.broadcastToJob(jobId, {
+    const notificationMessage = {
       type: 'recovery_attempt',
       payload: {
         jobId,
@@ -512,35 +585,41 @@ export class WebSocketManager {
         message,
         timestamp: Date.now(),
       },
-    });
+    };
+
+    this.sendMessageWithRetry(jobId, notificationMessage, 2);
   }
 
   /**
-   * Send recovery success notification
+   * Send recovery success notification (ENHANCED: With retry logic)
    */
   sendRecoverySuccess(jobId: string, message: string) {
-    this.broadcastToJob(jobId, {
+    const notificationMessage = {
       type: 'recovery_success',
       payload: {
         jobId,
         message,
         timestamp: Date.now(),
       },
-    });
+    };
+
+    this.sendMessageWithRetry(jobId, notificationMessage, 2);
   }
 
   /**
-   * Send recovery failure notification
+   * Send recovery failure notification (ENHANCED: With retry logic)
    */
   sendRecoveryFailure(jobId: string, message: string) {
-    this.broadcastToJob(jobId, {
+    const notificationMessage = {
       type: 'recovery_failure',
       payload: {
         jobId,
         message,
         timestamp: Date.now(),
       },
-    });
+    };
+
+    this.sendMessageWithRetry(jobId, notificationMessage, 2);
   }
 
   /**
@@ -653,26 +732,36 @@ export class WebSocketManager {
   }
 
   /**
-   * Start periodic health check
+   * Start periodic health check (ENHANCED: With connection quality monitoring)
    */
   private startHealthCheck() {
     this.healthCheckInterval = setInterval(() => {
       this.performHealthCheck();
+      this.monitorConnectionQuality();
     }, this.HEALTH_CHECK_INTERVAL);
   }
 
   /**
-   * Perform health check on all connections
+   * Perform health check on all connections (ENHANCED: With better monitoring)
    */
   private performHealthCheck() {
     const now = Date.now();
     const unhealthyConnections: WebSocket[] = [];
+    const staleConnections: string[] = [];
 
+    // Check connection health
     for (const [websocket, health] of connectionHealth.entries()) {
       // Check if connection is stale (no pong received within timeout)
       if (now - health.lastPong > this.PING_TIMEOUT) {
         health.isHealthy = false;
         unhealthyConnections.push(websocket);
+      }
+    }
+
+    // Check for stale job connections
+    for (const [jobId, connection] of activeConnections.entries()) {
+      if (connection.websocket.readyState !== WebSocket.OPEN) {
+        staleConnections.push(jobId);
       }
     }
 
@@ -687,15 +776,41 @@ export class WebSocketManager {
       connectionHealth.delete(websocket);
     }
 
+    // Clean up stale job connections
+    for (const jobId of staleConnections) {
+      console.log(`🧹 Cleaning up stale connection for job ${jobId}`);
+      this.removeConnectionByJobId(jobId);
+    }
+
+    // 🐛 FIX: Send ping to all healthy connections to maintain them
+    for (const [websocket, health] of connectionHealth.entries()) {
+      if (health.isHealthy && websocket.readyState === WebSocket.OPEN) {
+        try {
+          websocket.send(
+            JSON.stringify({
+              type: 'ping',
+              timestamp: now,
+              connectionId: health.connectionId,
+            })
+          );
+          health.lastPing = now;
+        } catch (error) {
+          console.error('Error sending ping:', error);
+          health.isHealthy = false;
+        }
+      }
+    }
+
     // Log health statistics
     const totalConnections = connectionHealth.size;
     const healthyConnections = Array.from(connectionHealth.values()).filter(
       h => h.isHealthy
     ).length;
+    const activeJobConnections = activeConnections.size;
 
-    if (totalConnections > 0) {
+    if (totalConnections > 0 || activeJobConnections > 0) {
       console.log(
-        `📊 WebSocket Health: ${healthyConnections}/${totalConnections} healthy connections`
+        `📊 WebSocket Health: ${healthyConnections}/${totalConnections} healthy connections, ${activeJobConnections} active jobs`
       );
     }
   }
@@ -852,14 +967,127 @@ export class WebSocketManager {
   }
 
   /**
-   * Graceful shutdown of all connections
+   * 🐛 FIX: Monitor connection quality and trigger recovery if needed
+   */
+  monitorConnectionQuality() {
+    const now = Date.now();
+    const qualityThreshold = 5000; // 5 seconds
+    const connectionsToRecover: string[] = [];
+
+    for (const [jobId, connection] of activeConnections.entries()) {
+      const health = connectionHealth.get(connection.websocket);
+
+      if (health) {
+        // Check if connection has high latency or hasn't responded to pings
+        const timeSinceLastPong = now - health.lastPong;
+        const hasHighLatency =
+          health.lastPing > 0 && timeSinceLastPong > qualityThreshold;
+
+        if (
+          hasHighLatency &&
+          connection.websocket.readyState === WebSocket.OPEN
+        ) {
+          console.warn(
+            `⚠️ WebSocket: Poor connection quality detected for job ${jobId} (${timeSinceLastPong}ms since last pong)`
+          );
+
+          // Send a test message to verify connection
+          try {
+            connection.websocket.send(
+              JSON.stringify({
+                type: 'connection_test',
+                timestamp: now,
+                jobId,
+              })
+            );
+          } catch (error) {
+            console.error(
+              `❌ WebSocket: Connection test failed for job ${jobId}:`,
+              error
+            );
+            connectionsToRecover.push(jobId);
+          }
+        }
+      }
+    }
+
+    // Trigger recovery for problematic connections
+    for (const jobId of connectionsToRecover) {
+      this.triggerConnectionRecovery(jobId);
+    }
+  }
+
+  /**
+   * 🐛 FIX: Trigger connection recovery for a specific job
+   */
+  private triggerConnectionRecovery(jobId: string) {
+    console.log(
+      `🔄 WebSocket: Triggering connection recovery for job ${jobId}`
+    );
+
+    const connection = activeConnections.get(jobId);
+    if (connection) {
+      // Send recovery notification to client
+      try {
+        connection.websocket.send(
+          JSON.stringify({
+            type: 'connection_recovery',
+            payload: {
+              jobId,
+              message: 'Connection quality degraded, please refresh if needed',
+              timestamp: Date.now(),
+            },
+          })
+        );
+      } catch (error) {
+        console.error(
+          `❌ WebSocket: Failed to send recovery notification for job ${jobId}:`,
+          error
+        );
+        // Clean up the connection if we can't even send a recovery message
+        this.removeConnectionByJobId(jobId);
+      }
+    }
+  }
+
+  /**
+   * Graceful shutdown of all connections (ENHANCED: Better cleanup)
    */
   async gracefulShutdown() {
     console.log('🔄 Starting graceful WebSocket shutdown...');
 
     const shutdownPromises: Promise<void>[] = [];
 
-    // Close all active connections
+    // Close all active job connections first
+    for (const [jobId, connection] of activeConnections.entries()) {
+      shutdownPromises.push(
+        new Promise<void>(resolve => {
+          try {
+            if (connection.websocket.readyState === WebSocket.OPEN) {
+              // Send shutdown notification
+              connection.websocket.send(
+                JSON.stringify({
+                  type: 'server_shutdown',
+                  payload: {
+                    message: 'Server is shutting down, please reconnect',
+                    timestamp: Date.now(),
+                  },
+                })
+              );
+
+              // Close connection
+              connection.websocket.close(1001, 'Server shutdown');
+            }
+            resolve();
+          } catch (error) {
+            console.error(`Error closing connection for job ${jobId}:`, error);
+            resolve();
+          }
+        })
+      );
+    }
+
+    // Close all other connections
     for (const [id, websocket] of this.connections.entries()) {
       shutdownPromises.push(
         new Promise<void>(resolve => {

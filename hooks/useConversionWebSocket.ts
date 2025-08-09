@@ -72,6 +72,7 @@ export function useConversionWebSocket(): ConversionState & ConversionActions {
   const validationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleWebSocketMessage = useCallback((message: any) => {
+    console.log('📨 WebSocket message received:', message);
     const { type, payload } = message;
 
     switch (type) {
@@ -81,10 +82,12 @@ export function useConversionWebSocket(): ConversionState & ConversionActions {
           jobId: payload.jobId,
           status: payload.status,
           progress: payload.progress,
+          error: null,
         }));
         break;
 
       case 'conversion_progress':
+      case 'progress_update':
         setState(prev => ({
           ...prev,
           progress: payload.progress,
@@ -93,6 +96,7 @@ export function useConversionWebSocket(): ConversionState & ConversionActions {
         break;
 
       case 'conversion_complete':
+      case 'conversion_completed':
         setState(prev => ({
           ...prev,
           status: 'completed',
@@ -106,14 +110,16 @@ export function useConversionWebSocket(): ConversionState & ConversionActions {
         break;
 
       case 'conversion_error':
+      case 'conversion_failed':
         setState(prev => ({
           ...prev,
           status: 'failed',
-          error: payload.error,
+          error: payload.error || payload.message,
         }));
         break;
 
       case 'recovery_attempt':
+        console.log('🔄 Recovery attempt:', payload.message);
         setState(prev => ({
           ...prev,
           status: 'processing',
@@ -122,6 +128,7 @@ export function useConversionWebSocket(): ConversionState & ConversionActions {
         break;
 
       case 'recovery_success':
+        console.log('✅ Recovery success:', payload.message);
         setState(prev => ({
           ...prev,
           status: 'processing',
@@ -130,10 +137,47 @@ export function useConversionWebSocket(): ConversionState & ConversionActions {
         break;
 
       case 'recovery_failure':
+        console.log('❌ Recovery failure:', payload.message);
         setState(prev => ({
           ...prev,
           status: 'failed',
           error: payload.message || 'Recovery failed',
+        }));
+        break;
+
+      // 🐛 FIX: Handle new connection management message types
+      case 'connection_recovery':
+        console.log('🔄 Connection recovery suggested:', payload.message);
+        // Could trigger a UI notification here
+        break;
+
+      case 'connection_test':
+        // Respond to connection test
+        if (robustWsRef.current?.isConnected()) {
+          robustWsRef.current.send({
+            type: 'connection_test_response',
+            timestamp: Date.now(),
+            jobId: payload.jobId,
+          });
+        }
+        break;
+
+      case 'server_shutdown':
+        console.log('🔄 Server shutdown notification:', payload.message);
+        setState(prev => ({
+          ...prev,
+          error: 'Server is restarting, please refresh the page',
+        }));
+        break;
+
+      case 'pong':
+        // Handle pong response (already handled by RobustWebSocket)
+        break;
+
+      case 'error':
+        setState(prev => ({
+          ...prev,
+          error: payload.error,
         }));
         break;
 

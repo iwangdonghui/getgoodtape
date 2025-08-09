@@ -50,7 +50,8 @@
     "react-dom": "^18.2.0",
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
-    "typescript": "^5.2.2"
+    "typescript": "^5.2.2",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@tailwindcss/line-clamp": "^0.4.4",
