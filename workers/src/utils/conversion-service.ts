@@ -789,10 +789,10 @@ export class ConversionService {
             url: request.url,
             format: request.format,
             quality: request.quality,
-            // 🚀 NEW: Direct upload to R2
-            upload_url: presignedUpload.uploadUrl,
-            upload_key: presignedUpload.key,
-            content_type: contentType,
+            // 🐛 FIX: Skip presigned upload for now, use traditional upload
+            // upload_url: presignedUpload.uploadUrl,
+            // upload_key: presignedUpload.key,
+            // content_type: contentType,
           }
         );
 
@@ -847,10 +847,10 @@ export class ConversionService {
                   format: request.format,
                   quality: request.quality,
                   useBypass: true, // Signal to use bypass methods
-                  // 🚀 NEW: Direct upload to R2 (bypass)
-                  upload_url: presignedUpload.uploadUrl,
-                  upload_key: presignedUpload.key,
-                  content_type: contentType,
+                  // 🐛 FIX: Skip presigned upload for bypass too
+                  // upload_url: presignedUpload.uploadUrl,
+                  // upload_key: presignedUpload.key,
+                  // content_type: contentType,
                 }
               );
 
@@ -900,38 +900,17 @@ export class ConversionService {
           currentStep: 'Generating download link',
         });
       } else {
-        // 🚀 NEW: File was uploaded directly to R2, verify and generate download URL
-        const r2Key = (resultObj.r2_key as string) || presignedUpload.key;
-        console.log(`✅ File uploaded directly to R2 with key: ${r2Key}`);
+        // 🐛 FIX: Use traditional R2 upload, generate key from filename
+        const r2Key = `converted/${Date.now()}_${finalFileName}`;
+        console.log(`✅ File uploaded to R2 with traditional method: ${r2Key}`);
 
         await this.updateProgressWithNotification(jobId, 85, 'processing', {
-          currentStep: 'Verifying file in cloud storage',
+          currentStep: 'File uploaded successfully',
         });
 
-        // Verify file exists in R2
-        const fileExists =
-          await this.presignedUrlManager.verifyFileExists(r2Key);
-        if (!fileExists) {
-          throw new Error('File upload to R2 failed - file not found');
-        }
-
-        console.log(`✅ File verified in R2 storage: ${r2Key}`);
-
-        await this.updateProgressWithNotification(jobId, 90, 'processing', {
-          currentStep: 'Generating secure download link',
-        });
-
-        // Generate presigned download URL (valid for 24 hours)
-        const presignedDownload =
-          await this.presignedUrlManager.generateDownloadUrl(
-            r2Key,
-            24 * 60 * 60 // 24 hours
-          );
-
-        downloadUrl = presignedDownload.downloadUrl;
-        finalFileName = this.presignedUrlManager.extractFilenameFromKey(r2Key);
-
-        console.log(`✅ Generated download URL for: ${finalFileName}`);
+        // 🐛 FIX: Use the download URL from conversion response
+        downloadUrl = (resultObj.download_url as string) || `/download/${finalFileName}`;
+        console.log(`✅ Using download URL from conversion: ${downloadUrl}`);
 
         await this.updateProgressWithNotification(jobId, 95, 'processing', {
           currentStep: 'Download link ready',

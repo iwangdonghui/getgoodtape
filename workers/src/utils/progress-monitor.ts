@@ -23,7 +23,7 @@ export class ProgressMonitor {
   private env: Env;
   private jobManager: JobManager;
   private conversionService: ConversionService;
-  private monitoringInterval: any | null = null;
+  private monitoringInterval: ReturnType<typeof setInterval> | null = null;
   private isMonitoring = false;
 
   // Configuration

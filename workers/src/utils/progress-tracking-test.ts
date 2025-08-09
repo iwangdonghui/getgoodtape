@@ -183,7 +183,7 @@ export class ProgressTrackingTest {
       let lastProgress = 0;
 
       const mockWsManager = {
-        sendProgressUpdate: (jobId: string, progress: number, status: string, additionalData?: any) => {
+        sendProgressUpdate: (jobId: string, progress: number) => {
           notificationReceived = true;
           lastProgress = progress;
           console.log(`📤 Mock WebSocket: Progress ${progress}% for job ${jobId}`);
