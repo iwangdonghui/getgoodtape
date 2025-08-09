@@ -22,20 +22,20 @@ primary_region = "nrt"  # Tokyo region for better Asia connectivity
 
   [http_service.concurrency]
     type = "requests"
-    hard_limit = 50
-    soft_limit = 40
+    hard_limit = 25
+    soft_limit = 20
 
   [[http_service.checks]]
     interval = "30s"
-    timeout = "10s"
-    grace_period = "10s"
+    timeout = "20s"
+    grace_period = "15s"
     method = "GET"
     path = "/health"
 
 [[vm]]
   cpu_kind = "shared"
   cpus = 2
-  memory_mb = 2048
+  memory_mb = 4096
 
 [metrics]
   port = 9091
@@ -46,7 +46,7 @@ primary_region = "nrt"  # Tokyo region for better Asia connectivity
 # Auto-scaling configuration
 [scaling]
   min_machines = 2
-  max_machines = 5
+  max_machines = 8
 
 # Restart policy
 [[restart]]

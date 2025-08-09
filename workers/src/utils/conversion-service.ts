@@ -396,7 +396,7 @@ export class ConversionService {
     );
 
     // Set up timeout for the entire conversion process (5 minutes)
-    const CONVERSION_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+    const CONVERSION_TIMEOUT = 10 * 60 * 1000; // 10 minutes
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => {
         reject(
@@ -657,6 +657,49 @@ export class ConversionService {
           currentStep: 'Downloading and converting video',
         });
 
+        // 🚀 NEW: Check for YouTube access restrictions before conversion
+        const isYouTube =
+          request.url.includes('youtube.com') ||
+          request.url.includes('youtu.be');
+        if (isYouTube) {
+          console.log('🔍 YouTube URL detected, checking access...');
+
+          // Quick test to see if YouTube is accessible
+          try {
+            const testResponse = await this.callProcessingService(
+              `${processingServiceUrl}/extract-metadata`,
+              { url: request.url }
+            );
+
+            if (
+              !testResponse.success &&
+              testResponse.error &&
+              (testResponse.error.toString().includes('restricted') ||
+                testResponse.error.toString().includes('Sign in to confirm'))
+            ) {
+              console.log('❌ YouTube access restricted, failing fast');
+              throw new Error(
+                'YouTube access is currently restricted from our servers. ' +
+                  'This is a temporary limitation. Please try:\n' +
+                  '• Using videos from other platforms (TikTok, Instagram, Twitter)\n' +
+                  '• Trying again in a few minutes\n' +
+                  '• Using a different YouTube video'
+              );
+            }
+          } catch (testError) {
+            console.log('⚠️ YouTube access test failed:', testError);
+            // If it's a timeout or network error, continue with conversion attempt
+            if (
+              testError instanceof Error &&
+              !testError.message.includes('restricted')
+            ) {
+              console.log('🔄 Continuing with conversion despite test failure');
+            } else {
+              throw testError;
+            }
+          }
+        }
+
         // Call processing service with presigned upload URL
         conversionResponse = await this.callProcessingService(
           `${processingServiceUrl}/convert`,
@@ -886,7 +929,7 @@ export class ConversionService {
 
     // Create AbortController for timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes timeout for video processing
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minutes timeout for video processing
 
     try {
       console.log(`Making fetch request to: ${url}`);
