@@ -7,6 +7,7 @@ import { StorageManager } from '../utils/storage';
 import { QueueManager } from '../utils/queue-manager';
 import { FileCleanupService } from '../utils/file-cleanup';
 import { getWebSocketManager } from './websocket';
+import { createProgressMonitor } from '../utils/progress-monitor';
 import { ErrorType, ConvertRequest, Env } from '../types';
 
 /**
@@ -1338,7 +1339,8 @@ router.post('/test-presigned-url', async c => {
     const uploadUrl = await presignedUrlManager.generateUploadUrl(
       filename,
       contentType,
-      { test: 'true' }
+      { test: 'true' },
+      3600
     );
 
     // Generate download URL (using the same key)
@@ -1359,6 +1361,145 @@ router.post('/test-presigned-url', async c => {
         error: {
           type: ErrorType.SERVER_ERROR,
           message: 'Failed to generate presigned URLs',
+          retryable: true,
+        },
+      },
+      500
+    );
+  }
+});
+
+// 🐛 FIX: Progress monitoring endpoints for debugging stuck jobs
+router.get('/admin/progress/stats', async c => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader || authHeader !== `Bearer ${c.env.ADMIN_TOKEN}`) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const progressMonitor = createProgressMonitor(c.env);
+    const stats = await progressMonitor.getMonitoringStats();
+
+    return c.json({
+      success: true,
+      stats,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Progress stats endpoint error:', error);
+    return c.json(
+      {
+        error: {
+          type: ErrorType.SERVER_ERROR,
+          message: 'Failed to get progress stats',
+          retryable: true,
+        },
+      },
+      500
+    );
+  }
+});
+
+router.get('/admin/progress/report', async c => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader || authHeader !== `Bearer ${c.env.ADMIN_TOKEN}`) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const progressMonitor = createProgressMonitor(c.env);
+    const report = await progressMonitor.getDetailedReport();
+
+    return c.json({
+      success: true,
+      report,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Progress report endpoint error:', error);
+    return c.json(
+      {
+        error: {
+          type: ErrorType.SERVER_ERROR,
+          message: 'Failed to generate progress report',
+          retryable: true,
+        },
+      },
+      500
+    );
+  }
+});
+
+router.post('/admin/progress/recover', async c => {
+  try {
+    const authHeader = c.req.header('Authorization');
+    if (!authHeader || authHeader !== `Bearer ${c.env.ADMIN_TOKEN}`) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const progressMonitor = createProgressMonitor(c.env);
+    const recoveredCount = await progressMonitor.forceRecoveryAll();
+
+    return c.json({
+      success: true,
+      recoveredJobs: recoveredCount,
+      message: `Successfully recovered ${recoveredCount} stuck jobs`,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Progress recovery endpoint error:', error);
+    return c.json(
+      {
+        error: {
+          type: ErrorType.SERVER_ERROR,
+          message: 'Failed to recover stuck jobs',
+          retryable: true,
+        },
+      },
+      500
+    );
+  }
+});
+
+// 🐛 FIX: Debug endpoint to test progress tracking
+router.post('/debug/test-progress', async c => {
+  try {
+    // Only allow in development environment
+    if (c.env.ENVIRONMENT !== 'development') {
+      return c.json({ error: 'Only available in development' }, 403);
+    }
+
+    const body = await c.req.json() as { url?: string; format?: string; quality?: string };
+    const testUrl = body.url || 'https://test.example.com/debug-progress';
+    const testFormat = body.format || 'mp3';
+    const testQuality = body.quality || 'high';
+
+    const conversionService = new ConversionService(c.env);
+    const wsManager = getWebSocketManager(c.env);
+    conversionService.setWebSocketManager(wsManager);
+
+    // Start a test conversion to verify progress tracking
+    const jobId = await conversionService.startConversion({
+      url: testUrl,
+      format: testFormat as 'mp3' | 'mp4',
+      quality: testQuality,
+      platform: 'test'
+    });
+
+    return c.json({
+      success: true,
+      jobId,
+      message: 'Test conversion started - check progress via WebSocket or status endpoint',
+      statusEndpoint: `/api/status/${jobId}`,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Debug progress test error:', error);
+    return c.json(
+      {
+        error: {
+          type: ErrorType.SERVER_ERROR,
+          message: 'Failed to start test conversion',
           retryable: true,
         },
       },

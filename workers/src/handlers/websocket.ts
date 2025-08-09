@@ -49,7 +49,7 @@ export class WebSocketManager {
   private jobManager: JobManager;
   private connections = new Map<string, WebSocket>();
   private jobSubscriptions = new Map<string, Set<WebSocket>>();
-  private healthCheckInterval: NodeJS.Timeout | null = null;
+  private healthCheckInterval: number | null = null;
   private readonly HEALTH_CHECK_INTERVAL = 60000; // 1 minute
   private readonly PING_TIMEOUT = 30000; // 30 seconds
 
@@ -329,14 +329,14 @@ export class WebSocketManager {
     const connection = activeConnections.get(jobId);
     if (
       connection &&
-      connection.websocket.readyState === WebSocket.READY_STATE_OPEN
+      connection.websocket.readyState === WebSocket.OPEN
     ) {
       this.sendMessage(connection.websocket, message);
     }
   }
 
   /**
-   * Send progress update to connected clients
+   * Send progress update to connected clients (FIXED: More robust with error handling)
    */
   sendProgressUpdate(
     jobId: string,
@@ -344,26 +344,62 @@ export class WebSocketManager {
     status: string,
     additionalData?: any
   ) {
-    // 🐛 FIX: Add detailed logging for progress updates
-    console.log(
-      `📊 WebSocket: Sending progress update for job ${jobId}: ${progress}% (${status})`
-    );
+    try {
+      // 🐛 FIX: Validate progress value
+      const validProgress = Math.min(100, Math.max(0, Math.round(progress)));
+      
+      // 🐛 FIX: Add detailed logging for progress updates
+      console.log(
+        `📊 WebSocket: Sending progress update for job ${jobId}: ${validProgress}% (${status})`
+      );
 
-    const message = {
-      type: 'progress_update',
-      payload: {
-        jobId,
-        progress,
-        status,
-        timestamp: Date.now(),
-        ...additionalData,
-      },
-    };
+      const message = {
+        type: 'progress_update',
+        payload: {
+          jobId,
+          progress: validProgress,
+          status,
+          timestamp: Date.now(),
+          serverTime: new Date().toISOString(),
+          ...additionalData,
+        },
+      };
 
-    this.broadcastToJob(jobId, message);
-    console.log(
-      `📤 WebSocket: Progress update sent to ${this.getConnectionCountForJob(jobId)} clients`
-    );
+      // 🐛 FIX: Check if connection exists before broadcasting
+      const connection = activeConnections.get(jobId);
+      if (!connection) {
+        console.warn(`⚠️ WebSocket: No active connection found for job ${jobId}`);
+        return;
+      }
+
+      // 🐛 FIX: Check connection state before sending
+      if (connection.websocket.readyState !== WebSocket.OPEN) {
+        console.warn(`⚠️ WebSocket: Connection not open for job ${jobId} (state: ${connection.websocket.readyState})`);
+        // Clean up stale connection
+        this.removeConnectionByJobId(jobId);
+        return;
+      }
+
+      // Send the message
+      this.broadcastToJob(jobId, message);
+      
+      console.log(
+        `📤 WebSocket: Progress update sent successfully for job ${jobId}: ${validProgress}%`
+      );
+      
+      // 🐛 FIX: Update connection health after successful message
+      this.updateConnectionHealth(connection.websocket);
+      
+    } catch (error) {
+      console.error(`❌ WebSocket: Failed to send progress update for job ${jobId}:`, error);
+      
+      // 🐛 FIX: Clean up connection on error
+      try {
+        this.removeConnectionByJobId(jobId);
+      } catch (cleanupError) {
+        console.error(`❌ WebSocket: Failed to cleanup connection for job ${jobId}:`, cleanupError);
+      }
+    }
   }
 
   /**
@@ -413,7 +449,7 @@ export class WebSocketManager {
    */
   private sendError(websocket: WebSocket, error: string) {
     try {
-      if (websocket.readyState === WebSocket.READY_STATE_OPEN) {
+      if (websocket.readyState === WebSocket.OPEN) {
         this.sendMessage(websocket, {
           type: 'error',
           payload: { error },
@@ -514,7 +550,7 @@ export class WebSocketManager {
     const connectionId = (websocket as any).__connectionId || 'unknown';
 
     try {
-      if (websocket.readyState === WebSocket.READY_STATE_OPEN) {
+      if (websocket.readyState === WebSocket.OPEN) {
         const messageStr = JSON.stringify(message);
         websocket.send(messageStr);
 
@@ -529,8 +565,8 @@ export class WebSocketManager {
 
         // Clean up connection if it's in a bad state
         if (
-          websocket.readyState === WebSocket.READY_STATE_CLOSED ||
-          websocket.readyState === WebSocket.READY_STATE_CLOSING
+          websocket.readyState === WebSocket.CLOSED ||
+          websocket.readyState === WebSocket.CLOSING
         ) {
           this.removeConnection(websocket);
         }
@@ -547,7 +583,7 @@ export class WebSocketManager {
 
       // Try to close the connection gracefully
       try {
-        if (websocket.readyState === WebSocket.READY_STATE_OPEN) {
+        if (websocket.readyState === WebSocket.OPEN) {
           websocket.close(1011, 'Message send error');
         }
       } catch (closeError) {
@@ -588,7 +624,7 @@ export class WebSocketManager {
    */
   cleanupStaleConnections() {
     for (const [jobId, connection] of activeConnections.entries()) {
-      if (connection.websocket.readyState !== WebSocket.READY_STATE_OPEN) {
+      if (connection.websocket.readyState !== WebSocket.OPEN) {
         activeConnections.delete(jobId);
         connectionHealth.delete(connection.websocket);
       }
@@ -798,7 +834,7 @@ export class WebSocketManager {
 
     try {
       // Close WebSocket if still open
-      if (websocket.readyState === WebSocket.READY_STATE_OPEN) {
+      if (websocket.readyState === WebSocket.OPEN) {
         websocket.close(1000, 'Server cleanup');
       }
 
@@ -828,7 +864,7 @@ export class WebSocketManager {
       shutdownPromises.push(
         new Promise<void>(resolve => {
           try {
-            if (websocket.readyState === WebSocket.READY_STATE_OPEN) {
+            if (websocket.readyState === WebSocket.OPEN) {
               websocket.close(1001, 'Server shutdown');
             }
             resolve();

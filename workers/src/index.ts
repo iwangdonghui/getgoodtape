@@ -5,6 +5,7 @@ import { router } from './handlers/router';
 import { ConversionService } from './utils/conversion-service';
 import { QueueManager } from './utils/queue-manager';
 import { getWebSocketManager } from './handlers/websocket';
+import { createProgressMonitor } from './utils/progress-monitor';
 import type { Env } from './types';
 
 const app = new Hono<{ Bindings: Env }>();
@@ -33,7 +34,7 @@ app.use(
       }
 
       // For development environments, be more permissive
-      if (process.env.NODE_ENV === 'development') {
+      if (origin?.includes('localhost') || origin?.includes('127.0.0.1')) {
         return origin || '*';
       }
 
@@ -89,11 +90,22 @@ async function processQueue(env: Env): Promise<void> {
   const queueManager = new QueueManager(env);
   const conversionService = new ConversionService(env);
   const wsManager = getWebSocketManager(env);
+  const progressMonitor = createProgressMonitor(env);
 
   // Set WebSocket manager for real-time updates
   conversionService.setWebSocketManager(wsManager);
 
   try {
+    // 🐛 FIX: Run progress monitoring first to detect and recover stuck jobs
+    console.log('🔍 Running progress monitoring check...');
+    const monitoringStats = await progressMonitor.getMonitoringStats();
+    
+    if (monitoringStats.stuckJobs > 0) {
+      console.log(`🚨 Found ${monitoringStats.stuckJobs} stuck jobs, attempting recovery...`);
+      const recoveredJobs = await progressMonitor.forceRecoveryAll();
+      console.log(`✅ Recovered ${recoveredJobs} stuck jobs`);
+    }
+
     // Handle timeout jobs first
     await queueManager.handleTimeoutJobs();
 
@@ -131,6 +143,11 @@ async function processQueue(env: Env): Promise<void> {
 
     // Clean up stale WebSocket connections
     wsManager.cleanupStaleConnections();
+
+    // 🐛 FIX: Log final monitoring stats after processing
+    const finalStats = await progressMonitor.getMonitoringStats();
+    console.log(`📊 Final stats: ${finalStats.processingJobs} processing, ${finalStats.queuedJobs} queued, ${finalStats.stuckJobs} stuck`);
+    
   } catch (error) {
     console.error('Queue processing error:', error);
   }

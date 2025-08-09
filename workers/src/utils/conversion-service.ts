@@ -228,7 +228,7 @@ export class ConversionService {
 
       // Update database with new URL and expiration
       const newExpirationTime = Date.now() + 24 * 60 * 60 * 1000;
-      await this.dbManager.updateJob(jobId, {
+      await this.dbManager.updateConversionJob(jobId, {
         download_url: presignedDownload.downloadUrl,
         download_expires_at: Math.floor(newExpirationTime / 1000),
         updated_at: Date.now(),
@@ -243,7 +243,7 @@ export class ConversionService {
   }
 
   /**
-   * Update progress with WebSocket notification
+   * Update progress with WebSocket notification (FIXED: Atomic and robust)
    */
   private async updateProgressWithNotification(
     jobId: string,
@@ -251,17 +251,94 @@ export class ConversionService {
     status?: string,
     additionalData?: Record<string, unknown>
   ) {
-    // Update database
-    await this.jobManager.updateProgress(jobId, progress);
+    try {
+      // 🐛 FIX: Ensure progress is within valid range
+      const validProgress = Math.min(100, Math.max(0, Math.round(progress)));
+      
+      console.log(`📊 Updating progress for job ${jobId}: ${validProgress}% (${status || 'processing'})`);
+      
+      // 🐛 FIX: Use atomic database update with retry logic
+      let updateSuccess = false;
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (!updateSuccess && retryCount < maxRetries) {
+        try {
+          // Update database with atomic operation
+          await this.jobManager.updateProgress(jobId, validProgress);
+          updateSuccess = true;
+          console.log(`✅ Database progress update successful for job ${jobId}: ${validProgress}%`);
+        } catch (dbError) {
+          retryCount++;
+          console.error(`❌ Database progress update failed (attempt ${retryCount}/${maxRetries}) for job ${jobId}:`, dbError);
+          
+          if (retryCount < maxRetries) {
+            // Wait before retry with exponential backoff
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 100));
+          } else {
+            // Log final failure but don't throw - continue with WebSocket notification
+            console.error(`🚨 Final database progress update failure for job ${jobId} after ${maxRetries} attempts`);
+          }
+        }
+      }
 
-    // Send WebSocket notification if manager is available
-    if (this.wsManager) {
-      this.wsManager.sendProgressUpdate(
-        jobId,
-        progress,
-        status || 'processing',
-        additionalData
-      );
+      // 🐛 FIX: Always send WebSocket notification, even if database update failed
+      if (this.wsManager) {
+        try {
+          this.wsManager.sendProgressUpdate(
+            jobId,
+            validProgress,
+            status || 'processing',
+            {
+              ...additionalData,
+              dbUpdateSuccess: updateSuccess,
+              timestamp: Date.now()
+            }
+          );
+          console.log(`📤 WebSocket progress notification sent for job ${jobId}: ${validProgress}%`);
+        } catch (wsError) {
+          console.error(`❌ WebSocket progress notification failed for job ${jobId}:`, wsError);
+        }
+      } else {
+        console.warn(`⚠️ WebSocket manager not available for job ${jobId} progress update`);
+      }
+
+      // 🐛 FIX: Verify the update was persisted correctly
+      if (updateSuccess) {
+        try {
+          const verificationJob = await this.jobManager.getJob(jobId);
+          if (verificationJob && verificationJob.progress !== validProgress) {
+            console.warn(`⚠️ Progress verification failed for job ${jobId}: expected ${validProgress}%, got ${verificationJob.progress}%`);
+            
+            // Attempt one more update
+            await this.jobManager.updateProgress(jobId, validProgress);
+            console.log(`🔄 Progress re-update attempted for job ${jobId}`);
+          } else if (verificationJob) {
+            console.log(`✅ Progress verification successful for job ${jobId}: ${verificationJob.progress}%`);
+          }
+        } catch (verifyError) {
+          console.error(`❌ Progress verification failed for job ${jobId}:`, verifyError);
+        }
+      }
+      
+    } catch (error) {
+      console.error(`🚨 Critical error in updateProgressWithNotification for job ${jobId}:`, error);
+      
+      // 🐛 FIX: Send error notification via WebSocket as fallback
+      if (this.wsManager) {
+        try {
+          this.wsManager.sendEnhancedError(jobId, {
+            message: 'Progress update failed, but conversion continues',
+            suggestion: 'The conversion is still running in the background',
+            severity: 'low',
+            canRetry: false
+          });
+        } catch (wsError) {
+          console.error(`❌ Failed to send error notification for job ${jobId}:`, wsError);
+        }
+      }
+      
+      // Don't throw the error - allow conversion to continue
     }
   }
 
@@ -455,6 +532,11 @@ export class ConversionService {
         return; // Exit gracefully - another instance won the race
       }
       console.log(`✅ Job ${jobId} locked for processing`);
+      
+      // 🐛 FIX: Send initial progress update to confirm job is starting
+      await this.updateProgressWithNotification(jobId, 10, 'processing', {
+        currentStep: 'Job started, initializing conversion',
+      });
 
       // 检查是否有最近的相同URL转换结果
       const recentConversion = await this.dbManager.findRecentConversionByUrl(
@@ -734,10 +816,11 @@ export class ConversionService {
 
         if (
           isYouTube &&
-          (conversionResponse.error?.includes('Sign in to confirm') ||
-            conversionResponse.error?.includes('temporarily restricted') ||
-            conversionResponse.error?.includes('This video is not available') ||
-            conversionResponse.error?.includes('anti-bot'))
+          conversionResponse.error &&
+          (String(conversionResponse.error).includes('Sign in to confirm') ||
+            String(conversionResponse.error).includes('temporarily restricted') ||
+            String(conversionResponse.error).includes('This video is not available') ||
+            String(conversionResponse.error).includes('anti-bot'))
         ) {
           console.log('YouTube access restricted, trying bypass endpoint...');
           await this.updateProgressWithNotification(jobId, 50, 'processing', {
@@ -863,6 +946,7 @@ export class ConversionService {
 
       // 🚀 OPTIMIZED: Store download URL with expiration and R2 key
       const downloadExpiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24 hours from now
+      const r2Key = (resultObj.r2_key as string) || presignedUpload.key;
       const completionSuccess = await this.jobManager.completeJob(
         jobId,
         downloadUrl,
@@ -893,7 +977,7 @@ export class ConversionService {
             r2Key,
             downloadUrl,
             finalFileName,
-            metadata?.fileSize,
+            resultObj.file_size as number,
             metadata?.duration
           );
           console.log(`💾 Conversion result cached for: ${request.url}`);

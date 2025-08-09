@@ -104,14 +104,42 @@ export class DatabaseManager {
 
     if (fields.length === 0) return;
 
-    const setClause = fields.map(field => `${field} = ?`).join(', ');
-    const stmt = this.env.DB.prepare(`
-      UPDATE conversion_jobs
-      SET ${setClause}, updated_at = ?
-      WHERE id = ?
-    `);
+    // 🐛 FIX: Add retry logic for database updates
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    while (retryCount < maxRetries) {
+      try {
+        const setClause = fields.map(field => `${field} = ?`).join(', ');
+        const stmt = this.env.DB.prepare(`
+          UPDATE conversion_jobs
+          SET ${setClause}, updated_at = ?
+          WHERE id = ?
+        `);
 
-    await stmt.bind(...values, now, id).run();
+        const result = await stmt.bind(...values, now, id).run();
+        
+        // 🐛 FIX: Verify the update was successful
+        if (result.meta.changes === 0) {
+          console.warn(`⚠️ Database update for job ${id} affected 0 rows - job may not exist`);
+        } else {
+          console.log(`✅ Database update successful for job ${id} (${result.meta.changes} rows affected)`);
+        }
+        
+        return; // Success, exit retry loop
+        
+      } catch (error) {
+        retryCount++;
+        console.error(`❌ Database update failed (attempt ${retryCount}/${maxRetries}) for job ${id}:`, error);
+        
+        if (retryCount >= maxRetries) {
+          throw new Error(`Database update failed after ${maxRetries} attempts: ${error}`);
+        }
+        
+        // Wait before retry with exponential backoff
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 100));
+      }
+    }
   }
 
   /**

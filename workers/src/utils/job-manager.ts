@@ -143,12 +143,45 @@ export class JobManager {
   }
 
   /**
-   * Update job progress
+   * Update job progress (FIXED: More robust with validation and error handling)
    */
   async updateProgress(jobId: string, progress: number): Promise<void> {
-    await this.updateJob(jobId, {
-      progress: Math.min(100, Math.max(0, progress)),
-    });
+    try {
+      // 🐛 FIX: Validate progress value
+      const validProgress = Math.min(100, Math.max(0, Math.round(progress)));
+      
+      console.log(`📊 JobManager: Updating progress for job ${jobId} to ${validProgress}%`);
+      
+      // 🐛 FIX: Check if job exists before updating
+      const existingJob = await this.getJob(jobId);
+      if (!existingJob) {
+        throw new Error(`Job ${jobId} not found - cannot update progress`);
+      }
+      
+      // 🐛 FIX: Don't update progress if job is already completed or failed
+      if (existingJob.status === 'completed' || existingJob.status === 'failed') {
+        console.warn(`⚠️ Skipping progress update for job ${jobId} - job is ${existingJob.status}`);
+        return;
+      }
+      
+      // 🐛 FIX: Only update if progress is actually increasing (prevent regression)
+      if (validProgress < existingJob.progress && existingJob.progress < 100) {
+        console.warn(`⚠️ Progress regression detected for job ${jobId}: ${existingJob.progress}% -> ${validProgress}%. Keeping current progress.`);
+        return;
+      }
+      
+      // Update with timestamp
+      await this.updateJob(jobId, {
+        progress: validProgress,
+        updated_at: Date.now()
+      });
+      
+      console.log(`✅ JobManager: Progress updated successfully for job ${jobId}: ${validProgress}%`);
+      
+    } catch (error) {
+      console.error(`❌ JobManager: Failed to update progress for job ${jobId}:`, error);
+      throw error; // Re-throw to allow caller to handle
+    }
   }
 
   /**
@@ -173,6 +206,106 @@ export class JobManager {
     const timestamp = Date.now().toString(36);
     const random = Math.random().toString(36).substring(2, 8);
     return `job_${timestamp}_${random}`;
+  }
+
+  /**
+   * Detect and recover stuck jobs (FIXED: New method to handle stuck progress)
+   */
+  async detectAndRecoverStuckJobs(): Promise<number> {
+    try {
+      console.log('🔍 Checking for stuck jobs...');
+      
+      const stuckJobThreshold = 10 * 60 * 1000; // 10 minutes
+      const now = Date.now();
+      
+      // Get all processing jobs
+      const processingJobs = await this.db.getJobsByStatus('processing');
+      let recoveredCount = 0;
+      
+      for (const job of processingJobs) {
+        const timeSinceUpdate = now - job.updated_at;
+        
+        // Check if job is stuck (no updates for more than threshold)
+        if (timeSinceUpdate > stuckJobThreshold) {
+          console.log(`🚨 Detected stuck job ${job.id}: ${Math.round(timeSinceUpdate / 1000)}s since last update`);
+          
+          // Attempt to recover the job
+          if (job.progress === 0) {
+            // Job never started properly - reset to queued
+            console.log(`🔄 Resetting stuck job ${job.id} to queued (progress was 0%)`);
+            await this.updateJob(job.id, {
+              status: 'queued',
+              progress: 0,
+              error_message: undefined
+            });
+            recoveredCount++;
+          } else if (job.progress < 100) {
+            // Job was progressing but got stuck - fail it with helpful message
+            console.log(`❌ Failing stuck job ${job.id} (progress was ${job.progress}%)`);
+            await this.failJob(job.id, 
+              `Conversion timed out after ${Math.round(timeSinceUpdate / 60000)} minutes. ` +
+              'This may be due to network issues or server overload. Please try again.'
+            );
+            recoveredCount++;
+          }
+        }
+      }
+      
+      if (recoveredCount > 0) {
+        console.log(`✅ Recovered ${recoveredCount} stuck jobs`);
+      } else {
+        console.log('✅ No stuck jobs found');
+      }
+      
+      return recoveredCount;
+      
+    } catch (error) {
+      console.error('❌ Failed to detect and recover stuck jobs:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Get jobs that haven't been updated recently (potential stuck jobs)
+   */
+  async getStaleJobs(thresholdMinutes: number = 10): Promise<ConversionJob[]> {
+    try {
+      const threshold = Date.now() - (thresholdMinutes * 60 * 1000);
+      
+      // Get processing jobs that haven't been updated recently
+      const staleJobs = await this.db.getActiveConversionJobs(100);
+      
+      return staleJobs.filter(job => 
+        job.status === 'processing' && 
+        job.updated_at < threshold
+      );
+      
+    } catch (error) {
+      console.error('❌ Failed to get stale jobs:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Force progress update for a job (emergency recovery)
+   */
+  async forceProgressUpdate(jobId: string, progress: number, reason: string): Promise<boolean> {
+    try {
+      console.log(`🚨 Force updating progress for job ${jobId} to ${progress}% (reason: ${reason})`);
+      
+      await this.updateJob(jobId, {
+        progress: Math.min(100, Math.max(0, progress)),
+        updated_at: Date.now(),
+        error_message: reason
+      });
+      
+      console.log(`✅ Force progress update completed for job ${jobId}`);
+      return true;
+      
+    } catch (error) {
+      console.error(`❌ Force progress update failed for job ${jobId}:`, error);
+      return false;
+    }
   }
 
   /**
