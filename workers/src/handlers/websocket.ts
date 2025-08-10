@@ -540,11 +540,18 @@ export class WebSocketManager {
     jobId: string,
     errorDetails: {
       message: string;
-      suggestion?: string;
-      canRetry?: boolean;
+      type?: string;
+      platform?: string;
       severity?: 'low' | 'medium' | 'high' | 'critical';
-      errorType?: string;
+      canRetry?: boolean;
+      suggestion?: string;
+      recoverySuggestions?: string[];
+      estimatedRecoveryTime?: number;
+      reliabilityScore?: number;
+      isDegraded?: boolean;
+      fallbackAvailable?: boolean;
       retryDelay?: number;
+      errorType?: string; // Legacy support
     }
   ) {
     const message = {
@@ -552,10 +559,18 @@ export class WebSocketManager {
       payload: {
         jobId,
         error: errorDetails.message,
-        suggestion: errorDetails.suggestion,
-        canRetry: errorDetails.canRetry || false,
+        errorType: errorDetails.type || errorDetails.errorType,
+        platform: errorDetails.platform,
         severity: errorDetails.severity || 'medium',
-        errorType: errorDetails.errorType,
+        canRetry: errorDetails.canRetry || false,
+        suggestion: errorDetails.suggestion,
+        recoverySuggestions: errorDetails.recoverySuggestions || [],
+        estimatedRecoveryTime: errorDetails.estimatedRecoveryTime,
+        platformInfo: {
+          reliabilityScore: errorDetails.reliabilityScore,
+          isDegraded: errorDetails.isDegraded,
+          fallbackAvailable: errorDetails.fallbackAvailable,
+        },
         retryDelay: errorDetails.retryDelay,
         timestamp: Date.now(),
       },
@@ -565,10 +580,12 @@ export class WebSocketManager {
     const success = this.sendMessageWithRetry(jobId, message, 3);
 
     if (success) {
-      console.log(`📤 WebSocket: Error notification sent for job ${jobId}`);
+      console.log(
+        `📤 WebSocket: Enhanced error notification sent for job ${jobId} (platform: ${errorDetails.platform})`
+      );
     } else {
       console.warn(
-        `⚠️ WebSocket: Failed to send error notification for job ${jobId}`
+        `⚠️ WebSocket: Failed to send enhanced error notification for job ${jobId}`
       );
     }
   }

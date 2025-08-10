@@ -4,6 +4,10 @@ import { QueueManager } from './queue-manager';
 import { StorageManager } from './storage';
 import { DatabaseManager } from './database';
 import { PresignedUrlManager } from './presigned-url-manager';
+import {
+  PlatformErrorHandler,
+  PlatformErrorClassification,
+} from './platform-error-handler';
 
 /**
  * Error classification and handling strategy
@@ -1106,7 +1110,7 @@ export class ConversionService {
   }
 
   /**
-   * Handle conversion errors with enhanced error processing and recovery
+   * Handle conversion errors with comprehensive platform-specific classification and recovery
    */
   private async handleConversionError(
     error: Error,
@@ -1114,130 +1118,418 @@ export class ConversionService {
     request?: ConvertRequest,
     lockId?: string
   ): Promise<void> {
-    const errorClassification = this.categorizeError(error);
-    const userMessage = this.getUserFriendlyMessage(errorClassification);
+    console.error(`🚨 Handling conversion error for job ${jobId}:`, error);
 
-    console.log(
-      `🔍 Error classified as: ${errorClassification.type} (severity: ${errorClassification.severity})`
+    // Get platform from URL if request is available
+    const platform = request
+      ? PlatformErrorHandler.detectPlatformFromUrl(request.url)
+      : 'generic';
+
+    // Classify the error using platform-specific handler
+    const classification = PlatformErrorHandler.classifyError(
+      error,
+      platform,
+      request?.url
     );
 
-    // Try automatic recovery if possible
-    if (
-      errorClassification.retryable &&
-      errorClassification.fallbackAction &&
-      request
-    ) {
-      const recoveryAttempted = await this.attemptErrorRecovery(
-        jobId,
-        request,
-        errorClassification
+    console.log(
+      `🔍 Error classified as: ${classification.type} (${classification.platform}, severity: ${classification.severity})`
+    );
+
+    // Get user-friendly message with recovery suggestions
+    const userMessage = PlatformErrorHandler.getUserFriendlyMessage(
+      classification,
+      true
+    );
+    const recoverySuggestions = PlatformErrorHandler.getRecoverySuggestions(
+      classification.platform,
+      classification.type
+    );
+
+    // Determine if we should attempt fallback strategies
+    const shouldUseFallback =
+      PlatformErrorHandler.shouldUseFallback(classification);
+
+    // Check if this is a retryable error and we haven't exceeded max retries
+    const currentJob = await this.jobManager.getJob(jobId);
+    const retryCount = this.getRetryCount(currentJob?.metadata);
+    const canRetry =
+      classification.retryable && retryCount < classification.maxRetries;
+
+    // Log platform reliability info
+    const reliabilityScore =
+      PlatformErrorHandler.getPlatformReliabilityScore(platform);
+    const isDegraded = PlatformErrorHandler.isPlatformDegraded(platform);
+
+    console.log(
+      `📊 Platform ${platform} reliability: ${reliabilityScore}% (degraded: ${isDegraded})`
+    );
+
+    // If we can retry and should use fallback, attempt fallback strategy
+    if (canRetry && shouldUseFallback && request) {
+      const fallbackAction = PlatformErrorHandler.getNextFallbackAction(
+        platform,
+        retryCount
       );
-      if (recoveryAttempted) {
-        return; // Recovery was attempted, don't fail the job yet
+
+      if (fallbackAction) {
+        console.log(
+          `🔄 Attempting fallback strategy: ${fallbackAction} (attempt ${retryCount + 1}/${classification.maxRetries})`
+        );
+
+        try {
+          await this.attemptFallbackStrategy(
+            jobId,
+            request,
+            lockId || 'legacy',
+            fallbackAction,
+            classification,
+            retryCount + 1
+          );
+          return; // Exit early if fallback is attempted
+        } catch (fallbackError) {
+          console.error(
+            `❌ Fallback strategy ${fallbackAction} failed:`,
+            fallbackError
+          );
+          // Continue to mark job as failed
+        }
       }
     }
 
-    // Send user-friendly error notification via WebSocket
+    // Create comprehensive error metadata
+    const errorMetadata = {
+      originalError: error.message,
+      errorType: classification.type,
+      platform: classification.platform,
+      severity: classification.severity,
+      retryCount,
+      maxRetries: classification.maxRetries,
+      canRetry,
+      shouldUseFallback,
+      reliabilityScore,
+      isDegraded,
+      recoverySuggestions,
+      timestamp: new Date().toISOString(),
+      classification: {
+        userMessage: classification.userMessage,
+        technicalMessage: classification.technicalMessage,
+        suggestion: classification.suggestion,
+        estimatedRecoveryTime: classification.estimatedRecoveryTime,
+      },
+    };
+
+    // Update job with comprehensive error information
+    await this.jobManager.failJob(
+      jobId,
+      userMessage,
+      JSON.stringify(errorMetadata),
+      lockId
+    );
+
+    // Send enhanced WebSocket error notification
     if (this.wsManager) {
-      this.wsManager.sendEnhancedError(jobId, {
-        message: userMessage,
-        suggestion: errorClassification.suggestion,
-        canRetry: errorClassification.retryable,
-        severity: errorClassification.severity,
-        errorType: errorClassification.type,
-      });
+      try {
+        this.wsManager.sendEnhancedError(jobId, {
+          message: userMessage,
+          type: classification.type,
+          platform: classification.platform,
+          severity: classification.severity,
+          canRetry,
+          suggestion: classification.suggestion,
+          recoverySuggestions,
+          estimatedRecoveryTime: classification.estimatedRecoveryTime,
+          reliabilityScore,
+          isDegraded,
+          fallbackAvailable: shouldUseFallback,
+        });
+      } catch (wsError) {
+        console.error(
+          `Failed to send WebSocket error notification for job ${jobId}:`,
+          wsError
+        );
+      }
     }
 
-    // Fail the job with user-friendly message
-    await this.jobManager.failJob(jobId, userMessage, lockId);
-
-    // Log alert if required
-    if (errorClassification.alertRequired) {
+    // Alert if required for critical errors
+    if (classification.alertRequired) {
       console.error(
-        `🚨 ALERT REQUIRED: ${errorClassification.type} - ${error.message}`
+        `🚨 ALERT REQUIRED: Critical error for job ${jobId} on platform ${platform}`
       );
-      // TODO: Send to monitoring/alerting system
+      // Here you could integrate with monitoring/alerting systems
+    }
+
+    console.log(
+      `❌ Job ${jobId} marked as failed with error type: ${classification.type} (platform: ${platform})`
+    );
+  }
+
+  /**
+   * Attempt fallback strategy for error recovery
+   */
+  private async attemptFallbackStrategy(
+    jobId: string,
+    request: ConvertRequest,
+    lockId: string,
+    fallbackAction: string,
+    classification: PlatformErrorClassification,
+    retryCount: number
+  ): Promise<void> {
+    console.log(
+      `🔄 Executing fallback strategy: ${fallbackAction} for job ${jobId}`
+    );
+
+    // Update progress to show fallback attempt
+    await this.updateProgressWithNotification(jobId, 25, 'processing', {
+      currentStep: `Trying alternative method: ${fallbackAction}`,
+      fallbackAttempt: retryCount,
+      maxRetries: classification.maxRetries,
+    });
+
+    // Update job metadata with retry information
+    const currentJob = await this.jobManager.getJob(jobId);
+    const metadata = currentJob?.metadata
+      ? JSON.parse(currentJob.metadata)
+      : {};
+    metadata.retryCount = retryCount;
+    metadata.lastFallbackAction = fallbackAction;
+    metadata.fallbackHistory = metadata.fallbackHistory || [];
+    metadata.fallbackHistory.push({
+      action: fallbackAction,
+      timestamp: new Date().toISOString(),
+      attempt: retryCount,
+    });
+
+    await this.dbManager.updateConversionJob(jobId, {
+      metadata: JSON.stringify(metadata),
+      updated_at: Date.now(),
+    });
+
+    // Execute platform-specific fallback strategy
+    switch (fallbackAction) {
+      case 'use_proxy':
+        await this.executeProxyFallback(jobId, request, lockId);
+        break;
+      case 'try_alternative_client':
+        await this.executeAlternativeClientFallback(jobId, request, lockId);
+        break;
+      case 'wait_and_retry':
+        await this.executeWaitAndRetryFallback(
+          jobId,
+          request,
+          lockId,
+          classification
+        );
+        break;
+      case 'reduce_quality':
+        await this.executeQualityReductionFallback(jobId, request, lockId);
+        break;
+      case 'try_different_format':
+        await this.executeFormatFallback(jobId, request, lockId);
+        break;
+      case 'suggest_alternative_platform':
+        await this.executePlatformSuggestionFallback(jobId, request);
+        break;
+      default:
+        console.warn(`Unknown fallback action: ${fallbackAction}`);
+        throw new Error(`Unsupported fallback action: ${fallbackAction}`);
     }
   }
 
   /**
-   * Attempt automatic error recovery based on fallback action
+   * Get retry count from job metadata
    */
-  private async attemptErrorRecovery(
-    jobId: string,
-    request: ConvertRequest,
-    errorClassification: ErrorClassification
-  ): Promise<boolean> {
-    const fallbackAction = errorClassification.fallbackAction;
-
-    if (!fallbackAction) {
-      return false;
-    }
-
-    console.log(`🔄 Attempting error recovery with action: ${fallbackAction}`);
-
-    // Notify about recovery attempt
-    if (this.wsManager) {
-      this.wsManager.sendRecoveryAttempt(
-        jobId,
-        fallbackAction,
-        `正在尝试 ${this.getRecoveryActionName(fallbackAction)}...`
-      );
-    }
+  private getRetryCount(metadata?: string): number {
+    if (!metadata) return 0;
 
     try {
-      let success = false;
-
-      switch (fallbackAction) {
-        case 'reduce_quality':
-          success = await this.attemptQualityReduction(jobId, request);
-          break;
-
-        case 'use_proxy':
-          success = await this.attemptProxyRetry(jobId, request);
-          break;
-
-        case 'direct_connection':
-          success = await this.attemptDirectConnection(jobId, request);
-          break;
-
-        case 'cleanup_files':
-          await this.cleanupExpiredJobs();
-          success = false; // Don't retry, just cleanup
-          break;
-
-        default:
-          success = false;
-      }
-
-      // Notify about recovery result
-      if (this.wsManager) {
-        if (success) {
-          this.wsManager.sendRecoverySuccess(
-            jobId,
-            `${this.getRecoveryActionName(fallbackAction)} 成功，继续处理...`
-          );
-        } else {
-          this.wsManager.sendRecoveryFailure(
-            jobId,
-            `${this.getRecoveryActionName(fallbackAction)} 失败`
-          );
-        }
-      }
-
-      return success;
-    } catch (recoveryError) {
-      console.error(`❌ Error recovery failed: ${recoveryError}`);
-
-      if (this.wsManager) {
-        this.wsManager.sendRecoveryFailure(
-          jobId,
-          `恢复尝试失败: ${recoveryError instanceof Error ? recoveryError.message : '未知错误'}`
-        );
-      }
-
-      return false;
+      const parsed = JSON.parse(metadata);
+      return parsed.retryCount || 0;
+    } catch {
+      return 0;
     }
+  }
+
+  /**
+   * Execute proxy fallback strategy
+   */
+  private async executeProxyFallback(
+    jobId: string,
+    request: ConvertRequest,
+    lockId: string
+  ): Promise<void> {
+    console.log(`🔄 Executing proxy fallback for job ${jobId}`);
+
+    // Create modified request with proxy flag
+    const modifiedRequest = {
+      ...request,
+      useProxy: true,
+      noProxy: false,
+    };
+
+    // Retry the conversion with proxy
+    await this.performActualConversion(jobId, modifiedRequest, lockId);
+  }
+
+  /**
+   * Execute alternative client fallback strategy
+   */
+  private async executeAlternativeClientFallback(
+    jobId: string,
+    request: ConvertRequest,
+    lockId: string
+  ): Promise<void> {
+    console.log(`🔄 Executing alternative client fallback for job ${jobId}`);
+
+    // Create modified request with bypass flag
+    const modifiedRequest = {
+      ...request,
+      useBypass: true,
+    };
+
+    // Retry the conversion with alternative client
+    await this.performActualConversion(jobId, modifiedRequest, lockId);
+  }
+
+  /**
+   * Execute wait and retry fallback strategy
+   */
+  private async executeWaitAndRetryFallback(
+    jobId: string,
+    request: ConvertRequest,
+    lockId: string,
+    classification: PlatformErrorClassification
+  ): Promise<void> {
+    console.log(`🔄 Executing wait and retry fallback for job ${jobId}`);
+
+    // Calculate wait time based on backoff strategy
+    const retryCount = this.getRetryCount(
+      (await this.jobManager.getJob(jobId))?.metadata
+    );
+    let waitTime = 30; // Default 30 seconds
+
+    if (classification.backoffStrategy === 'exponential') {
+      waitTime = Math.min(300, 30 * Math.pow(2, retryCount)); // Max 5 minutes
+    } else {
+      waitTime = 30 + retryCount * 30; // Linear increase
+    }
+
+    console.log(`⏳ Waiting ${waitTime} seconds before retry...`);
+
+    // Update progress to show waiting
+    await this.updateProgressWithNotification(jobId, 30, 'processing', {
+      currentStep: `Waiting ${waitTime} seconds before retry...`,
+      waitTime,
+      retryCount,
+    });
+
+    // Wait for the calculated time
+    await new Promise(resolve => setTimeout(resolve, waitTime * 1000));
+
+    // Retry the conversion
+    await this.performActualConversion(jobId, request, lockId);
+  }
+
+  /**
+   * Execute quality reduction fallback strategy
+   */
+  private async executeQualityReductionFallback(
+    jobId: string,
+    request: ConvertRequest,
+    lockId: string
+  ): Promise<void> {
+    console.log(`🔄 Executing quality reduction fallback for job ${jobId}`);
+
+    // Reduce quality setting
+    let newQuality = request.quality;
+    switch (request.quality) {
+      case 'highest':
+        newQuality = 'high';
+        break;
+      case 'high':
+        newQuality = 'medium';
+        break;
+      case 'medium':
+        newQuality = 'low';
+        break;
+      case 'low':
+        newQuality = 'lowest';
+        break;
+      default:
+        newQuality = 'medium';
+    }
+
+    const modifiedRequest = {
+      ...request,
+      quality: newQuality,
+    };
+
+    console.log(`📉 Reducing quality from ${request.quality} to ${newQuality}`);
+
+    // Update progress to show quality reduction
+    await this.updateProgressWithNotification(jobId, 35, 'processing', {
+      currentStep: `Retrying with reduced quality: ${newQuality}`,
+      originalQuality: request.quality,
+      newQuality,
+    });
+
+    // Retry the conversion with reduced quality
+    await this.performActualConversion(jobId, modifiedRequest, lockId);
+  }
+
+  /**
+   * Execute format fallback strategy
+   */
+  private async executeFormatFallback(
+    jobId: string,
+    request: ConvertRequest,
+    lockId: string
+  ): Promise<void> {
+    console.log(`🔄 Executing format fallback for job ${jobId}`);
+
+    // Try alternative format (MP4 -> MP3 or vice versa)
+    const newFormat = request.format === 'mp4' ? 'mp3' : 'mp4';
+
+    const modifiedRequest = {
+      ...request,
+      format: newFormat as 'mp3' | 'mp4',
+    };
+
+    console.log(`🔄 Changing format from ${request.format} to ${newFormat}`);
+
+    // Update progress to show format change
+    await this.updateProgressWithNotification(jobId, 35, 'processing', {
+      currentStep: `Retrying with different format: ${newFormat}`,
+      originalFormat: request.format,
+      newFormat,
+    });
+
+    // Retry the conversion with different format
+    await this.performActualConversion(jobId, modifiedRequest, lockId);
+  }
+
+  /**
+   * Execute platform suggestion fallback strategy
+   */
+  private async executePlatformSuggestionFallback(
+    jobId: string,
+    request: ConvertRequest
+  ): Promise<void> {
+    console.log(`🔄 Executing platform suggestion fallback for job ${jobId}`);
+
+    const platform = PlatformErrorHandler.detectPlatformFromUrl(request.url);
+    const suggestions = PlatformErrorHandler.getRecoverySuggestions(
+      platform,
+      ErrorType.ACCESS_DENIED
+    );
+
+    // This is a terminal fallback - we don't retry, but provide helpful suggestions
+    const errorMessage =
+      `This ${platform} video cannot be processed at the moment. Please try:\n\n` +
+      suggestions.map(s => `• ${s}`).join('\n') +
+      '\n\nAlternatively, you can use videos from more reliable platforms like Twitter/X or TikTok.';
+
+    throw new Error(errorMessage);
   }
 
   /**

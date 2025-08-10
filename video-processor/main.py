@@ -53,6 +53,24 @@ except ImportError as e:
     def record_proxy_usage(*args, **kwargs):
         pass
 
+# Import platform-specific error handling
+try:
+    from platform_error_handler import handle_platform_error, PlatformErrorHandler
+    PLATFORM_ERROR_HANDLING_AVAILABLE = True
+    logger.info("Platform error handling loaded successfully")
+except ImportError as e:
+    PLATFORM_ERROR_HANDLING_AVAILABLE = False
+    logger.warning(f"Platform error handling not available: {e}")
+
+    # Fallback function
+    def handle_platform_error(error_message: str, url: str = None, platform: str = None):
+        return {
+            'success': False,
+            'error': error_message,
+            'error_classification': {'type': 'SERVER_ERROR', 'platform': 'generic'},
+            'recovery_suggestions': ['Please try again']
+        }
+
 app = FastAPI(
     title="GetGoodTape Video Processor",
     description="Video processing service for converting videos to MP3/MP4",
@@ -393,6 +411,71 @@ async def test_r2():
     except Exception as e:
         logger.error(f"R2 test failed: {e}")
         return {"status": "error", "message": str(e)}
+
+@app.post("/classify-error")
+async def classify_error_endpoint(request: dict):
+    """
+    Classify an error using platform-specific error handling
+    """
+    try:
+        error_message = request.get('error', '')
+        url = request.get('url', '')
+        platform = request.get('platform', '')
+        
+        if not error_message:
+            return {"success": False, "error": "Error message is required"}
+        
+        # Use platform-specific error handling
+        if PLATFORM_ERROR_HANDLING_AVAILABLE:
+            result = handle_platform_error(error_message, url, platform)
+            return result
+        else:
+            return {
+                "success": False,
+                "error": error_message,
+                "error_classification": {
+                    "type": "SERVER_ERROR",
+                    "platform": "generic",
+                    "severity": "medium",
+                    "retryable": True
+                },
+                "recovery_suggestions": ["Please try again"]
+            }
+    except Exception as e:
+        logger.error(f"Error classification failed: {e}")
+        return {"success": False, "error": str(e)}
+
+@app.get("/platform-status")
+async def get_platform_status():
+    """
+    Get current status and reliability scores for all platforms
+    """
+    try:
+        if not PLATFORM_ERROR_HANDLING_AVAILABLE:
+            return {"success": False, "error": "Platform error handling not available"}
+        
+        platforms = ['youtube', 'twitter', 'tiktok', 'instagram', 'facebook', 'vimeo']
+        status = {}
+        
+        for platform in platforms:
+            status[platform] = {
+                'reliability_score': PlatformErrorHandler.get_platform_reliability_score(platform),
+                'is_degraded': PlatformErrorHandler.is_platform_degraded(platform),
+                'recommended': PlatformErrorHandler.get_platform_reliability_score(platform) >= 75
+            }
+        
+        return {
+            "success": True,
+            "platform_status": status,
+            "recommendations": {
+                "most_reliable": max(status.items(), key=lambda x: x[1]['reliability_score'])[0],
+                "avoid_platforms": [p for p, s in status.items() if s['is_degraded']],
+                "recommended_platforms": [p for p, s in status.items() if s['recommended']]
+            }
+        }
+    except Exception as e:
+        logger.error(f"Platform status check failed: {e}")
+        return {"success": False, "error": str(e)}
 
 @app.get("/test-r2-full")
 async def test_r2_full():
@@ -1752,32 +1835,44 @@ async def extract_metadata_endpoint(request: VideoMetadataRequest):
         error_msg = str(e)
         logger.error(f"Failed to extract metadata for {request.url}: {error_msg}")
 
-        # Provide user-friendly error messages for common issues
-        if "tiktok" in request.url.lower():
-            if "Unable to extract webpage video data" in error_msg:
-                user_friendly_error = (
-                    "TikTok video extraction failed due to anti-bot protection. "
-                    "This is a common issue with TikTok. Please try:\n"
-                    "• A different TikTok video\n"
-                    "• Trying again in a few minutes\n"
-                    "• Using videos from other platforms (YouTube, Twitter, etc.)\n"
-                    "• Checking if the video is still available and public"
-                )
-            else:
-                user_friendly_error = f"TikTok extraction failed: {error_msg}"
-        elif "youtube" in request.url.lower():
-            user_friendly_error = (
-                "YouTube access is currently restricted from this server location. "
-                "Please try a different video or try again later."
+        # Use platform-specific error handling
+        if PLATFORM_ERROR_HANDLING_AVAILABLE:
+            error_result = handle_platform_error(error_msg, request.url)
+            
+            # Log the classification for monitoring
+            logger.info(f"Error classified as: {error_result.get('error_classification', {}).get('type', 'UNKNOWN')} "
+                       f"(platform: {error_result.get('error_classification', {}).get('platform', 'unknown')})")
+            
+            return MetadataResponse(
+                success=False,
+                error=error_result['error']
             )
         else:
-            user_friendly_error = f"Failed to extract video metadata: {error_msg}"
+            # Fallback to basic error handling
+            if "tiktok" in request.url.lower():
+                if "Unable to extract webpage video data" in error_msg:
+                    user_friendly_error = (
+                        "TikTok video extraction failed due to anti-bot protection. "
+                        "This is a common issue with TikTok. Please try:\n"
+                        "• A different TikTok video\n"
+                        "• Trying again in a few minutes\n"
+                        "• Using videos from other platforms (YouTube, Twitter, etc.)\n"
+                        "• Checking if the video is still available and public"
+                    )
+                else:
+                    user_friendly_error = f"TikTok extraction failed: {error_msg}"
+            elif "youtube" in request.url.lower():
+                user_friendly_error = (
+                    "YouTube access is currently restricted from this server location. "
+                    "Please try a different video or try again later."
+                )
+            else:
+                user_friendly_error = f"Failed to extract video metadata: {error_msg}"
 
-        # Return error response
-        return MetadataResponse(
-            success=False,
-            error=user_friendly_error
-        )
+            return MetadataResponse(
+                success=False,
+                error=user_friendly_error
+            )
 
 @app.post("/convert-fast", response_model=ConvertResponse)
 async def convert_video_fast_endpoint(request: ConvertRequest):
@@ -2059,10 +2154,25 @@ async def convert_video_endpoint(request: ConvertRequest):
     except Exception as e:
         error_msg = str(e)
         logger.error(f"Conversion endpoint error: {error_msg}")
-        return ConvertResponse(
-            success=False,
-            error=f"Conversion failed: {error_msg}"
-        )
+        
+        # Use platform-specific error handling
+        if PLATFORM_ERROR_HANDLING_AVAILABLE:
+            error_result = handle_platform_error(error_msg, request.url)
+            
+            # Log the classification for monitoring
+            logger.info(f"Error classified as: {error_result.get('error_classification', {}).get('type', 'UNKNOWN')} "
+                       f"(platform: {error_result.get('error_classification', {}).get('platform', 'unknown')})")
+            
+            return ConvertResponse(
+                success=False,
+                error=error_result['error']
+            )
+        else:
+            # Fallback to basic error handling
+            return ConvertResponse(
+                success=False,
+                error=f"Conversion failed: {error_msg}"
+            )
 
 @app.post("/test-convert")
 async def test_convert_endpoint(request: ConvertRequest):
